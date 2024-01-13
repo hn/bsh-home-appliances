@@ -1,0 +1,201 @@
+#
+# bsh-dbus-wm14s750.yaml -- ESPHome config to interface B/S/H/ washing machine WM14S750
+#
+# (C) 2024 Hajo Noerenberg
+#
+# Usage: Connect D-Bus DATA pin to pin D5
+#
+# http://www.noerenberg.de/
+# https://github.com/hn/bsh-home-appliances
+#
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 3.0 as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program. If not, see <http://www.gnu.org/licenses/gpl-3.0.txt>.
+#
+
+esphome:
+  name: bsh-dbus-wm14s750
+  friendly_name: BSH washing machine WM14S750
+
+esp8266:
+  board: d1_mini
+
+logger:
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Range Sensor Fallback Hotspot"
+    password: !secret wifi_ap_password
+
+captive_portal:
+
+uart:
+  id: dbus_uart
+  rx_pin: D5
+  baud_rate: 9600
+  debug:
+    direction: RX
+    dummy_receiver: true
+    after:
+      timeout: 20ms
+    sequence:
+      - lambda: |-
+          // UARTDebug::log_hex(direction, bytes, ' ');
+          for (unsigned int i = 0; i < bytes.size(); ) {
+            byte* framedata = bytes.data() + i;
+            unsigned int framelen = 4 + framedata[0];
+            if ((framelen < 6) || (framelen > (bytes.size() - i)) || esphome::crc16be(framedata, framelen, 0x0, 0x1021, false, false)) {
+              if (id(bsh_wm_log).state) {
+                ESP_LOGD("D-Bus", "Ignoring (ack?) byte at %2d with value %02X", i, framedata[0]);
+              }
+              i++;
+              continue;
+            }
+ 
+            std::string res;
+            char buf[5];
+            for (unsigned int j = 0; j < framelen; j++) {
+              sprintf(buf, "%02X ", framedata[j]);
+              res += buf;
+            }
+            if (id(bsh_wm_log).state || (((framedata[1] & 0x0F) != 0x0F) && ((framedata[1] & 0x0F) != 0x07))) {  // filter out noise
+              ESP_LOGD("D-Bus", "Valid frame at %2d with length %2d: %s", i, framelen, res.c_str());
+            }
+              
+            if (0 == memcmp(framedata + 1, "\x14\x10\x04", 3)) {
+              id(bsh_wm_temperature).publish_state(framedata[4]);
+            } else if (0 == memcmp(framedata + 1, "\x14\x10\x05", 3)) {
+              sprintf(buf, "%d", framedata[6]);
+              id(bsh_wm_program).publish_state(buf);
+            } else if (0 == memcmp(framedata + 1, "\x14\x10\x06", 3)) {
+              id(bsh_wm_rpm).publish_state(framedata[4]);
+            } else if (0 == memcmp(framedata + 1, "\x14\x10\x07", 3)) {
+              id(bsh_wm_feat_waterplus).publish_state((framedata[4] >> 1) & 0x01);
+              id(bsh_wm_feat_stains).publish_state((framedata[4] >> 5) & 0x01);
+              id(bsh_wm_feat_prewash).publish_state((framedata[4] >> 7) & 0x01);
+              id(bsh_wm_feat_anticrease).publish_state((framedata[5] >> 7) & 0x01);
+            } else if (0 == memcmp(framedata + 1, "\x26\x12\x00", 3)) {
+              sprintf(buf, "%d", framedata[5]);
+              id(bsh_wm_door).publish_state(buf);
+            } else if (0 == memcmp(framedata + 1, "\x2a\x16\x00", 3)) {
+              id(bsh_wm_remain).publish_state(framedata[4]);
+            }
+
+            i += framelen;
+          }
+
+switch:
+  - platform: template
+    id: bsh_wm_log
+    name: "Log all frames"
+    optimistic: true
+    icon: mdi:expand-all
+    entity_category: config
+    restore_mode: ALWAYS_OFF
+
+binary_sensor:
+  - platform: template
+    id: bsh_wm_feat_waterplus
+    name: Wasser Plus
+    icon: mdi:water-plus
+  - platform: template
+    id: bsh_wm_feat_stains
+    name: Flecken
+    icon: mdi:liquid-spot
+  - platform: template
+    id: bsh_wm_feat_prewash
+    name: Vorwäsche
+    icon: mdi:rotate-orbit
+  - platform: template
+    id: bsh_wm_feat_anticrease
+    name: Knitterschutz
+    icon: mdi:iron
+
+text_sensor:
+  - platform: template
+    id: bsh_wm_program
+    name: Waschprogramm
+    icon: mdi:numeric
+    filters:
+      - map:
+        - 0 -> Aus
+        - 1 -> Koch/Bunt
+        - 2 -> Pflegeleicht
+        - 3 -> Schnell/Mix
+        - 4 -> Fein/Seide
+        - 5 -> Wolle
+        - 6 -> Spülen
+        - 7 -> Schleudern
+        - 8 -> Abpumpen
+        - 9 -> Schonschleudern
+        - 10 -> Super 15
+        - 11 -> Outdoor Imprägnieren
+        - 12 -> Hemden/Business
+        - 13 -> Pflegeleicht Plus
+        - 14 -> Liebling 1
+        - 15 -> Liebling 2
+  - platform: template
+    id: bsh_wm_door
+    name: Tür
+    icon: mdi:door
+    filters:
+      - map:
+        - 1 -> Zu und nicht verriegelt
+        - 2 -> Offen
+        - 3 -> Zu und verriegelt
+
+sensor:
+  - platform: template
+    id: bsh_wm_remain
+    name: Restzeit
+    device_class: duration
+    state_class: measurement
+    unit_of_measurement: min
+    accuracy_decimals: 0
+  - platform: template
+    id: bsh_wm_temperature
+    name: Temperatur
+    device_class: temperature
+    state_class: measurement
+    unit_of_measurement: °C
+    accuracy_decimals: 0
+    filters:
+      - calibrate_linear:
+         datapoints:
+          - 0 -> 20.0
+          - 1 -> 30.0
+          - 2 -> 40.0
+          - 3 -> 50.0
+          - 4 -> 60.0
+          - 5 -> 70.0
+          - 6 -> 80.0
+          - 7 -> 90.0
+  - platform: template
+    id: bsh_wm_rpm
+    name: Umdrehungen
+    device_class: speed
+    state_class: measurement
+    unit_of_measurement: rpm
+    accuracy_decimals: 0
+    filters:
+      - multiply: 10
