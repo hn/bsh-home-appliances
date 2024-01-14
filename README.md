@@ -1,7 +1,7 @@
 # B/S/H/ Home Appliances
 
 ## Preamble
-[B/S/H/](https://www.bsh-group.com/) is one of the world's largest manufacturers of home appliances (according to [this source](https://www.faz.net/aktuell/technik-motor/technik/bsh-geschirrspueler-so-schnell-produziert-das-werk-in-dillingen-19341085.html), 10,000 dishwashers are produced _every day_ at their factory in Dillingen alone). Some of their well-known brands are Bosch, Siemens, Gaggenau, Neff, Constructa and Balay.
+[B/S/H/](https://www.bsh-group.com/) is one of the world's largest manufacturers of home appliances (according to [this source](https://www.faz.net/aktuell/technik-motor/technik/bsh-geschirrspueler-so-schnell-produziert-das-werk-in-dillingen-19341085.html), 10,000 dishwashers are produced _every day_ at [their factory](https://www.siemens-home.bsh-group.com/de/inspiration/marke-siemens/made-in-germany) in Dillingen alone). Some of their well-known brands are Bosch, Siemens, Gaggenau, Neff, Constructa and Balay.
 
 Despite this popularity, little is publicly known about the inner workings of the appliances.
 This project shows some of the things that have been discovered through reverse engineering.
