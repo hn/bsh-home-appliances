@@ -157,7 +157,7 @@ before before possibly sending the next data frame.
 The receiver responsible for processing the data frame inserts an acknowledgement byte precisely into this gap.
 The sender can read this byte and knows that the data frame has been delivered successfully.
 
-The lower bits of the acknowledgement byte are always set to 0xA and the upper bits correspond to those of the previous IC: `ACK = 0x0A | (IC_prev & 0xF0)`.
+The lower bits of the acknowledgement byte are always set to 0xA (can it really be that it is "A" for "Acknowledgement", really?) and the upper bits correspond to those of the previous IC: `ACK = 0x0A | (IC_prev & 0xF0)`.
 
 #### Boot log
 
