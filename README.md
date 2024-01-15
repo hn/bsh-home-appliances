@@ -30,7 +30,7 @@ It also seems to be the case that a manufacturer's devices, regardless of their 
 
 :raised_hand: The following findings are probably only applicable to a certain generation of B/S/H/ home appliances, namely those with "EP" circuit boards.
 The washing machine boards are labeled "EPW", which probably stands for "Elektronik Platine Waschmaschine" (electronic circuit board washing machine).
-The dryer boards are labeled "EPT", with "T" for "Trockner" (dryer).
+The dryer boards are labeled "EPT", with "T" for "Trockner" (dryer) and the dishwasher boards are using "EPG", with "G" for "Geschirrspüler".
 However, there is currently no known way of deducing the board version used internally from the external appearance or the model name.
 You have to open the machine and look inside.
 
