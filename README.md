@@ -243,7 +243,8 @@ _2 13 00  Read / Something response ?
 
 ## Software
 
-With just an [ESP8266, a piggyback 9V-to-5V-DC-DC converter and a few cables](bsh-dbus-esp8266-logger.jpg) one easily can interface the D-Bus (lab setup).
+With just an [ESP8266, a piggyback 9V-to-5V-DC-DC converter and a few cables](bsh-dbus-esp8266-logger.jpg) one easily can interface the D-Bus
+(lab setup only, not recommended to be installed in a real home appliance, see notes below).
 
 :warning: Warning: Please double check that you have read and followed the [safety notes](#warning) before connecting anything to a live device.
 I repeat: It is not guaranteed that the D-Bus is isolated from earth.
