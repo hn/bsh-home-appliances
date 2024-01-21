@@ -44,7 +44,7 @@ wifi:
 
   # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
-    ssid: "Range Sensor Fallback Hotspot"
+    ssid: "D-Bus Fallback Hotspot"
     password: !secret wifi_ap_password
 
 captive_portal:
