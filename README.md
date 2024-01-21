@@ -90,10 +90,10 @@ Unfortunately the antenna PCB is missing on my side.
 
 ### D-Bus
 
-According to [this](https://www.mikrocontroller.net/topic/395115#4543950) and [this](https://forums.ni.com/t5/Instrument-Control-GPIB-Serial/Has-anybody-used-D-Bus-to-communicate-with-and-or-control/m-p/4284296#M84901) source, the electronics inside the device are interconnected via a proprietary serial bus.
-Since there are no official sources, it is unclear whether this is called D-Bus, D-Bus-2, DBus or DBus2 and what the possible difference between version 1 and 2 might be.
+According to the [B/S/H/ patent documents](#misc), [this](https://www.mikrocontroller.net/topic/395115#4543950) and [this](https://forums.ni.com/t5/Instrument-Control-GPIB-Serial/Has-anybody-used-D-Bus-to-communicate-with-and-or-control/m-p/4284296#M84901) forum post, the electronics inside the device are interconnected via a proprietary serial bus called D-Bus or D-Bus-2.
+Since there are no public technical specifications, it is unclear what the possible difference between version 1 and 2 might be.
 
-The bus consists of three wires: GND, VCC and DATA. VCC is 9V and DATA is TTL (5V).
+The bus found on the "EP" circuit boards consists of three wires: GND, VCC and DATA. VCC is 9V and DATA is TTL (5V).
 Connections are established using 3 pin 2.5 pitch [RAST connectors](https://de.wikipedia.org/wiki/RAST-Steckverbinder).
 Some of these plugs have coding lugs to ensure that they cannot be plugged into the wrong socket.
 They are commercially available from [Lumberg](https://www.lumberg.com/en/products/product/3521), [Stocko](https://www.stocko-contact.com/downloads/STOCKO_Connector%20systems_pitch%202.5_ECO-TRONIC_de_en.pdf) and probably many more suppliers.
@@ -266,3 +266,13 @@ Please help if you have expertise in this area.
 This is more or less a proof-of-concept which uses the debug functionality of the UART interface,
 so not yet a real integration via an [external component](https://esphome.io/components/external_components.html).
 But it works well :)
+
+## Misc
+
+- B/S/H/ has received several patents that mention the D-Bus:
+  - [DE102009046706A1](https://worldwide.espacenet.com/patent/search/family/043510107/publication/DE102009046706A1?q=pn%3DDE102009046706A1)
+    describes a USB to CAN or D-Bus gateway.
+  - [DE102009026752A1](https://worldwide.espacenet.com/patent/search/family/042480518/publication/DE102009026752A1?q=pn%3DDE102009026752A1)
+    describes a way to interact with the home appliance for remote customer service.
+  - [DE102013205754A1](https://worldwide.espacenet.com/patent/search/family/050343707/publication/DE102013205754A1?q=pn%3DDE102013205754A1)
+    describes how to add a cryptography layer to the D-Bus (a kind of DRM to protect e.g. cooking recipes).
