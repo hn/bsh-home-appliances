@@ -95,7 +95,7 @@ Since there are no public technical specifications, it is unclear what the possi
 
 The bus found on the "EP" circuit boards consists of three wires: GND, VCC and DATA. VCC is 9V and DATA is TTL (5V).
 Connections are established using 3 pin 2.5 pitch [RAST connectors](https://de.wikipedia.org/wiki/RAST-Steckverbinder).
-Some of these plugs have coding lugs to ensure that they cannot be plugged into the wrong socket.
+The connectors have coding lugs to ensure that they cannot be plugged into the wrong socket: The plugs with the two coding lugs in the middle are D-Bus plugs.
 They are commercially available from [Lumberg](https://www.lumberg.com/en/products/product/3521), [Stocko](https://www.stocko-contact.com/downloads/STOCKO_Connector%20systems_pitch%202.5_ECO-TRONIC_de_en.pdf) and probably many more suppliers.
 B/S/H/ sells somewhat pricy pre-assembled cables as well, e.g. the [spare part 00631780](https://www.siemens-home.bsh-group.com/de/produktliste/00631780).
 
