@@ -157,7 +157,7 @@ before before possibly sending the next data frame.
 The receiver responsible for processing the data frame inserts an acknowledgement byte precisely into this gap.
 The sender can read this byte and knows that the data frame has been delivered successfully.
 
-The lower bits of the acknowledgement byte are always set to 0xA (can it really be that it is "A" for "Acknowledgement", really?) and the upper bits correspond to those of the previous IC: `ACK = 0x0A | (IC_prev & 0xF0)`.
+The lower bits of the acknowledgement byte are always set to 0xA (can it be that it is "A" for "Acknowledgement", really?) and the upper bits correspond to those of the previous IC: `ACK = 0x0A | (IC_prev & 0xF0)`.
 
 #### Boot log
 
@@ -278,4 +278,4 @@ But it works well :)
   - [DE102013205754A1](https://worldwide.espacenet.com/patent/search/family/050343707/publication/DE102013205754A1?q=pn%3DDE102013205754A1)
     describes how to add a cryptography layer to the D-Bus (a kind of DRM to protect e.g. cooking recipes).
 
-- If you think this is all wierd stuff, you haven't seen the [Zabex washing machine project](https://www.zabex.de/site/waschmaschine.html).
+- If you think this is all weird stuff, you haven't seen the [Zabex washing machine project](https://www.zabex.de/site/waschmaschine.html).
