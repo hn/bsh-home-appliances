@@ -277,3 +277,5 @@ But it works well :)
     describes a way to interact with the home appliance for remote customer service.
   - [DE102013205754A1](https://worldwide.espacenet.com/patent/search/family/050343707/publication/DE102013205754A1?q=pn%3DDE102013205754A1)
     describes how to add a cryptography layer to the D-Bus (a kind of DRM to protect e.g. cooking recipes).
+
+- If you think this is all wierd stuff, you haven't seen the [Zabex washing machine project](https://www.zabex.de/site/waschmaschine.html).
