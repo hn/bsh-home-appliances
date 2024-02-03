@@ -278,4 +278,9 @@ But it works well :)
   - [DE102013205754A1](https://worldwide.espacenet.com/patent/search/family/050343707/publication/DE102013205754A1?q=pn%3DDE102013205754A1)
     describes how to add a cryptography layer to the D-Bus (a kind of DRM to protect e.g. cooking recipes).
 
+- The eBUS (“energy bus” used by numerous heating systems) has similarities to the D-Bus. The [eBUSd project](https://ebusd.eu/) is very
+  mature, they even have designed a clever [hardware adapter](https://adapter.ebusd.eu/index.en.html).
+  The [specification](https://adapter.ebusd.eu/Spec_Prot_12_V1_3_1.pdf) is well worth reading and helps a lot to understand the D-Bus,
+  although the protocol differs in some aspects.
+
 - If you think this is all weird stuff, you haven't seen the [Zabex washing machine project](https://www.zabex.de/site/waschmaschine.html).
