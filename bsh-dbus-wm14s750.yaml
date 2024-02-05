@@ -46,6 +46,8 @@ wifi:
   ap:
     ssid: "D-Bus Fallback Hotspot"
     password: !secret wifi_ap_password
+    # Dirty workaround because the machine's power supply unit cannot provide enough current:
+    output_power: 10.5dB
 
 captive_portal:
 
