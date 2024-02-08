@@ -97,7 +97,7 @@ uart:
               id(bsh_wm_feat_prewash).publish_state((framedata[4] >> 7) & 0x01);
               id(bsh_wm_feat_anticrease).publish_state((framedata[5] >> 7) & 0x01);
             } else if (0 == memcmp(framedata + 1, "\x26\x12\x00", 3)) {
-              sprintf(buf, "%d", framedata[5]);
+              sprintf(buf, "%d", framedata[4]);
               id(bsh_wm_door).publish_state(buf);
             } else if (0 == memcmp(framedata + 1, "\x2a\x16\x00", 3)) {
               id(bsh_wm_remain).publish_state(framedata[4]);
@@ -162,9 +162,9 @@ text_sensor:
     icon: mdi:door
     filters:
       - map:
-        - 1 -> Zu und nicht verriegelt
+        - 0 -> Zu und nicht verriegelt
+        - 1 -> Zu und verriegelt
         - 2 -> Offen
-        - 3 -> Zu und verriegelt
 
 sensor:
   - platform: template
