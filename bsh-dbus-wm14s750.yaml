@@ -41,13 +41,13 @@ ota:
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
+  # Dirty workaround because the machine's power supply unit cannot provide enough current:
+  output_power: 10.5dB
 
   # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
     ssid: "D-Bus Fallback Hotspot"
     password: !secret wifi_ap_password
-    # Dirty workaround because the machine's power supply unit cannot provide enough current:
-    output_power: 10.5dB
 
 captive_portal:
 
