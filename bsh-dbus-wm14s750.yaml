@@ -96,6 +96,8 @@ uart:
               id(bsh_wm_feat_stains).publish_state((framedata[4] >> 5) & 0x01);
               id(bsh_wm_feat_prewash).publish_state((framedata[4] >> 7) & 0x01);
               id(bsh_wm_feat_anticrease).publish_state((framedata[5] >> 7) & 0x01);
+            } else if (0 == memcmp(framedata + 1, "\x26\x10\x20", 3)) {
+              id(bsh_wm_washmodule).publish_state(framedata[4]);
             } else if (0 == memcmp(framedata + 1, "\x26\x12\x00", 3)) {
               sprintf(buf, "%d", framedata[4]);
               id(bsh_wm_door).publish_state(buf);
@@ -192,6 +194,12 @@ sensor:
           - 5 -> 70.0
           - 6 -> 80.0
           - 7 -> 90.0
+  - platform: template
+    id: bsh_wm_washmodule
+    name: Waschprogramm Modul
+    entity_category: diagnostic
+    icon: mdi:map-marker-path
+    accuracy_decimals: 0
   - platform: template
     id: bsh_wm_rpm
     name: Umdrehungen
