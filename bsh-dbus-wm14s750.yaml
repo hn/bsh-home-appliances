@@ -68,20 +68,36 @@ uart:
             unsigned int framelen = 4 + framedata[0];
             if ((framelen < 6) || (framelen > (bytes.size() - i)) || esphome::crc16be(framedata, framelen, 0x0, 0x1021, false, false)) {
               if (id(bsh_wm_log).state) {
-                ESP_LOGD("D-Bus", "Ignoring (ack?) byte at %2d with value %02X", i, framedata[0]);
+                ESP_LOGD("D-Bus", "Ignoring byte at %2d with value %02X", i, framedata[0]);
               }
               i++;
               continue;
             }
  
+            unsigned int ack = 0;
             std::string res;
             char buf[5];
             for (unsigned int j = 0; j < framelen; j++) {
-              sprintf(buf, "%02X ", framedata[j]);
+              sprintf(buf, "%02X", framedata[j]);
               res += buf;
+              if (j == (framelen - 3)) {
+                for (unsigned int p = framelen; p < 9; p++) { res += "   "; }
+              }
+              if ((j == 0) || (j == 3) || (j == (framelen - 3))) { res += " | "; }
+              else if (j == 1) { res += "."; }
+              else if (j == 2) { res += "-"; }
+              else { res += " "; }
+            }
+            res += "(crc=ok) ";
+            if (((i + framelen) < bytes.size()) && (framedata[framelen] == ((framedata[1] & 0xF0) | 0x0A))) {
+              res += "| ";
+              sprintf(buf, "%02X", framedata[framelen]);
+              res += buf;
+              res += " (ack=ok)";
+              ack = 1;
             }
             if (id(bsh_wm_log).state || (((framedata[1] & 0x0F) != 0x0F) && ((framedata[1] & 0x0F) != 0x07))) {  // filter out noise
-              ESP_LOGD("D-Bus", "Valid frame at %2d with length %2d: %s", i, framelen, res.c_str());
+              ESP_LOGD("D-Bus", "Frame at %2d with length %2d: %s", i, framelen, res.c_str());
             }
               
             if (0 == memcmp(framedata + 1, "\x14\x10\x04", 3)) {
@@ -105,7 +121,7 @@ uart:
               id(bsh_wm_remain).publish_state(framedata[4]);
             }
 
-            i += framelen;
+            i += (framelen + ack);
           }
 
 switch:

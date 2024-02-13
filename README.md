@@ -164,28 +164,28 @@ The lower bits of the acknowledgement byte are always set to 0xA (can it be that
 A typical boot sequence just for the control board and control panel starts like this:
 
 ```
-        LL   IC DD DD DD DD DD DD   RR RR            ACK
-0.412s  04 : 0f e7 00 01 02       : a5 ec (crc=ok) : 0a (ack=ok)
-0.412s  03 : 0f e0 00 00          : 9a 0d (crc=ok) : 0a (ack=ok)
-0.412s  04 : 1f e8 00 01 02       : 75 58 (crc=ok) : 1a (ack=ok)
-0.412s  04 : 1f e0 01 01 02       : c7 ab (crc=ok) : 1a (ack=ok)
-0.581s  04 : 0f e7 00 02 02       : f0 bf (crc=ok) : 0a (ack=ok)
-0.581s  04 : 1f e8 00 02 02       : 20 0b (crc=ok) : 1a (ack=ok)
-0.617s  02 : 0f ef ff             : df 25 (crc=ok) : 0a (ack=ok)
-0.617s  03 : 13 15 00 00          : c6 3a (crc=ok) : 1a (ack=ok)
-0.768s  04 : 0f e7 00 32 03       : e5 0b (crc=ok) : 0a (ack=ok)
-0.849s  04 : 26 17 01 25 25       : 33 fe (crc=ok) : 2a (ack=ok)
-0.849s  03 : 22 13 01 0a          : bc bc (crc=ok) : 2a (ack=ok)
-0.849s  12 : 12 13 00 04 00 01 01 00 00 00 00 01 04 00 00 01 00 01 5a : e8 05 (crc=ok) : 1a (ack=ok)
-1.028s  05 : 14 10 05 00 ff 01    : ce 43 (crc=ok) (Wash program=1)   : 1a (ack=ok)
-1.028s  03 : 14 10 04 04          : f0 a7 (crc=ok) (Temperature=4)    : 1a (ack=ok)
-1.028s  03 : 14 10 06 89          : d6 e0 (crc=ok) (Spin speed=137)   : 1a (ack=ok)
-1.062s  03 : 14 10 08 00          : f5 4e (crc=ok) : 1a (ack=ok)
-1.062s  05 : 14 10 07 40 00 01    : 3d 79 (crc=ok) : 1a (ack=ok)
-1.100s  04 : 14 10 09 00 00       : 0e cb (crc=ok) : 1a (ack=ok)
-1.634s  04 : 0f e7 00 32 03       : e5 0b (crc=ok) : 0a (ack=ok)
-1.832s  04 : 0f e7 00 32 03       : e5 0b (crc=ok) : 0a (ack=ok)
-1.912s  06 : 26 12 00 02 02 00 00 : 5d d4 (crc=ok) : 2a (ack=ok)
+        LL   IC D1 D2   DD DD DD DD   RR RR            ACK
+0.412s  04 | 0f.e7-00 | 01 02       | a5 ec (crc=ok) | 0a (ack=ok)
+0.412s  03 | 0f.e0-00 | 00          | 9a 0d (crc=ok) | 0a (ack=ok)
+0.412s  04 | 1f.e8-00 | 01 02       | 75 58 (crc=ok) | 1a (ack=ok)
+0.412s  04 | 1f.e0-01 | 01 02       | c7 ab (crc=ok) | 1a (ack=ok)
+0.581s  04 | 0f.e7-00 | 02 02       | f0 bf (crc=ok) | 0a (ack=ok)
+0.581s  04 | 1f.e8-00 | 02 02       | 20 0b (crc=ok) | 1a (ack=ok)
+0.617s  02 | 0f.ef-ff |             | df 25 (crc=ok) | 0a (ack=ok)
+0.617s  03 | 13.15-00 | 00          | c6 3a (crc=ok) | 1a (ack=ok)
+0.768s  04 | 0f.e7-00 | 32 03       | e5 0b (crc=ok) | 0a (ack=ok)
+0.849s  04 | 26.17-01 | 25 25       | 33 fe (crc=ok) | 2a (ack=ok)
+0.849s  03 | 22.13-01 | 0a          | bc bc (crc=ok) | 2a (ack=ok)
+0.849s  12 | 12.13-00 | 04 00 01 01 00 00 00 00 01 04 00 00 01 00 01 5a | e8 05 (crc=ok) | 1a (ack=ok)
+1.028s  05 | 14.10-05 | 00 ff 01    | ce 43 (crc=ok) | 1a (ack=ok)
+1.028s  03 | 14.10-04 | 04          | f0 a7 (crc=ok) | 1a (ack=ok)
+1.028s  03 | 14.10-06 | 89          | d6 e0 (crc=ok) | 1a (ack=ok)
+1.062s  03 | 14.10-08 | 00          | f5 4e (crc=ok) | 1a (ack=ok)
+1.062s  05 | 14.10-07 | 40 00 01    | 3d 79 (crc=ok) | 1a (ack=ok)
+1.100s  04 | 14.10-09 | 00 00       | 0e cb (crc=ok) | 1a (ack=ok)
+1.634s  04 | 0f.e7-00 | 32 03       | e5 0b (crc=ok) | 0a (ack=ok)
+1.832s  04 | 0f.e7-00 | 32 03       | e5 0b (crc=ok) | 0a (ack=ok)
+1.912s  06 | 26.12-00 | 02 02 00 00 | 5d d4 (crc=ok) | 2a (ack=ok)
 ```
 
 #### Interpreting frame data (WM14S750)
@@ -196,14 +196,15 @@ A closer look at the frame data for the washing machine reveals the following me
 Washing machine WM14S750
 
 IC D1 D2 D3 D4 D5
-14 10 04 xx          Temperature: xx = 0=>20°, 1=>30°, 2=>40°, 3=>50°, 4=>60°, 5=>70°, 6=>80°, 7=>90° 
-14 10 05 xx ff yy    Washing program: yy_dec = 1 .. 15 (xx = ?)
-14 10 06 xx          Spinning speed, multiply xx by 10 to get rpm: xx_dec = 0, 40, 60, 80, 100, 120, 137
-14 10 07 xx yy zz    xx = FEATUREBITS1, yy = FEATUREBITS2, zz = 0 .. 2 VarioPerfect program number
-14 10 08 00          ?
-14 10 09 00 00       ?
-26 12 00 xx yy zz    Front door status: xx = 0=>Closed+Unlocked, 1=>Closed+Locked, 2=>Open
-2a 16 00 xx          Remaining time xx in minutes
+14.10-04 xx          Temperature: xx = 0=>20°, 1=>30°, 2=>40°, 3=>50°, 4=>60°, 5=>70°, 6=>80°, 7=>90° 
+14.10-05 xx ff yy    Washing program: yy_dec = 1 .. 15 (xx = ?)
+14.10-06 xx          Spinning speed, multiply xx by 10 to get rpm: xx_dec = 0, 40, 60, 80, 100, 120, 137
+14.10-07 xx yy zz    xx = FEATUREBITS1, yy = FEATUREBITS2, zz = 0 .. 2 VarioPerfect program number
+14.10-08 00          ?
+14.10-09 00 00       ?
+26.10-20 17          Wash program module
+26.12-00 xx yy zz    Front door status: xx = 0=>Closed+Unlocked, 1=>Closed+Locked, 2=>Open
+2a.16-00 xx          Remaining time xx in minutes
 
 FEATUREBITS1 = Logical OR of
 0x02 = Water Plus / Wasser Plus
@@ -234,12 +235,12 @@ Pure guesswork:
 
 ```
 IC D1 D2
-_f e7 00  Ping / Identify request ?
-_f e8 00  Ping / Identify response ?
-_f e0 00  Read / Something request ?
-_f e0 01  Read / Something response ?
-_2 13 01  Read / Something request ?
-_2 13 00  Read / Something response ?
+_f.e7-00  Ping / Identify request ?
+_f.e8-00  Ping / Identify response ?
+_f.e0-00  Read / Something request ?
+_f.e0-01  Read / Something response ?
+_2.13-01  Read / Something request ?
+_2.13-00  Read / Something response ?
 ```
 
 ## Software
