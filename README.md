@@ -127,25 +127,25 @@ These frames consist of a length byte, a control byte, some data bytes and a two
 
 ```
 03 14 10 06 78 29 de
-LL IC DD DD DD RR RR 
+LL TC DD DD DD RR RR
 
 LL = length, 3 data bytes follow, total frame length is 7 = 1+1+3+2
-IC = identifier and control byte
+TC = target id and control byte
 DD = variable data with length LL
 RR = checksum (CRC16-XMODEM)
 ```
 
-The identifier ("I" of IC-byte) designates the (unique) logical sender of the frame and not necessarily a piece of hardware.
-The control nibble ("C" of IC-byte) somehow classifies different types of frames.
+The target id ("T" of TC-byte) designates the (unique) logical receiver of the frame and not necessarily a piece of hardware.
+The control nibble ("C" of TC-byte) somehow classifies different types of frames.
 
 Some further considerations suggest that the first and second data byte have a special meaning:
 
 ```
 03 14 10 06 78 29 de
-LL IC D1 D2 DD RR RR 
+LL TC D1 D2 DD RR RR
 ```
 
-All frames with identical IC-D1-D2 bytes have the same length. Therefore D1-D2 might
+All frames with identical TC-D1-D2 bytes have the same length. Therefore D1-D2 might
 designate an address, register or subcmd, which then also determines the length and
 format of the following bytes.
 
@@ -157,14 +157,15 @@ before before possibly sending the next data frame.
 The receiver responsible for processing the data frame inserts an acknowledgement byte precisely into this gap.
 The sender can read this byte and knows that the data frame has been delivered successfully.
 
-The lower bits of the acknowledgement byte are always set to 0xA (can it be that it is "A" for "Acknowledgement", really?) and the upper bits correspond to those of the previous IC: `ACK = 0x0A | (IC_prev & 0xF0)`.
+The lower bits of the acknowledgement byte are always set to 0xA (can it be that it is "A" for "Acknowledgement", really?)
+and the upper bits correspond to those of the receiving target: `ACK = 0x0A | (TC & 0xF0)`.
 
 #### Boot log
 
 A typical boot sequence just for the control board and control panel starts like this:
 
 ```
-        LL   IC D1 D2   DD DD DD DD   RR RR            ACK
+        LL   TC D1 D2   DD DD DD DD   RR RR            ACK
 0.412s  04 | 0f.e7-00 | 01 02       | a5 ec (crc=ok) | 0a (ack=ok)
 0.412s  03 | 0f.e0-00 | 00          | 9a 0d (crc=ok) | 0a (ack=ok)
 0.412s  04 | 1f.e8-00 | 01 02       | 75 58 (crc=ok) | 1a (ack=ok)
@@ -195,7 +196,7 @@ A closer look at the frame data for the washing machine reveals the following me
 ```
 Washing machine WM14S750
 
-IC D1 D2 D3 D4 D5
+TC D1 D2 D3 D4 D5
 14.10-04 xx          Temperature: xx = 0=>20°, 1=>30°, 2=>40°, 3=>50°, 4=>60°, 5=>70°, 6=>80°, 7=>90° 
 14.10-05 xx ff yy    Washing program: yy_dec = 1 .. 15 (xx = ?)
 14.10-06 xx          Spinning speed, multiply xx by 10 to get rpm: xx_dec = 0, 40, 60, 80, 100, 120, 137
@@ -215,13 +216,13 @@ FEATUREBITS1 = Logical OR of
 FEATUREBITS2 = Logical OR of
 0x80 = Anti-crease protection / Knitterschutz
 
-IDENTIFIER ("I" of IC-byte)
-0x0 Network management / Control board
-0x1 User control panel
-0x2 Washing logic ?
-0x4 ?
+TARGET ("T" of TC-byte)
+0x0 Network management / Broadcast
+0x1 Washing control unit
+0x2 User control panel
+0x4 Unbalance sensor
 
-CONTROL ("C" of IC-byte)
+CONTROL ("C" of TC-byte)
 0x2 ?
 0x3 ?
 0x4 set ?
@@ -234,7 +235,7 @@ CONTROL ("C" of IC-byte)
 Pure guesswork:
 
 ```
-IC D1 D2
+TC D1 D2
 _f.e7-00  Ping / Identify request ?
 _f.e8-00  Ping / Identify response ?
 _f.e0-00  Read / Something request ?
