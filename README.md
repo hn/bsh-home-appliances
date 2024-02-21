@@ -71,7 +71,7 @@ The control panel is connected to the control board via D-Bus.
 
 This sensors detects unbalanced loads ([PCB front](bsh-9000444823-pcb-front.jpg), [PCB back](bsh-9000444823-pcb-back.jpg), [Enclosure](bsh-9000444823-enclosure.jpg)).
 It uses an [PIC18F24J10](https://www.microchip.com/en-us/product/pic18f24j10) MCU (28 pin QFN package)
-and an `A007MPL DREMAS` IC, someone suggests [it might be a custom ic](https://forum.teamhack.de/thread/45498-logixx-8-bosch-was32443-schleudert-sporadisch-nicht-st%C3%A4ndiges-anschleudern-auch/?postID=245837#post245837) ("Drehmassesensor" in german).
+and an `A007MPL DREMAS` IC, which is most likely a gyroscope or accelerometer sensor.
 The device is connected to the control board via D-Bus.
 
 There are 5 contact points on the back of the board that form a contact for [in-circuit serial programming (ICSP)](https://en.wikipedia.org/wiki/In-system_programming#Microchip_ICSP) (top to bottom):
