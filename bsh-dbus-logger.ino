@@ -31,6 +31,7 @@
 #define BSHDBUSTX D6    // not used here
 
 #define FRAMEBUFLEN 64
+#define USERBUFLEN 32
 
 SoftwareSerial dbus(BSHDBUSRX, BSHDBUSTX);
 
@@ -55,6 +56,9 @@ unsigned int framepos = 0;
 unsigned int framelen = 0;
 
 unsigned long readlast = 0;
+
+char userbuf[USERBUFLEN];
+unsigned int userlen = 0;
 
 void loop() {
   // put your main code here, to run repeatedly:
@@ -127,5 +131,34 @@ void loop() {
     } else {
       Serial.printf(" ");
     }
+  }
+
+  // Dirty way to write to the D-Bus: No silence / collision / anything detection, just fire and forget
+  // Input via terminal: TC.D1-D2 DD DD (no length prefix, no crc)
+
+  while (Serial.available()) {
+    byte c = Serial.read();
+    if (((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f')) && userlen < USERBUFLEN) {
+      userbuf[userlen++] = c;
+    }
+    if (c != '\r' && c != '\n') continue;
+    if (userlen < 6 || userlen % 2) {
+      Serial.println("Error: Invalid input length");
+      userlen = 0;
+      continue;
+    }
+    CRC16 outcrc(CRC16_XMODEM_POLYNOME, CRC16_XMODEM_INITIAL, CRC16_XMODEM_XOR_OUT, CRC16_XMODEM_REV_IN, CRC16_XMODEM_REV_OUT);
+    byte outbyte = userlen / 2 - 1;
+    outcrc.add(outbyte);
+    dbus.write(outbyte);
+    for (unsigned int i = 0; i < userlen; i += 2) {
+      outbyte = (userbuf[i] % 32 + 9) % 25 * 16 + (userbuf[i + 1] % 32 + 9) % 25;
+      outcrc.add(outbyte);
+      dbus.write(outbyte);
+    }
+    uint16_t outcc = outcrc.calc();
+    dbus.write(outcc >> 8);
+    dbus.write(outcc);
+    userlen = 0;
   }
 }
