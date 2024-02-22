@@ -1,7 +1,7 @@
 /*
 
    bsh-dbus-logger.ino
-   
+
    B/S/H/ D-Bus data logger
 
    (C) 2024 Hajo Noerenberg
@@ -86,7 +86,7 @@ void loop() {
 
     readlast = readnow;
     crc.add(rawbyte);
-    Serial.printf("%02x ", rawbyte);
+    Serial.printf("%02x", rawbyte);
 
     if (framepos < FRAMEBUFLEN) {
       framebuf[framepos++] = rawbyte;
@@ -94,17 +94,21 @@ void loop() {
 
     if (framepos == 1) {
       framelen = 2 + 2 + (unsigned int) rawbyte;
-      Serial.printf("| ");
+      Serial.printf(" | ");
+    } else if (framepos == 2) {
+      Serial.printf(".");
+    } else if (framepos == 3) {
+      Serial.printf("-");
     } else if (framepos == 4) {
-      Serial.printf("| ");
+      Serial.printf(" | ");
     } else if (framepos == (framelen - 2)) {
       for (unsigned int p = framelen; p < 10; p++) {
         Serial.printf("   ");
       }
-      Serial.printf("| ");
+      Serial.printf(" | ");
     } else if (framepos == framelen) {
       if (crc.calc() == 0) {
-        Serial.printf("(crc=ok) | ");
+        Serial.printf(" (crc=ok) | ");
         // We only process a small sample set of data here:
         if (memcmp(framebuf + 1, "\x14\x10\x04", 3) == 0) {
           Serial.printf("(Temperature=%d) ", framebuf[4]);
@@ -116,10 +120,12 @@ void loop() {
           Serial.printf("(Remaining time=%d) ", framebuf[4]);
         }
       } else {
-        Serial.printf("(crc=err, len=%d)\n", framelen);
+        Serial.printf(" (crc=err, len=%d)\n", framelen);
         framepos = framelen = 0;
         crc.restart();
       }
+    } else {
+      Serial.printf(" ");
     }
   }
 }
