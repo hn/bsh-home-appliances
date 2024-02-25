@@ -111,22 +111,27 @@ void loop() {
       }
       Serial.printf(" | ");
     } else if (framepos == framelen) {
-      if (crc.calc() == 0) {
-        Serial.printf(" (crc=ok) | ");
-        // We only process a small sample set of data here:
-        if (memcmp(framebuf + 1, "\x14\x10\x04", 3) == 0) {
-          Serial.printf("(Temperature=%d) ", framebuf[4]);
-        } else if (memcmp(framebuf + 1, "\x14\x10\x05", 3) == 0) {
-          Serial.printf("(Washing program=%d) ", framebuf[6]);
-        } else if (memcmp(framebuf + 1, "\x14\x10\x06", 3) == 0) {
-          Serial.printf("(Spin speed=%d) ", framebuf[4]);
-        } else if (memcmp(framebuf + 1, "\x2a\x16\x00", 3) == 0) {
-          Serial.printf("(Remaining time=%d) ", framebuf[4]);
-        }
-      } else {
+      if (crc.calc()) {
         Serial.printf(" (crc=err, len=%d)\n", framelen);
         framepos = framelen = 0;
         crc.restart();
+      } else {
+        Serial.printf(" (crc=ok) | ");
+        // We only process a small sample set of data here:
+        switch (framebuf[1] << 16 | framebuf[2] << 8 | framebuf[3]) {
+          case 0x141004:
+            Serial.printf("(Temperature=%d) ", framebuf[4]);
+            break;
+          case 0x141005:
+            Serial.printf("(Washing program=%d) ", framebuf[6]);
+            break;
+          case 0x141006:
+            Serial.printf("(Spin speed=%d) ", framebuf[4]);
+            break;
+          case 0x2a1600:
+            Serial.printf("(Remaining time=%d) ", framebuf[4]);
+            break;
+        }
       }
     } else {
       Serial.printf(" ");

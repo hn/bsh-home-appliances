@@ -99,26 +99,34 @@ uart:
             if (id(bsh_wm_log).state || (((framedata[1] & 0x0F) != 0x0F) && ((framedata[1] & 0x0F) != 0x07))) {  // filter out noise
               ESP_LOGD("D-Bus", "Frame at %2d with length %2d: %s", i, framelen, res.c_str());
             }
-              
-            if (0 == memcmp(framedata + 1, "\x14\x10\x04", 3)) {
-              id(bsh_wm_temperature).publish_state(framedata[4]);
-            } else if (0 == memcmp(framedata + 1, "\x14\x10\x05", 3)) {
-              sprintf(buf, "%d", framedata[6]);
-              id(bsh_wm_program).publish_state(buf);
-            } else if (0 == memcmp(framedata + 1, "\x14\x10\x06", 3)) {
-              id(bsh_wm_rpm).publish_state(framedata[4]);
-            } else if (0 == memcmp(framedata + 1, "\x14\x10\x07", 3)) {
-              id(bsh_wm_feat_waterplus).publish_state((framedata[4] >> 1) & 0x01);
-              id(bsh_wm_feat_stains).publish_state((framedata[4] >> 5) & 0x01);
-              id(bsh_wm_feat_prewash).publish_state((framedata[4] >> 7) & 0x01);
-              id(bsh_wm_feat_anticrease).publish_state((framedata[5] >> 7) & 0x01);
-            } else if (0 == memcmp(framedata + 1, "\x26\x10\x20", 3)) {
-              id(bsh_wm_washmodule).publish_state(framedata[4]);
-            } else if (0 == memcmp(framedata + 1, "\x26\x12\x00", 3)) {
-              sprintf(buf, "%d", framedata[4]);
-              id(bsh_wm_door).publish_state(buf);
-            } else if (0 == memcmp(framedata + 1, "\x2a\x16\x00", 3)) {
-              id(bsh_wm_remain).publish_state(framedata[4]);
+
+            switch (framedata[1] << 16 | framedata[2] << 8 | framedata[3]) {
+              case 0x141004:
+                id(bsh_wm_temperature).publish_state(framedata[4]);
+                break;
+              case 0x141005:
+                sprintf(buf, "%d", framedata[6]);
+                id(bsh_wm_program).publish_state(buf);
+                break;
+              case 0x141006:
+                id(bsh_wm_rpm).publish_state(framedata[4]);
+                break;
+              case 0x141007:
+                id(bsh_wm_feat_waterplus).publish_state((framedata[4] >> 1) & 0x01);
+                id(bsh_wm_feat_stains).publish_state((framedata[4] >> 5) & 0x01);
+                id(bsh_wm_feat_prewash).publish_state((framedata[4] >> 7) & 0x01);
+                id(bsh_wm_feat_anticrease).publish_state((framedata[5] >> 7) & 0x01);
+                break;
+              case 0x261020:
+                id(bsh_wm_washmodule).publish_state(framedata[4]);
+                break;
+              case 0x261200:
+                sprintf(buf, "%d", framedata[4]);
+                id(bsh_wm_door).publish_state(buf);
+                break;
+              case 0x2a1600:
+                id(bsh_wm_remain).publish_state(framedata[4]);
+                break;
             }
 
             i += (framelen + ack);
