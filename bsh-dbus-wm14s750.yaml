@@ -117,6 +117,9 @@ uart:
                 id(bsh_wm_feat_prewash).publish_state((framedata[4] >> 7) & 0x01);
                 id(bsh_wm_feat_anticrease).publish_state((framedata[5] >> 7) & 0x01);
                 break;
+              case 0x151100:
+                id(bsh_wm_start_button).publish_state(true);
+                break;
               case 0x174010:
                 id(bsh_wm_unbalance_x).publish_state((int16_t) ((framedata[5] << 8) | framedata[6]));
                 id(bsh_wm_unbalance_z).publish_state((int16_t) ((framedata[7] << 8) | framedata[8]));
@@ -147,6 +150,15 @@ switch:
     restore_mode: ALWAYS_OFF
 
 binary_sensor:
+  - platform: template
+    id: bsh_wm_start_button
+    name: Startknopf
+    icon: mdi:button-pointer
+    on_press:
+    - delay: 1s
+    - binary_sensor.template.publish:
+        id: bsh_wm_start_button
+        state: OFF
   - platform: template
     id: bsh_wm_feat_waterplus
     name: Wasser Plus

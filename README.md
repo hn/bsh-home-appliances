@@ -204,6 +204,7 @@ TC D1 D2 D3 D4 D5
 14.10-07 xx yy zz    xx = FEATUREBITS1, yy = FEATUREBITS2, zz = 0 .. 2 VarioPerfect program number
 14.10-08 00          ?
 14.10-09 00 00       ?
+15 11 00 01          Start button pressed on user control panel
 26.10-20 xx          Wash program module xx
 26.12-00 xx yy zz    Front door status: xx = 0=>Closed+Unlocked, 1=>Closed+Locked, 2=>Open
 2a.16-00 xx          Remaining time xx in minutes
