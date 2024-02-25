@@ -71,7 +71,8 @@ The control panel is connected to the control board via D-Bus.
 
 This sensors detects unbalanced loads ([PCB front](bsh-9000444823-pcb-front.jpg), [PCB back](bsh-9000444823-pcb-back.jpg), [Enclosure](bsh-9000444823-enclosure.jpg)).
 It uses an [PIC18F24J10](https://www.microchip.com/en-us/product/pic18f24j10) MCU (28 pin QFN package)
-and an `A007MPL DREMAS` IC, which is most likely a gyroscope or accelerometer sensor.
+and an `A007MPL DREMAS` IC, which [according to the manufacturer](https://www.ast-international.com/en.products.position-force-sensors.html#product-11) is a specialized 3D hall sensor
+(the [corresponding magnet](https://www.siemens-home.bsh-group.com/uk/shop-productlist/00615666) is attached to the washing drum).
 The device is connected to the control board via D-Bus.
 
 There are 5 contact points on the back of the board that form a contact for [in-circuit serial programming (ICSP)](https://en.wikipedia.org/wiki/In-system_programming#Microchip_ICSP) (top to bottom):
@@ -206,6 +207,8 @@ TC D1 D2 D3 D4 D5
 26.10-20 xx          Wash program module xx
 26.12-00 xx yy zz    Front door status: xx = 0=>Closed+Unlocked, 1=>Closed+Locked, 2=>Open
 2a.16-00 xx          Remaining time xx in minutes
+47 40 02 xx yy zz    Request the unbalance sensor to send data for zz seconds (xx = node to which the response is to be sent, usually xx=17)
+17 40 10 00 xh xl yh yl zh zl    Response of the 3D unbalance sensor: x/y/z readings (3x signed int16)
 
 FEATUREBITS1 = Logical OR of
 0x02 = Water Plus / Wasser Plus

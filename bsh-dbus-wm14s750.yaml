@@ -96,7 +96,7 @@ uart:
               res += " (ack=ok)";
               ack = 1;
             }
-            if (id(bsh_wm_log).state || (((framedata[1] & 0x0F) != 0x0F) && ((framedata[1] & 0x0F) != 0x07))) {  // filter out noise
+            if (id(bsh_wm_log).state || (((framedata[1] & 0x0F) != 0x0F) && (framedata[1] != 0x17))) {  // filter out noise
               ESP_LOGD("D-Bus", "Frame at %2d with length %2d: %s", i, framelen, res.c_str());
             }
 
@@ -116,6 +116,11 @@ uart:
                 id(bsh_wm_feat_stains).publish_state((framedata[4] >> 5) & 0x01);
                 id(bsh_wm_feat_prewash).publish_state((framedata[4] >> 7) & 0x01);
                 id(bsh_wm_feat_anticrease).publish_state((framedata[5] >> 7) & 0x01);
+                break;
+              case 0x174010:
+                id(bsh_wm_unbalance_x).publish_state((int16_t) ((framedata[5] << 8) | framedata[6]));
+                id(bsh_wm_unbalance_z).publish_state((int16_t) ((framedata[7] << 8) | framedata[8]));
+                id(bsh_wm_unbalance_y).publish_state((int16_t) ((framedata[9] << 8) | framedata[10]));
                 break;
               case 0x261020:
                 id(bsh_wm_washmodule).publish_state(framedata[4]);
@@ -224,6 +229,33 @@ sensor:
     entity_category: diagnostic
     icon: mdi:map-marker-path
     accuracy_decimals: 0
+  - platform: template
+    id: bsh_wm_unbalance_x
+    name: Unwucht X
+    entity_category: diagnostic
+    icon: mdi:axis-x-rotate-clockwise
+    accuracy_decimals: 0
+    filters:
+      - throttle: 30s
+      - timeout: 90s
+  - platform: template
+    id: bsh_wm_unbalance_z
+    name: Unwucht Z
+    entity_category: diagnostic
+    icon: mdi:axis-z-rotate-clockwise
+    accuracy_decimals: 0
+    filters:
+      - throttle: 30s
+      - timeout: 90s
+  - platform: template
+    id: bsh_wm_unbalance_y
+    name: Unwucht Y
+    entity_category: diagnostic
+    icon: mdi:axis-y-rotate-clockwise
+    accuracy_decimals: 0
+    filters:
+      - throttle: 30s
+      - timeout: 90s
   - platform: template
     id: bsh_wm_rpm
     name: Umdrehungen
