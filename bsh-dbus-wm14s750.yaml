@@ -132,6 +132,9 @@ uart:
                 sprintf(buf, "%d", framedata[4]);
                 id(bsh_wm_door).publish_state(buf);
                 break;
+              case 0x261701:
+                id(bsh_wm_program_started).publish_state(true);
+                break;
               case 0x2a1600:
                 id(bsh_wm_remain).publish_state(framedata[4]);
                 break;
@@ -158,6 +161,16 @@ binary_sensor:
     - delay: 1s
     - binary_sensor.template.publish:
         id: bsh_wm_start_button
+        state: OFF
+  - platform: template
+    id: bsh_wm_program_started
+    name: Waschprogramm gestarted
+    entity_category: diagnostic
+    icon: mdi:ray-start-arrow
+    on_press:
+    - delay: 1s
+    - binary_sensor.template.publish:
+        id: bsh_wm_program_started
         state: OFF
   - platform: template
     id: bsh_wm_feat_waterplus

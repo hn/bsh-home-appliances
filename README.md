@@ -207,6 +207,7 @@ TC D1 D2 D3 D4 D5
 15 11 00 01          Start button pressed on user control panel
 26.10-20 xx          Wash program module xx
 26.12-00 xx yy zz    Front door status: xx = 0=>Closed+Unlocked, 1=>Closed+Locked, 2=>Open
+26.17-01 00 ff       Wash program started by the washing control unit
 2a.16-00 xx          Remaining time xx in minutes
 47 40 02 xx yy zz    Request the unbalance sensor to send data for zz seconds (xx = node to which the response is to be sent, usually xx=17)
 17 40 10 00 xh xl yh yl zh zl    Response of the 3D unbalance sensor: x/y/z readings (3x signed int16)
