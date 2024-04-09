@@ -124,31 +124,32 @@ you will see that there may be many more bits and tricks.
 #### Data frames
 
 Data on the bus is transmitted in frames.
-These frames consist of a length byte, a control byte, some data bytes and a two-byte (CRC16-XMODEM, thanks [reveng](https://reveng.sourceforge.io/)) checksum. For example, the frame `03 14 10 06 78 29 de` can be decoded as follows:
+These frames consist of a length byte, a control byte, some data bytes and a two-byte (CRC16-XMODEM, thanks [reveng](https://reveng.sourceforge.io/)) checksum.
+For example, the frame `05 14 10 05 00 FF 00 DE 62` can be decoded as follows:
 
 ```
-03 14 10 06 78 29 de
-LL TC DD DD DD RR RR
+05 14 10 05 00 FF 00 DE 62
+LL DS MM MM MM MM MM RR RR
 
-LL = length, 3 data bytes follow, total frame length is 7 = 1+1+3+2
-TC = target id and control byte
-DD = variable data with length LL
+LL = length, 5 data bytes follow, total frame length is 9 = 1+1+5+2
+DS = destination node and subsystem
+MM = message data with length LL
 RR = checksum (CRC16-XMODEM)
 ```
 
-The target id ("T" of TC-byte) designates the (unique) logical receiver of the frame and not necessarily a piece of hardware.
-The control nibble ("C" of TC-byte) somehow classifies different types of frames.
+The destination node ("D" of DS-byte) designates the (unique) logical receiver of the frame and not necessarily a piece of hardware.
+The subsystem nibble ("S" of DS-byte) specifies the subsystem within the destination node or classifies different types of frames.
 
-Some further considerations suggest that the first and second data byte have a special meaning:
+Some further considerations suggest that the first and second message byte have a special meaning:
 
 ```
-03 14 10 06 78 29 de
-LL TC D1 D2 DD RR RR
+05 14 10 05 00 FF 00 DE 62
+LL DS M1 M2 MM MM MM RR RR
 ```
 
-All frames with identical TC-D1-D2 bytes have the same length. Therefore D1-D2 might
-designate an address, register or subcmd, which then also determines the length and
-format of the following bytes.
+All frames with identical DS-M1-M2 bytes have the same length.
+M1-M2 is therefore renamed CC-CC (command),
+which then also determines the length and format of the following message bytes.
 
 #### Acknowledgement byte
 
@@ -159,14 +160,16 @@ The receiver responsible for processing the data frame inserts an acknowledgemen
 The sender can read this byte and knows that the data frame has been delivered successfully.
 
 The lower bits of the acknowledgement byte are always set to 0xA (can it be that it is "A" for "Acknowledgement", really?)
-and the upper bits correspond to those of the receiving target: `ACK = 0x0A | (TC & 0xF0)`.
+and the upper bits correspond to those of the receiving target: `ACK = 0x0A | (DS & 0xF0)`.
+This needs further investigation: on certain models or software versions, the acknowledgement byte
+contains the identifier of the control unit (`ACK = 0x1A`) if DS was a network broadcast (`DS=0x0F`).
 
 #### Boot log
 
 A typical boot sequence just for the control board and control panel starts like this:
 
 ```
-        LL   TC D1 D2   DD DD DD DD   RR RR            ACK
+        LL   DS CC CC   MM MM MM MM   RR RR            ACK
 0.412s  04 | 0f.e7-00 | 01 02       | a5 ec (crc=ok) | 0a (ack=ok)
 0.412s  03 | 0f.e0-00 | 00          | 9a 0d (crc=ok) | 0a (ack=ok)
 0.412s  04 | 1f.e8-00 | 01 02       | 75 58 (crc=ok) | 1a (ack=ok)
@@ -197,7 +200,7 @@ A closer look at the frame data for the washing machine reveals the following me
 ```
 Washing machine WM14S750
 
-TC D1 D2 D3 D4 D5
+DS CC CC MM MM MM
 14.10-04 xx          Temperature: xx = 0=>20°, 1=>30°, 2=>40°, 3=>50°, 4=>60°, 5=>70°, 6=>80°, 7=>90° 
 14.10-05 xx ff yy    Washing program: yy_dec = 1 .. 15 (xx = ?)
 14.10-06 xx          Spinning speed, multiply xx by 10 to get rpm: xx_dec = 0, 40, 60, 80, 100, 120, 137
@@ -222,26 +225,21 @@ FEATUREBITS1 = Logical OR of
 FEATUREBITS2 = Logical OR of
 0x80 = Anti-crease protection / Knitterschutz
 
-TARGET ("T" of TC-byte)
+DESTINATION ("D" of DS-byte)
 0x0 Network management / Broadcast
 0x1 Washing control unit
 0x2 User control panel
 0x4 Unbalance sensor
 
-CONTROL ("C" of TC-byte)
-0x2 ?
-0x3 ?
-0x4 set ?
-0x6 ?
-0x7 ?
-0xa info ?
-0xf system cmd ?
+CONTROL ("S" of DS-byte)
+This depends heavily on the particular model and the components and commands used.
+The suspicion is that it only has a minor significance.
 ```
 
 Pure guesswork:
 
 ```
-TC D1 D2
+DS CC CC
 _f.e7-00  Ping / Identify request ?
 _f.e8-00  Ping / Identify response ?
 _f.e0-00  Read / Something request ?
