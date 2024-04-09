@@ -148,8 +148,12 @@ LL DS M1 M2 MM MM MM RR RR
 ```
 
 All frames with identical DS-M1-M2 bytes have the same length.
-M1-M2 is therefore renamed CC-CC (command),
+M1-M2 is therefore relabeled CC-CC (command),
 which then also determines the length and format of the following message bytes.
+
+It is very possible that there are also other 'non CC-CC' types of frames
+(e.g. a "stream mode" for uploading binary firmware).
+However, these have not yet been observed in normal operation.
 
 #### Acknowledgement byte
 
@@ -231,7 +235,7 @@ DESTINATION ("D" of DS-byte)
 0x2 User control panel
 0x4 Unbalance sensor
 
-CONTROL ("S" of DS-byte)
+SUBSYSTEM ("S" of DS-byte)
 This depends heavily on the particular model and the components and commands used.
 The suspicion is that it only has a minor significance.
 ```
