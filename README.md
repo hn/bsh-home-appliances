@@ -121,7 +121,7 @@ This is by no means a complete description of the D-Bus protocol, but rather a l
 If you look at the comparable specification for the [CAN bus](https://en.wikipedia.org/wiki/CAN_bus) or [LIN bus](https://en.wikipedia.org/wiki/Local_Interconnect_Network),
 you will see that there may be many more bits and tricks.
 
-#### Data frames
+#### Frame format
 
 Data on the bus is transmitted in frames.
 These frames consist of a length byte, a control byte, some data bytes and a two-byte (CRC16-XMODEM, thanks [reveng](https://reveng.sourceforge.io/)) checksum.
@@ -131,7 +131,7 @@ For example, the frame `05 14 10 05 00 FF 00 DE 62` can be decoded as follows:
 05 14 10 05 00 FF 00 DE 62
 LL DS MM MM MM MM MM RR RR
 
-LL = length, 5 data bytes follow, total frame length is 9 = 1+1+5+2
+LL = length, 5 message data bytes follow, total frame length is 9 = 1+1+5+2
 DS = destination node and subsystem
 MM = message data with length LL
 RR = checksum (CRC16-XMODEM)
@@ -139,6 +139,8 @@ RR = checksum (CRC16-XMODEM)
 
 The destination node ("D" of DS-byte) designates the (unique) logical receiver of the frame and not necessarily a piece of hardware.
 The subsystem nibble ("S" of DS-byte) specifies the subsystem within the destination node or classifies different types of frames.
+
+##### Command frames
 
 Some further considerations suggest that the first and second message byte have a special meaning:
 
@@ -151,17 +153,19 @@ All frames with identical DS-M1-M2 bytes have the same length.
 M1-M2 is therefore relabeled CC-CC (command),
 which then also determines the length and format of the following message bytes.
 
+##### Other frame types
+
 It is very possible that there are also other 'non CC-CC' types of frames
 (e.g. a "stream mode" for uploading binary firmware).
 However, these have not yet been observed in normal operation.
 
 #### Acknowledgement byte
 
-After sending a data frame, the sender leaves a gap of at least one byte
+After sending a frame, the sender leaves a gap of at least one byte
 (with 9600 baud data rate and 8N2 coding an idle time of 1.145 ms = 11 x 104.167 µs)
-before before possibly sending the next data frame.
-The receiver responsible for processing the data frame inserts an acknowledgement byte precisely into this gap.
-The sender can read this byte and knows that the data frame has been delivered successfully.
+before before possibly sending the next frame.
+The receiver responsible for processing the frame inserts an acknowledgement byte precisely into this gap.
+The sender can read this byte and knows that the frame has been delivered successfully.
 
 The lower bits of the acknowledgement byte are always set to 0xA (can it be that it is "A" for "Acknowledgement", really?)
 and the upper bits correspond to those of the receiving target: `ACK = 0x0A | (DS & 0xF0)`.
