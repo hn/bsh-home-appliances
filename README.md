@@ -279,9 +279,12 @@ Please help if you have expertise in this area.
 
 ![BSH washing machine Home Assistant](bsh-wm-home-assistant.png)
 
-This is more or less a proof-of-concept which uses the debug functionality of the UART interface,
-so not yet a real integration via an [external component](https://esphome.io/components/external_components.html).
-But it works well :)
+It uses an [external component](https://esphome.io/components/external_components.html)
+called [bshdbus](components/bshdbus/). There is no documentation (yet) but
+you'll quickly get the idea on how to add your own sensors.
+
+The old proof-of-concept code [bsh-dbus-wm14s750-poc.yaml](bsh-dbus-wm14s750-poc.yaml)
+is preserved for debugging and archiving purposes.
 
 ## Misc
 

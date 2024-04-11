@@ -1,0 +1,294 @@
+#
+# bsh-dbus-wm14s750-poc.yaml -- ESPHome config to interface B/S/H/ washing machine WM14S750
+#
+# ! THIS IS THE OLD PROOF-OF-CONCEPT CODE, PLEASE USE bsh-dbus-wm14s750.yaml !
+#
+# (C) 2024 Hajo Noerenberg
+#
+# Usage: Connect D-Bus DATA pin to pin D5
+#
+# http://www.noerenberg.de/
+# https://github.com/hn/bsh-home-appliances
+#
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 3.0 as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program. If not, see <http://www.gnu.org/licenses/gpl-3.0.txt>.
+#
+
+esphome:
+  name: bsh-dbus-wm14s750
+  friendly_name: BSH washing machine WM14S750
+
+esp8266:
+  board: d1_mini
+
+logger:
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  # Dirty workaround because the machine's power supply unit cannot provide enough current:
+  output_power: 10.5dB
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "D-Bus Fallback Hotspot"
+    password: !secret wifi_ap_password
+
+captive_portal:
+
+uart:
+  id: dbus_uart
+  rx_pin: D5
+  baud_rate: 9600
+  debug:
+    direction: RX
+    dummy_receiver: true
+    after:
+      timeout: 20ms
+    sequence:
+      - lambda: |-
+          // UARTDebug::log_hex(direction, bytes, ' ');
+          for (unsigned int i = 0; i < bytes.size(); ) {
+            byte* framedata = bytes.data() + i;
+            unsigned int framelen = 4 + framedata[0];
+            if ((framelen < 6) || (framelen > (bytes.size() - i)) || esphome::crc16be(framedata, framelen, 0x0, 0x1021, false, false)) {
+              if (id(bsh_wm_log).state) {
+                ESP_LOGD("D-Bus", "Ignoring byte at %2d with value %02X", i, framedata[0]);
+              }
+              i++;
+              continue;
+            }
+ 
+            unsigned int ack = 0;
+            std::string res;
+            char buf[5];
+            for (unsigned int j = 0; j < framelen; j++) {
+              sprintf(buf, "%02X", framedata[j]);
+              res += buf;
+              if (j == (framelen - 3)) {
+                for (unsigned int p = framelen; p < 9; p++) { res += "   "; }
+              }
+              if ((j == 0) || (j == 3) || (j == (framelen - 3))) { res += " | "; }
+              else if (j == 1) { res += "."; }
+              else if (j == 2) { res += "-"; }
+              else { res += " "; }
+            }
+            res += "(crc=ok) ";
+            if (((i + framelen) < bytes.size()) && (framedata[framelen] == ((framedata[1] & 0xF0) | 0x0A))) {
+              res += "| ";
+              sprintf(buf, "%02X", framedata[framelen]);
+              res += buf;
+              res += " (ack=ok)";
+              ack = 1;
+            }
+            if (id(bsh_wm_log).state || (((framedata[1] & 0x0F) != 0x0F) && (framedata[1] != 0x17))) {  // filter out noise
+              ESP_LOGD("D-Bus", "Frame at %2d with length %2d: %s", i, framelen, res.c_str());
+            }
+
+            switch (framedata[1] << 16 | framedata[2] << 8 | framedata[3]) {
+              case 0x141004:
+                id(bsh_wm_temperature).publish_state(framedata[4]);
+                break;
+              case 0x141005:
+                sprintf(buf, "%d", framedata[6]);
+                id(bsh_wm_program).publish_state(buf);
+                break;
+              case 0x141006:
+                id(bsh_wm_rpm).publish_state(framedata[4]);
+                break;
+              case 0x141007:
+                id(bsh_wm_feat_waterplus).publish_state((framedata[4] >> 1) & 0x01);
+                id(bsh_wm_feat_stains).publish_state((framedata[4] >> 5) & 0x01);
+                id(bsh_wm_feat_prewash).publish_state((framedata[4] >> 7) & 0x01);
+                id(bsh_wm_feat_anticrease).publish_state((framedata[5] >> 7) & 0x01);
+                break;
+              case 0x151100:
+                id(bsh_wm_start_button).publish_state(true);
+                break;
+              case 0x174010:
+                id(bsh_wm_unbalance_x).publish_state((int16_t) ((framedata[5] << 8) | framedata[6]));
+                id(bsh_wm_unbalance_z).publish_state((int16_t) ((framedata[7] << 8) | framedata[8]));
+                id(bsh_wm_unbalance_y).publish_state((int16_t) ((framedata[9] << 8) | framedata[10]));
+                break;
+              case 0x261020:
+                id(bsh_wm_washmodule).publish_state(framedata[4]);
+                break;
+              case 0x261200:
+                sprintf(buf, "%d", framedata[4]);
+                id(bsh_wm_door).publish_state(buf);
+                break;
+              case 0x261701:
+                id(bsh_wm_program_started).publish_state(true);
+                break;
+              case 0x2a1600:
+                id(bsh_wm_remain).publish_state(framedata[4]);
+                break;
+            }
+
+            i += (framelen + ack);
+          }
+
+switch:
+  - platform: template
+    id: bsh_wm_log
+    name: "Log all frames"
+    optimistic: true
+    icon: mdi:expand-all
+    entity_category: config
+    restore_mode: ALWAYS_OFF
+
+binary_sensor:
+  - platform: template
+    id: bsh_wm_start_button
+    name: Startknopf
+    icon: mdi:button-pointer
+    on_press:
+    - delay: 1s
+    - binary_sensor.template.publish:
+        id: bsh_wm_start_button
+        state: OFF
+  - platform: template
+    id: bsh_wm_program_started
+    name: Waschprogramm gestarted
+    entity_category: diagnostic
+    icon: mdi:ray-start-arrow
+    on_press:
+    - delay: 1s
+    - binary_sensor.template.publish:
+        id: bsh_wm_program_started
+        state: OFF
+  - platform: template
+    id: bsh_wm_feat_waterplus
+    name: Wasser Plus
+    icon: mdi:water-plus
+  - platform: template
+    id: bsh_wm_feat_stains
+    name: Flecken
+    icon: mdi:liquid-spot
+  - platform: template
+    id: bsh_wm_feat_prewash
+    name: Vorwäsche
+    icon: mdi:rotate-orbit
+  - platform: template
+    id: bsh_wm_feat_anticrease
+    name: Knitterschutz
+    icon: mdi:iron
+
+text_sensor:
+  - platform: template
+    id: bsh_wm_program
+    name: Waschprogramm
+    icon: mdi:numeric
+    filters:
+      - map:
+        - 0 -> Aus
+        - 1 -> Koch/Bunt
+        - 2 -> Pflegeleicht
+        - 3 -> Schnell/Mix
+        - 4 -> Fein/Seide
+        - 5 -> Wolle
+        - 6 -> Spülen
+        - 7 -> Schleudern
+        - 8 -> Abpumpen
+        - 9 -> Schonschleudern
+        - 10 -> Super 15
+        - 11 -> Outdoor Imprägnieren
+        - 12 -> Hemden/Business
+        - 13 -> Pflegeleicht Plus
+        - 14 -> Liebling 1
+        - 15 -> Liebling 2
+  - platform: template
+    id: bsh_wm_door
+    name: Tür
+    icon: mdi:door
+    filters:
+      - map:
+        - 0 -> Zu und nicht verriegelt
+        - 1 -> Zu und verriegelt
+        - 2 -> Offen
+
+sensor:
+  - platform: template
+    id: bsh_wm_remain
+    name: Restzeit
+    device_class: duration
+    state_class: measurement
+    unit_of_measurement: min
+    accuracy_decimals: 0
+  - platform: template
+    id: bsh_wm_temperature
+    name: Temperatur
+    device_class: temperature
+    state_class: measurement
+    unit_of_measurement: °C
+    accuracy_decimals: 0
+    filters:
+      - calibrate_linear:
+         datapoints:
+          - 0 -> 20.0
+          - 1 -> 30.0
+          - 2 -> 40.0
+          - 3 -> 50.0
+          - 4 -> 60.0
+          - 5 -> 70.0
+          - 6 -> 80.0
+          - 7 -> 90.0
+  - platform: template
+    id: bsh_wm_washmodule
+    name: Waschprogramm Modul
+    entity_category: diagnostic
+    icon: mdi:map-marker-path
+    accuracy_decimals: 0
+  - platform: template
+    id: bsh_wm_unbalance_x
+    name: Unwucht X
+    entity_category: diagnostic
+    icon: mdi:axis-x-rotate-clockwise
+    accuracy_decimals: 0
+    filters:
+      - throttle: 30s
+      - timeout: 90s
+  - platform: template
+    id: bsh_wm_unbalance_z
+    name: Unwucht Z
+    entity_category: diagnostic
+    icon: mdi:axis-z-rotate-clockwise
+    accuracy_decimals: 0
+    filters:
+      - throttle: 30s
+      - timeout: 90s
+  - platform: template
+    id: bsh_wm_unbalance_y
+    name: Unwucht Y
+    entity_category: diagnostic
+    icon: mdi:axis-y-rotate-clockwise
+    accuracy_decimals: 0
+    filters:
+      - throttle: 30s
+      - timeout: 90s
+  - platform: template
+    id: bsh_wm_rpm
+    name: Umdrehungen
+    device_class: speed
+    state_class: measurement
+    unit_of_measurement: rpm
+    accuracy_decimals: 0
+    filters:
+      - multiply: 10
