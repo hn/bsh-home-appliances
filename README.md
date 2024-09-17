@@ -247,8 +247,11 @@ DESTINATION ("D" of DS-byte)
 0x4 Unbalance sensor
 
 SUBSYSTEM ("S" of DS-byte)
-This depends heavily on the particular model and the components and commands used.
-The suspicion is that it only has a minor significance.
+0x4 Set parameters
+0x5 Start or stop processes
+0x6 User info I
+0xa User info II
+0x7 Unbalance sensor communication
 ```
 
 Pure guesswork:
