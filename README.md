@@ -148,7 +148,6 @@ Some further considerations suggest that the first and second message byte have 
 
 ```
 05 14 10 05 00 FF 00 DE 62
-LL DS M1 M2 MM MM MM RR RR
 LL DS M1 M2 MM MM MM RR RR  =>  LL DS.CC-CC MM MM MM RR RR
 ```
 
