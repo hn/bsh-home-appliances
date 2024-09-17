@@ -138,7 +138,9 @@ RR = checksum (CRC16-XMODEM)
 ```
 
 The destination node ("D" of DS-byte) designates the (unique) logical receiver of the frame and not necessarily a piece of hardware.
+
 The subsystem nibble ("S" of DS-byte) specifies the subsystem within the destination node or classifies different types of frames.
+It is suspected to be of little importance, as an example the unbalance sensor works regardless of what value the “S” nibble has.
 
 ##### Command frames
 
@@ -147,11 +149,16 @@ Some further considerations suggest that the first and second message byte have 
 ```
 05 14 10 05 00 FF 00 DE 62
 LL DS M1 M2 MM MM MM RR RR
+LL DS M1 M2 MM MM MM RR RR  =>  LL DS.CC-CC MM MM MM RR RR
 ```
 
 All frames with identical DS-M1-M2 bytes have the same length.
 M1-M2 is therefore relabeled CC-CC (command),
 which then also determines the length and format of the following message bytes.
+The notation DS.CC-CC is introduced here as a distinct declaration for a command frame.
+
+The DS.CC-CC tuples used depend heavily on the machine type (washing machine, dryer, etc.), the respective model and
+the components and commands used.  It seems that there is no overarching defined set of commands.
 
 ##### Other frame types
 
