@@ -299,6 +299,12 @@ you'll quickly get the idea on how to add your own sensors.
 The old proof-of-concept code [bsh-dbus-wm14s750-poc.yaml](bsh-dbus-wm14s750-poc.yaml)
 is preserved for debugging and archiving purposes.
 
+#### Other home appliance models
+
+Fortunately, other people have started to create configuration files for their own devices.
+You can find them in the [contrib](contrib/) directory.
+You are welcome to add more devices, just open a [pull request](https://docs.github.com/de/pull-requests/collaborating-with-pull-requests).
+
 ## Misc
 
 - B/S/H/ has received several patents that mention the D-Bus:
