@@ -1,5 +1,9 @@
 #
-# bsh-dbus-was28443.yaml -- ESPHome config to interface B/S/H/ washing machine WAS28443
+# bsh-dbus-was28443.yaml -- Interface B/S/H/ washing machine WAS28443
+#
+# This file has been contributed by
+# (C) 2024 Stefan Hirt
+# https://github.com/stefanhirt
 #
 # (C) 2024 Hajo Noerenberg
 #
