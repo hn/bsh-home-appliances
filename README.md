@@ -42,7 +42,7 @@ It was likely produced at the [Nauen factory](https://wiki.bsh-group.com/de/wiki
 
 #### Control board EPW66018
 
-The control board ([PCB front](bsh-EPW66018-pcb-front.jpg), [PCB back](bsh-EPW66018-pcb-back.jpg)) is based on an Freescale (now NXP) Semiconductor `MC9S12Q128C-PBE16` MCU.
+The control board ([PCB front](bsh-EPW66018-pcb-front.jpg), [PCB back](bsh-EPW66018-pcb-back.jpg)) is based on an Freescale (now NXP) Semiconductor `MC9S12Q128C-PBE16` MCU (52-pin LQFP package).
 It also supplies power to all connected electronics.
 The sticker suggests it was produced by [melecs](https://www.melecs.com/en).
 
@@ -251,6 +251,7 @@ SUBSYSTEM ("S" of DS-byte)
 0x6 User info I
 0xa User info II
 0x7 Unbalance sensor communication
+0xf Network management / Broadcast
 ```
 
 Pure guesswork:
