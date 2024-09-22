@@ -139,7 +139,7 @@ void loop() {
   }
 
   // Dirty way to write to the D-Bus: No silence / collision / anything detection, just fire and forget
-  // Input via terminal: TC.D1-D2 DD DD (no length prefix, no crc)
+  // Input via terminal: DS.CC-CC MM MM (no length prefix, no crc)
 
   while (Serial.available()) {
     byte c = Serial.read();

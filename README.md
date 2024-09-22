@@ -302,9 +302,9 @@ is preserved for debugging and archiving purposes.
 
 #### Other home appliance models
 
-Fortunately, other people have started to create configuration files for their own devices.
+Fortunately, people have started to create configuration files for devices they own.
 You can find them in the [contrib](contrib/) directory.
-You are welcome to add more devices, just open a [pull request](https://docs.github.com/de/pull-requests/collaborating-with-pull-requests).
+You are very welcome to add more devices, just open a [pull request](https://docs.github.com/de/pull-requests/collaborating-with-pull-requests).
 
 ## Misc
 
