@@ -243,6 +243,7 @@ DESTINATION ("D" of DS-byte)
 0x0 Network management / Broadcast
 0x1 Washing control unit
 0x2 User control panel
+0x3 Motor controller
 0x4 Unbalance sensor
 
 SUBSYSTEM ("S" of DS-byte)
