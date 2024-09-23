@@ -236,3 +236,16 @@ text_sensor:
             - 0 -> Zu und nicht verriegelt
             - 1 -> Zu und verriegelt
             - 2 -> Offen
+  - platform: bshdbus
+    dest: 0x26
+    command: 0x1101
+    text_sensors:
+      - id: bsh_wm_state
+        name: Status
+        icon: mdi:state-machine
+        lambda: return std::to_string(x[0]);
+        filters:
+        - map:
+          - 0 -> Angehalten/Bereit
+          - 1 -> Fertig
+          - 2 -> Läuft
