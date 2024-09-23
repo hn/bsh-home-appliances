@@ -258,12 +258,14 @@ Pure guesswork:
 
 ```
 DS CC CC
-_f.e7-00  Ping / Identify request ?
-_f.e8-00  Ping / Identify response ?
-_f.e0-00  Read / Something request ?
-_f.e0-01  Read / Something response ?
-_2.13-01  Read / Something request ?
-_2.13-00  Read / Something response ?
+0f.e7-00 xx yy    Request dest yy to change operating state to xx
+1f.e8-00 xx yy    Response of dest yy that operating state has been changed to xx
+0f.e0-00 xx       Request dests to ping back if their operating state is >= xx
+1f.e0-01 xx yy    Response of dest yy that operating state is xx
+0f.ef-ff          End of initialization, changes operating states of all dests to 0x5
+22.13-01 0a       Read hardware/state/something info from user control panel request
+12.13-00          Read hardware/state/something response
+13.15-00 00       ?
 ```
 
 ## Software
