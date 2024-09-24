@@ -100,6 +100,11 @@ The connectors have coding lugs to ensure that they cannot be plugged into the w
 They are commercially available from [Lumberg](https://www.lumberg.com/en/products/product/3521), [Stocko](https://www.stocko-contact.com/downloads/STOCKO_Connector%20systems_pitch%202.5_ECO-TRONIC_de_en.pdf) and probably many more suppliers.
 B/S/H/ sells somewhat pricy pre-assembled cables as well, e.g. the [spare part 00631780](https://www.siemens-home.bsh-group.com/de/produktliste/00631780).
 
+It looks as if B/S/H/ has gradually introduced the D-Bus more and more into
+home appliances over the years: Older washing machines (roughly before 2010) only
+use the D-Bus for the unbalance sensor and the control panel, but not for motor control.
+Newer appliances also control the motor (and presumably other components) via the D-Bus.
+
 :warning: Watch out: The assignment of the connector depends on the end point: on the control board the connector is configured as GND-DATA-VCC and then the cable is crossed and on the other side (e.g. for sensors) the wiring is VCC-DATA-GND:
 
 ![BSH D-Bus pinout, control bord bottom, slave top right](bsh-dbus-pinout.jpg)
@@ -206,6 +211,10 @@ A typical boot sequence just for the control board and control panel starts like
 1.832s  04 | 0f.e7-00 | 32 03       | e5 0b (crc=ok) | 0a (ack=ok)
 1.912s  06 | 26.12-00 | 02 02 00 00 | 5d d4 (crc=ok) | 2a (ack=ok)
 ```
+
+In the test setup, the motor controller was not connected, so you can see that
+the control unit tries to communicate with it several times
+in vain (request `0f.e7-00 32 03` with no matching `1f.e8-00` response).
 
 #### Interpreting frame data (WM14S750)
 
