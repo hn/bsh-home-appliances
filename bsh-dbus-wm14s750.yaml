@@ -175,16 +175,6 @@ sensor:
           - throttle: 30s
           - timeout: 90s
   - platform: bshdbus
-    dest: 0x26
-    command: 0x1020
-    sensors:
-      - id: bsh_wm_washmodule
-        name: Waschprogramm Modul
-        entity_category: diagnostic
-        icon: mdi:map-marker-path
-        accuracy_decimals: 0
-        lambda: return x[0];
-  - platform: bshdbus
     dest: 0x2a
     command: 0x1600
     sensors:
@@ -223,6 +213,29 @@ text_sensor:
             - 13 -> Pflegeleicht Plus
             - 14 -> Liebling 1
             - 15 -> Liebling 2
+  - platform: bshdbus
+    dest: 0x26
+    command: 0x1020
+    text_sensors:
+      - id: bsh_wm_washmodule
+        name: Waschprogramm Modul
+        entity_category: diagnostic
+        icon: mdi:map-marker-path
+        lambda: return std::to_string(x[0]);
+        filters:
+          - map:
+            - 3 -> Waschmittel einspülen (3)
+            - 4 -> Wassereinlauf (4)
+            - 5 -> Aufheizen (5)
+            - 6 -> Walken (6)
+            - 9 -> Abpumpen / Schleudern (9)
+            - 13 -> Spülen (13)
+            - 15 -> Abpumpen / Schleudern (15)
+            - 16 -> Spülen (16)
+            - 20 -> Abpumpen / Schleudern  (20)
+            - 23 -> Spülen (23)
+            - 26 -> Endschleudern (26)
+            - 28 -> Auflockern (28)
   - platform: bshdbus
     dest: 0x26
     command: 0x1200
