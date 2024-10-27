@@ -318,6 +318,46 @@ Fortunately, people have started to create configuration files for devices they 
 You can find them in the [contrib](contrib/) directory.
 You are very welcome to add more devices, just open a [pull request](https://docs.github.com/de/pull-requests/collaborating-with-pull-requests).
 
+## Serial numbers
+
+B/S/H/ type plates consist of [a variety of different information](https://www.bosch-home.com/de/service/typenschildfinder).
+Of particular interest are the “E”, “FD” and “Z” numbers as well as the serial number, which contain different (redundant) information.
+
+"E", "FD" and "Z" are usually grouped in one block and look like this: `E-Nr.: WAY32541FG/37 FD: 9504 Z-Nr. 200221`.
+Sometimes the letters and punctuation seem to be omitted, as here `E-Nr.: WAY32541FG/37 9504 200221`.
+Serial numbers contain just digits and look like this: `485040275653002210`.
+
+According to the example above, the numbers have the following meaning:
+
+```
+E-Nr.  WAY32541FG/37
+       MMMMMMMMMM/RR  Model M=WAY32541FG with hardware revision R=37
+       If you buy spare parts, you need to know the revision, as these may differ.
+
+FD-Nr. 9504
+       YYMM  Year = (YY + 20)%100, Month = MM, e.g. (95+20)%100=15, the device has been produced in April 2015
+       "FD" stands for "Fertigungs-Datum" (manufacturing date)
+
+Z-Nr.  200221
+       LNNNNN 
+       This number identifies the production line L=2 within the factory and
+       the sequence number N=221 of the device assembled on this line.
+```
+
+The serial number contains partially redundant information:
+
+```
+485040275653002210
+FFYMMPPPPPPPNNNNNC
+
+     FF = Code for the factory where the device was assembled
+      Y = Manufacturing year (without decade)
+     MM = Manufacturing month
+PPPPPPP = Manufacturer internal code, which contains information about the suppliers
+  NNNNN = Sequence number "N" of the device assembled (without production line "L" info)
+      C = Checksum for serial number
+```
+
 ## Misc
 
 - B/S/H/ has received several patents that mention the D-Bus:
