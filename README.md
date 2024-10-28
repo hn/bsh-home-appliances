@@ -1,7 +1,8 @@
 # B/S/H/ Home Appliances
 
 ## Preamble
-[B/S/H/](https://www.bsh-group.com/) is one of the world's largest manufacturers of home appliances (according to [this source](https://www.faz.net/aktuell/technik-motor/technik/bsh-geschirrspueler-so-schnell-produziert-das-werk-in-dillingen-19341085.html), 10,000 dishwashers are produced _every day_ at their factory in [Dillingen](https://wiki.bsh-group.com/de/wiki/Die_Fabrik_und_das_Technologiezentrum_Dillingen/en) alone). Some of their well-known brands are Bosch, Siemens, Gaggenau, Neff, Constructa and Balay.
+[B/S/H/](https://www.bsh-group.com/) is one of the world's largest manufacturers of home appliances (according to [this source](https://www.faz.net/aktuell/technik-motor/technik/bsh-geschirrspueler-so-schnell-produziert-das-werk-in-dillingen-19341085.html), 10,000 dishwashers are produced _every day_ at their factory in [Dillingen](https://wiki.bsh-group.com/de/wiki/Die_Fabrik_und_das_Technologiezentrum_Dillingen/en) alone).
+Some of [their well-known brands](https://en.wikipedia.org/wiki/BSH_Hausger%C3%A4te#Brands) are Bosch, Siemens, Gaggenau, Neff, Constructa and Balay.
 They have a [well-maintained wiki](https://wiki.bsh-group.com/de/wiki/Hauptseite/en) where you can find all kinds of information about the company's history and the factories.
 
 Despite this popularity, little is publicly known about the inner workings of the appliances.
@@ -321,18 +322,19 @@ You are very welcome to add more devices, just open a [pull request](https://doc
 ## Serial numbers
 
 B/S/H/ type plates consist of [a variety of different information](https://www.bosch-home.com/de/service/typenschildfinder).
-Of particular interest are the “E”, “FD” and “Z” numbers as well as the serial number, which contain different (redundant) information.
+Of particular interest are the "E", "FD" and "Z" numbers as well as the serial number, which contain various (redundant) information.
 
 "E", "FD" and "Z" are usually grouped in one block and look like this: `E-Nr.: WAY32541FG/37 FD: 9504 Z-Nr. 200221`.
 Sometimes the letters and punctuation seem to be omitted, as here `E-Nr.: WAY32541FG/37 9504 200221`.
 Serial numbers contain just digits and look like this: `485040275653002210`.
 
-According to the example above, the numbers have the following meaning:
+With the above example, the numbers have the following meaning:
 
 ```
 E-Nr.  WAY32541FG/37
        MMMMMMMMMM/RR  Model M=WAY32541FG with hardware revision R=37
        If you buy spare parts, you need to know the revision, as these may differ.
+       "E" stands for "Erzeugnis-Nummer" (produce number)
 
 FD-Nr. 9504
        YYMM  Year = (YY + 20)%100, Month = MM, e.g. (95+20)%100=15, the device has been produced in April 2015
@@ -355,8 +357,12 @@ FFYMMPPPPPPPNNNNNC
      MM = Manufacturing month
 PPPPPPP = Manufacturer internal code, which contains information about the suppliers
   NNNNN = Sequence number "N" of the device assembled (without production line "L" info)
-      C = Checksum for serial number
+      C = Check digit for all preceding digits
 ```
+
+The check digit "C" is calculated using the [GTIN algorithm](https://en.wikipedia.org/wiki/Check_digit#UPC,_EAN,_GLN,_GTIN,_numbers_administered_by_GS1).
+
+The information in this paragraph was compiled from various forum posts, there is no known primary source.
 
 ## Misc
 
