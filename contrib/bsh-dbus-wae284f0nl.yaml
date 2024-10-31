@@ -103,9 +103,9 @@ sensor:
         filters:
           - debounce: 2s
           # We should always get a new update each minute if we're running
-          # if we don't have one after 80 seconds, mark the machine as Off
+          # if we don't have one after 120 seconds, mark the machine as Off
           - timeout:
-              timeout: 80s
+              timeout: 120s
               value: 0
 
       - id: bsh_wm_remain
