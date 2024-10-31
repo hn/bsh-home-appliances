@@ -1,0 +1,150 @@
+#
+# bsh-dbus-wae284f0nl.yaml -- ESPHome config to interface B/S/H/ washing machine WAE284F0NL
+#
+# Log data and a lot of help has been contributed by
+# (C) 2024 Thijn
+# https://github.com/Thijn
+#
+# (C) 2024 Hajo Noerenberg
+#
+# Usage: Connect D-Bus DATA pin to pin D5
+#
+# http://www.noerenberg.de/
+# https://github.com/hn/bsh-home-appliances
+#
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 3.0 as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program. If not, see <http://www.gnu.org/licenses/gpl-3.0.txt>.
+#
+
+esphome:
+  name: bsh-dbus-wae284f0nl
+  friendly_name: BSH washing machine WAE284F0NL
+
+esp8266:
+  board: d1_mini
+
+external_components:
+  - source: github://hn/bsh-home-appliances@master
+
+logger:
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  output_power: 10.5dB
+  # passive_scan: true
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "D-Bus Fallback Hotspot"
+    password: !secret wifi_ap_password
+
+captive_portal:
+
+uart:
+  id: dbus_uart
+  rx_pin: D5
+  baud_rate: 9600
+
+bshdbus:
+  uart_id: dbus_uart
+
+
+# NOT TESTED:
+
+binary_sensor:
+  - platform: bshdbus
+    dest: 0x22
+    command: 0x1003
+    binary_sensors:
+      - id: bsh_wm_start_led
+        name: Start LED
+        icon: mdi:led-on
+        lambda: return (x[6] >> 4) & 0x01;
+
+sensor:
+  - platform: bshdbus
+    dest: 0x22
+    command: 0x1003
+    sensors:
+      - id: bsh_wm_remain
+        name: Restzeit
+        device_class: duration
+        state_class: measurement
+        unit_of_measurement: min
+        accuracy_decimals: 0
+        lambda: |-
+          unsigned int r = 0;
+          for (unsigned int i = 3; i <= 5; i++) {
+            const unsigned int m[] = {60, 10, 1};
+            switch (x[i]) {
+              // Each bit corresponds to one single LED
+              // in a 7-segment digit like this:
+              //
+              //   EEE
+              //  G   B
+              //   DDD
+              //  F   A
+              //   CCC
+              //
+              //      ABCDEFG
+              case 0b01110111: r += 0 * m[i-3]; break;
+              case 0b01100000: r += 1 * m[i-3]; break;
+              case 0b00111110: r += 2 * m[i-3]; break;
+              case 0b01111100: r += 3 * m[i-3]; break;
+              case 0b01101001: r += 4 * m[i-3]; break;
+              case 0b01011101: r += 5 * m[i-3]; break;
+              case 0b01011111: r += 6 * m[i-3]; break;
+              case 0b01100100: r += 7 * m[i-3]; break;
+              case 0b01111111: r += 8 * m[i-3]; break;
+              case 0b01111101: r += 9 * m[i-3]; break;
+            }
+          }
+          return r;
+      - id: bsh_wm_temperature
+        name: Temperatur
+        device_class: temperature
+        state_class: measurement
+        unit_of_measurement: °C
+        accuracy_decimals: 0
+        lambda: |-
+            switch (x[0]) {
+              // Dummy:
+              case 0x12: return 123;
+              case 0x34: return 234;
+              case 0x56: return 345;
+            }
+            return NAN;
+      - id: bsh_wm_rpm
+        name: Umdrehungen
+        device_class: speed
+        state_class: measurement
+        unit_of_measurement: rpm
+        accuracy_decimals: 0
+        lambda: |-
+            switch (x[1]) {
+              // Dummy:
+              case 0x12: return 123;
+              case 0x34: return 234;
+              case 0x56: return 345;
+            }
+            return NAN;
+
