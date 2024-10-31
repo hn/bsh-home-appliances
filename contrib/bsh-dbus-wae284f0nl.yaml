@@ -67,26 +67,49 @@ uart:
 bshdbus:
   uart_id: dbus_uart
 
-
-# NOT TESTED:
-
 binary_sensor:
   - platform: bshdbus
     dest: 0x22
     command: 0x1003
     binary_sensors:
-      - id: bsh_wm_start_led
-        name: Start LED
-        icon: mdi:led-on
-        lambda: return (x[6] >> 4) & 0x01;
+      - id: bsh_wm_feat_stains
+        name: Stains
+        icon: mdi:leaf
+        lambda: return x[6] & 0x01;
+
+      - id: bsh_wm_feat_pre_wash
+        name: Pre-Wash
+        icon: mdi:rotate-orbit
+        lambda: return x[6] & 0x02;
+
+      - id: bsh_wm_feat_anti_crease
+        name: Lightly iron
+        icon: mdi:iron
+        lambda: return x[6] & 0x04;
+
+      - id: bsh_wm_feat_waterplus
+        name: Extra water
+        icon: mdi:water-plus
+        lambda: return x[6] & 0x08;
 
 sensor:
   - platform: bshdbus
     dest: 0x22
     command: 0x1003
     sensors:
+      - id: bsh_wm_start_led
+        lambda: |-
+          return (x[6] & 0x10) ? 1 : 0;
+        filters:
+          - debounce: 2s
+          # We should always get a new update each minute if we're running
+          # if we don't have one after 120 seconds, mark the machine as Off
+          - timeout:
+              timeout: 120s
+              value: 0
+
       - id: bsh_wm_remain
-        name: Restzeit
+        name: Remaining time
         device_class: duration
         state_class: measurement
         unit_of_measurement: min
@@ -120,31 +143,66 @@ sensor:
           }
           return r;
       - id: bsh_wm_temperature
-        name: Temperatur
+        name: Temperature
         device_class: temperature
         state_class: measurement
         unit_of_measurement: °C
         accuracy_decimals: 0
         lambda: |-
-            switch (x[0]) {
-              // Dummy:
-              case 0x12: return 123;
-              case 0x34: return 234;
-              case 0x56: return 345;
+            switch (x[0] >> 1) {
+              case 0x20: return 0;
+              case 0x10: return 30;
+              case 0x8:  return 40;
+              case 0x4:  return 50;
+              case 0x2:  return 60;
+              case 0x1:  return 90;
             }
             return NAN;
       - id: bsh_wm_rpm
-        name: Umdrehungen
+        name: Speed
         device_class: speed
         state_class: measurement
         unit_of_measurement: rpm
         accuracy_decimals: 0
         lambda: |-
             switch (x[1]) {
-              // Dummy:
-              case 0x12: return 123;
-              case 0x34: return 234;
-              case 0x56: return 345;
+              case 0x40: return 0;
+              case 0x20: return 400;
+              case 0x10: return 600;
+              case 0x8:  return 800;
+              case 0x6:  return 1200;
+              case 0x1:  return 1400;
             }
             return NAN;
+
+text_sensor:
+  - platform: template
+    id: bsh_wm_status
+    name: Status
+    lambda: |-
+      if (id(bsh_wm_start_led).state == 1) {
+        if (id(bsh_wm_remain).state < 1) {
+          return { "Finished" };
+        }
+
+        return { "Running" };
+      } else {
+        return { "Off" };
+      }
+    update_interval: 5s
+
+  - platform: bshdbus
+    dest: 0x22
+    command: 0x1003
+    text_sensors:
+      - id: bsh_wm_program_status
+        name: Program status
+        entity_category: diagnostic
+        icon: mdi:map-marker-path
+        lambda: |-
+            if (x[2] & 0x8) { return { "Spinning" }; }
+            if (x[2] & 0x4) { return { "Rinsing" }; }
+            if (x[2] & 0x2) { return { "Washing" }; }
+
+            return { "Off" };
 
