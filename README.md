@@ -36,6 +36,9 @@ The dryer boards are labeled "EPT", with "T" for "Trockner" (dryer) and the dish
 However, there is currently no known way of deducing the board version used internally from the external appearance or the model name.
 You have to open the machine and look inside.
 
+The control electronics were likely developed by [BSH PED in Regensburg](https://wiki.bsh-group.com/de/wiki/BSH_Regensburg_%E2%80%93_Produktbereich_Electronic_Systems,_Drives_(PED)).
+The site has worked for the automotive industry in the past, which explains why some components and approaches share similarities.
+
 ### Washing machine Siemens WM14S750
 
 The washing machine WM14S750 was sold from around 2010, when it was the test winner of the german magazine Stiftung Warentest.
