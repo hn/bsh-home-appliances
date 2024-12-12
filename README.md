@@ -43,6 +43,7 @@ The site has worked for the automotive industry in the past, which explains why 
 
 The washing machine WM14S750 was sold from around 2010, when it was the test winner of the german magazine Stiftung Warentest.
 It was likely produced at the [Nauen factory](https://wiki.bsh-group.com/de/wiki/Die_Fabrik_Nauen/en).
+B/S/H/ has released a very nice [video series](https://www.youtube.com/watch?v=T_dcbVZmExU&list=PL8rSAtdt1rTpldsxcCMCIHwK_7gH2FWEZ) in which many details from the production in Nauen can be seen.
 
 #### Control board EPW66018
 
