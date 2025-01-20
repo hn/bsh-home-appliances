@@ -94,6 +94,18 @@ There is a 30-pin connector on the board (looks like a Hirose DF12 board-to-boar
 The antenna PCB seems to have an [6-pin connector](https://fccid.io/2AHES-COMGEN1/External-Photos/External-photos-2952945) presumably used for programming or debugging the MCU.
 Unfortunately the antenna PCB is missing on my side.
 
+### Timelight projector module EPG53533
+
+The timelight projector module is used in dishwashers. It breaks quite often, the super-bright LED apparently burns the LCD over time.
+
+The module ([Enclosure](bsh-EPG53533-enclosure.jpg), [Enclosure open](bsh-EPG53533-enclosure-open.jpg),
+[PCB top](bsh-EPG53533-pcb-top.jpg), [PCB top closeup](bsh-EPG53533-pcb-top-closeup.jpg), [PCB bottom](bsh-EPG53533-pcb-bottom.jpg))
+has a 3-pin D-Bus connector (Attention! VCC is 13.5V instead of 9V) and
+uses a [RENESAS R5F104BGA MCU](https://www.renesas.com/en/products/microcontrollers-microprocessors/rl78-low-power-8-16-bit-mcus/rl78g14-low-power-high-function-general-purpose-microcontrollers-motor-control-industrial-and-metering)
+(RL78/G14 CISC CPU core, 32pin, 128k flash ROM, 8kb Data flash, 16kb RAM, [datasheet](https://www.renesas.com/en/document/dst/rl78g14-data-sheet?r=1054296)).
+
+The module uses D-Bus address D=6. Command frames have not yet been analyzed.
+
 ### D-Bus
 
 According to the [B/S/H/ patent documents](#misc), [this](https://www.mikrocontroller.net/topic/395115#4543950) and [this](https://forums.ni.com/t5/Instrument-Control-GPIB-Serial/Has-anybody-used-D-Bus-to-communicate-with-and-or-control/m-p/4284296#M84901) forum post, the electronics inside the device are interconnected via a proprietary serial bus called D-Bus or D-Bus-2.
