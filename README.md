@@ -101,7 +101,7 @@ The timelight projector module is used in dishwashers. It breaks quite often, th
 
 The module ([Enclosure](bsh-EPG53533-enclosure.jpg), [Enclosure open](bsh-EPG53533-enclosure-open.jpg),
 [PCB top](bsh-EPG53533-pcb-top.jpg), [PCB top closeup](bsh-EPG53533-pcb-top-closeup.jpg), [PCB bottom](bsh-EPG53533-pcb-bottom.jpg))
-has a 3-pin D-Bus connector (Attention! VCC is 13.5V instead of 9V) and
+has a 3-pin D-Bus connector (Attention! VBUS is 13.5V instead of 9V) and
 uses a [RENESAS R5F104BGA MCU](https://www.renesas.com/en/products/microcontrollers-microprocessors/rl78-low-power-8-16-bit-mcus/rl78g14-low-power-high-function-general-purpose-microcontrollers-motor-control-industrial-and-metering)
 (RL78/G14 CISC CPU core, 32pin, 128k flash ROM, 8kb Data flash, 16kb RAM, [datasheet](https://www.renesas.com/en/document/dst/rl78g14-data-sheet?r=1054296)).
 
@@ -112,13 +112,13 @@ The module uses D-Bus address D=6. Command frames have not yet been analyzed.
 According to the [B/S/H/ patent documents](#misc), [this](https://www.mikrocontroller.net/topic/395115#4543950) and [this](https://forums.ni.com/t5/Instrument-Control-GPIB-Serial/Has-anybody-used-D-Bus-to-communicate-with-and-or-control/m-p/4284296#M84901) forum post, the electronics inside the device are interconnected via a proprietary serial bus called D-Bus or D-Bus-2.
 Since there are no public technical specifications, it is unclear what the possible difference between version 1 and 2 might be.
 
-The bus found on the "EP" circuit boards consists of three wires: GND, VCC and DATA. VCC is 9V and DATA is TTL (5V).
+The bus found on the "EP" circuit boards consists of three wires: GND, VBUS and DATA. VBUS is 9V and DATA is TTL (5V).
 Connections are established using 3 pin 2.5 pitch [RAST connectors](https://de.wikipedia.org/wiki/RAST-Steckverbinder).
 The connectors have coding lugs to ensure that they cannot be plugged into the wrong socket: The plugs with the two coding lugs in the middle are D-Bus plugs.
 They are commercially available from [Lumberg](https://www.lumberg.com/en/products/product/3521), [Stocko](https://www.stocko-contact.com/downloads/STOCKO_Connector%20systems_pitch%202.5_ECO-TRONIC_de_en.pdf) and probably many more suppliers.
 B/S/H/ sells somewhat pricy pre-assembled cables as well, e.g. the [spare part 00631780](https://www.siemens-home.bsh-group.com/de/produktliste/00631780).
 
-:warning: Watch out: The assignment of the connector depends on the end point: on the control board the connector is configured as GND-DATA-VCC and then the cable is crossed and on the other side (e.g. for sensors) the wiring is VCC-DATA-GND:
+:warning: Watch out: The assignment of the connector depends on the end point: on the control board the connector is configured as GND-DATA-VBUS and then the cable is crossed and on the other side (e.g. for sensors) the wiring is VBUS-DATA-GND:
 
 ![BSH D-Bus pinout, control bord bottom, slave top right](bsh-dbus-pinout.jpg)
 
@@ -310,9 +310,9 @@ I repeat: It is not guaranteed that the D-Bus is isolated from earth.
 but unsure whether this is the best way to connect to the D-Bus or whether pull-up resistors or similar are missing.
 Please help if you have expertise in this area.
 
-:question: Additionally, the ESP8266 is drawing too much power from the 9V VCC pin.
+:question: Additionally, the ESP8266 is drawing too much power from the 9V VBUS pin.
 During the WiFi connection phase, [current spikes of up to 430mA](https://www.ondrovo.com/a/20170207-esp-consumption/) occur, which seems to exceed the maximum available current of the machine's power supply.
-Adding a 470uF capacitor between the GND and VCC pin of the D1 and limiting the WiFi output power (`output_power: 10.5dB`) seems to be a dirty workaround, though not a reliable solution everyone should use.
+Adding a 470uF capacitor between the GND and VBUS pin of the D1 and limiting the WiFi output power (`output_power: 10.5dB`) seems to be a dirty workaround, though not a reliable solution everyone should use.
 Please help if you have expertise in this area.
 
 ### Arduino
