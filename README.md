@@ -1,6 +1,7 @@
 # B/S/H/ Home Appliances
 
 ## Preamble
+
 [B/S/H/](https://www.bsh-group.com/) is one of the world's largest manufacturers of home appliances (according to [this source](https://www.faz.net/aktuell/technik-motor/technik/bsh-geschirrspueler-so-schnell-produziert-das-werk-in-dillingen-19341085.html), 10,000 dishwashers are produced _every day_ at their factory in [Dillingen](https://wiki.bsh-group.com/de/wiki/Die_Fabrik_und_das_Technologiezentrum_Dillingen/en) alone).
 Some of [their well-known brands](https://en.wikipedia.org/wiki/BSH_Hausger%C3%A4te#Brands) are Bosch, Siemens, Gaggenau, Neff, Constructa and Balay.
 They have a [well-maintained wiki](https://wiki.bsh-group.com/de/wiki/Hauptseite/en) where you can find all kinds of information about the company's history and the factories.
@@ -243,7 +244,7 @@ A closer look at the frame data for the washing machine reveals the following me
 Washing machine WM14S750
 
 DS CC CC MM MM MM
-14.10-04 xx          Temperature: xx = 0=>20°, 1=>30°, 2=>40°, 3=>50°, 4=>60°, 5=>70°, 6=>80°, 7=>90° 
+14.10-04 xx          Temperature: xx = 0=>20°, 1=>30°, 2=>40°, 3=>50°, 4=>60°, 5=>70°, 6=>80°, 7=>90°
 14.10-05 xx ff yy    Washing program: yy_dec = 1 .. 15 (xx = ?)
 14.10-06 xx          Spinning speed, multiply xx by 10 to get rpm: xx_dec = 0, 40, 60, 80, 100, 120, 137
 14.10-07 xx yy zz    xx = FEATUREBITS1, yy = FEATUREBITS2, zz = 0 .. 2 VarioPerfect program number
@@ -359,7 +360,7 @@ FD-Nr. 9504
        "FD" stands for "Fertigungs-Datum" (manufacturing date)
 
 Z-Nr.  200221
-       LNNNNN 
+       LNNNNN
        This number identifies the production line L=2 within the factory and
        the sequence number N=221 of the device assembled on this line.
 ```
