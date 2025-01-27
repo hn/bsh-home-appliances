@@ -49,52 +49,45 @@ my $ctx = Digest::CRC->new(
     cont   => 0
 );
 
-my $lastdest = undef;
+for ( my $p = 0 ; $p < length($dbusdata) ; ) {
+    my $len = unpack( "C", substr( $dbusdata, $p, 1 ) );
 
-for ( my $i = 0 ; $i < length($dbusdata) ; ) {
-    my $flen = unpack( "C", substr( $dbusdata, $i, 1 ) );
-    if ( defined($lastdest)
-        && ( $flen == ( 16 * int( $lastdest / 16 ) + 10 ) ) )
-    {
-        printf " | %02x (ack=ok)", $flen;
-        $i++;
-        $lastdest = undef;
-        next;
-    }
-
-    $lastdest = undef;
-
-    if ( $flen < 2 || $flen > 32 ) {
+    if ( $len < 2 || $len > 32 ) {
         printf
-          "\nIgnoring byte 0x%02x at pos %d: frame exceeds min or max size",
-          $flen, $i;
-        $i++;
+          "Ignoring byte 0x%02x at pos %d: frame exceeds min or max size\n",
+          $len, $p;
+        $p++;
         next;
     }
 
     $ctx->reset();
-    $ctx->add( substr( $dbusdata, $i, 4 + $flen ) );
+    $ctx->add( substr( $dbusdata, $p, 4 + $len ) );
     if ( $ctx->digest ) {
-        printf "\nIgnoring byte 0x%02x at pos %d: crc checksum error", $flen, $i;
-        $i++;
+        printf "Ignoring byte 0x%02x at pos %d: crc checksum error\n", $len, $p;
+        $p++;
         next;
     }
 
-    $lastdest = unpack( "C", substr( $dbusdata, $i + 1, 1 ) );
+    my $dest = unpack( "C", substr( $dbusdata, $p + 1, 1 ) );
 
-    printf "\n%02x | %02x.%02x-%02x | ",
-      unpack( "C", substr( $dbusdata, $i + 0, 1 ) ),
-      unpack( "C", substr( $dbusdata, $i + 1, 1 ) ),
-      unpack( "C", substr( $dbusdata, $i + 2, 1 ) ),
-      unpack( "C", substr( $dbusdata, $i + 3, 1 ) );
-    for ( my $n = 4 ; $n < ( $flen + 2 ) ; $n++ ) {
-        printf "%02x ", unpack( "C", substr( $dbusdata, $i + $n, 1 ) );
+    printf "%02x | %02x.%02x-%02x | ",
+      $len,
+      $dest,
+      unpack( "C", substr( $dbusdata, $p + 2, 1 ) ),
+      unpack( "C", substr( $dbusdata, $p + 3, 1 ) );
+    for ( my $n = 4 ; $n < ( $len + 2 ) ; $n++ ) {
+        printf "%02x ", unpack( "C", substr( $dbusdata, $p + $n, 1 ) );
     }
     printf "| %02x %02x (crc=ok)",
-      unpack( "C", substr( $dbusdata, $i + $flen + 2 + 0, 1 ) ),
-      unpack( "C", substr( $dbusdata, $i + $flen + 2 + 1, 1 ) );
+      unpack( "C", substr( $dbusdata, $p + $len + 2 + 0, 1 ) ),
+      unpack( "C", substr( $dbusdata, $p + $len + 2 + 1, 1 ) );
 
-    $i += ( $flen + 4 );
+    my $ackornot = unpack( "C", substr( $dbusdata, $p + $len + 2 + 2, 1 ) );
+    if ( ( $dest - $dest % 16 + 10 ) == $ackornot ) {
+        printf " | %02x (ack=ok)", $ackornot;
+        $p++;
+    }
+
+    print "\n";
+    $p += ( $len + 4 );
 }
-
-print "\n";
