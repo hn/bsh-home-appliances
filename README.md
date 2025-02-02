@@ -268,12 +268,14 @@ FEATUREBITS1 = Logical OR of
 FEATUREBITS2 = Logical OR of
 0x80 = Anti-crease protection / Knitterschutz
 
-DESTINATION ("D" of DS-byte)
-0x0 Network management / Broadcast
-0x1 Washing control unit
+DESTINATION ("D" of DS-byte) (physical location in brackets)
+0x0 Network management / Broadcast (control board)
+0x1 Washing control unit (control board)
 0x2 User control panel
 0x3 Motor controller
 0x4 Unbalance sensor
+0xa Internet communication end point (control board)
+0xb Internet WiFi connection module
 
 SUBSYSTEM ("S" of DS-byte)
 0x4 Set parameters
