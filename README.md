@@ -405,6 +405,6 @@ The information in this paragraph was compiled from various forum posts, there i
   The [specification](https://adapter.ebusd.eu/Spec_Prot_12_V1_3_1.pdf) is well worth reading and helps a lot to understand the D-Bus,
   although the protocol differs in some aspects.
 
-- I don't own a WM14S750 washing machine, but only, let's call it, a [lab setup](bsh-wm-lab-setup.png).
+- I don't own a WM14S750 washing machine, but only, let's call it, a [lab setup](bsh-wm-lab-setup.jpg).
 
 - If you think this is all weird stuff, you haven't seen the [Zabex washing machine project](https://www.zabex.de/site/waschmaschine.html).
