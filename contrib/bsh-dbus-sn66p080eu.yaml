@@ -1,0 +1,121 @@
+#
+# bsh-dbus-sn66p080eu.yaml -- Interface B/S/H/ dishwasher SN66P080EU
+#
+# (C) 2025 Nurster
+# (C) 2025 Hajo Noerenberg
+#
+# Usage: Connect D-Bus DATA pin to pin D5
+#
+# http://www.noerenberg.de/
+# https://github.com/hn/bsh-home-appliances
+#
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 3.0 as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program. If not, see <http://www.gnu.org/licenses/gpl-3.0.txt>.
+#
+
+esphome:
+  name: bsh-dbus-sn66p080eu
+  friendly_name: BSH dishwasher SN66P080EU
+
+external_components:
+  - source: github://hn/bsh-home-appliances@master
+
+esp8266:
+  board: d1_mini
+
+logger:
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  # Dirty workaround because the machine's power supply unit cannot provide enough current:
+  output_power: 10.5dB
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "D-Bus Fallback Hotspot"
+    password: !secret wifi_ap_password
+
+captive_portal:
+
+uart:
+  id: dbus_uart
+  rx_pin: D5
+  baud_rate: 9600
+
+bshdbus:
+  uart_id: dbus_uart
+
+binary_sensor:
+  - platform: bshdbus
+    dest: 0x24
+    command: 0x2006
+    binary_sensors:
+      - id: bsh_dw_rinse_aid
+        name: Klarspüler
+        icon: mdi:glass-cocktail
+        lambda: return (x[0] >> 1) & 0x01;
+      - id: bsh_dw_salt
+        name: Salt
+        icon: mdi:shaker-outline
+        lambda: return (x[0] >> 0) & 0x01;
+      - id: bsh_dw_door
+        name: Tür
+        device_class: door
+        lambda: return !((x[0] >> 3) & 0x01);
+
+sensor:
+  - platform: bshdbus
+    dest: 0x25
+    command: 0x2008
+    sensors:
+      - id: bsh_dw_remain
+        name: Restzeit
+        device_class: duration
+        state_class: measurement
+        unit_of_measurement: min
+        accuracy_decimals: 0
+        lambda: return x[0];
+
+# Power module to user panel:
+#
+#               0  1  2  3  4  5  6  7
+# | 25.20-08 | 5f 23 00 03 17 10 11 0a | "vario speed on"
+# | 25.20-08 | 4b 50 4c 01 0f 00 01 0f | "vario speed on, half load on"
+# | 25.20-08 | 50 54 4c 01 14 b5 81 03 | "vario speed on, half load on, intensive zone on"
+# | 25.20-08 | 5f 58 4c 01 23 00 01 23 | "vario speed on, half load on, intensive zone on, hygiene plus on"
+# | 25.20-08 | d2 30 30 03 1e 00 03 1e | "select pre rinse"
+# | 25.20-08 | 0f 0c 18 00 0f 00 00 0f | "select pre rinse"->"press start"
+# | 25.20-08 | 0f 0c 18 01 2a 00 00 0f | "pre rinse, 0:15"
+# | 25.20-08 | 87 50 58 02 22 00 02 0f | "Intensive 70 °C, 2:15"
+# 
+# | 25.20-08 | 0d 0c 18 00 0d 00 00 0d | "during cycle"
+#
+# 0: remaining time
+# 4: ? same as byte 0 during wash cycle?
+# 7: ? same as byte 0 during wash cycle?
+
+
+
+# User panel to power module:
+# | 17.10-10 | xx |		Select program xx
+# | 17.10-00 | 00 yy |		Select options (bitfield)
+# | 17.10-13 | 01 |		? Start button pressed?
+
