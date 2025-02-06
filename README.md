@@ -86,32 +86,6 @@ There are 5 contact points on the back of the board that form a contact for [in-
 and the [MPLAB IPE](https://www.microchip.com/en-us/tools-resources/production/mplab-integrated-programming-environment).
 The code can not easily be downloaded because the device has the Code Protection Bit set.
 
-### Internet connection module BSH 8001056350 COM1/COMGEN1
-
-The module ([PCB top](photos/bsh-8001056350-COM1-pcb-top.jpg), [PCB bottom](photos/bsh-8001056350-COM1-pcb-bottom.jpg))
-is used to connect home appliances to the [Home Connect](https://www.home-connect.com/global) cloud (it was bought separately, according to the B/S/H/ website, it is not compatible with the washing machine WM14S750).
-The model `COM1 3/21` with FCC ID `2AHES-COMGEN1` uses an
-ST [STM32F415](https://www.st.com/en/microcontrollers-microprocessors/stm32f415rg.html) MCU (LQFP64 package, 1024kB flash)
-and an external 16MBIT/2024kB SPI MX25L1606EZNI flash.
-
-There is a 30-pin connector on the board (looks like a Hirose DF12 board-to-board/BTB), which is used to connect to the antenna PCB.
-The antenna PCB seems to have an [6-pin connector](https://fccid.io/2AHES-COMGEN1/External-Photos/External-photos-2952945) presumably used for programming or debugging the MCU.
-Unfortunately the antenna PCB is missing on my side.
-
-### Timelight projector module EPG53533
-
-The timelight projector module is used in dishwashers. It breaks quite often, the super-bright LED apparently burns the LCD over time.
-
-The module ([Enclosure](photos/bsh-EPG53533-enclosure.jpg), [Enclosure open](photos/bsh-EPG53533-enclosure-open.jpg),
-[PCB top](photos/bsh-EPG53533-pcb-top.jpg), [PCB top closeup](photos/bsh-EPG53533-pcb-top-closeup.jpg), [PCB bottom](photos/bsh-EPG53533-pcb-bottom.jpg))
-has a 3-pin D-Bus connector (Attention! VBUS is 13.5V instead of 9V) and
-uses a [RENESAS R5F104BGA MCU](https://www.renesas.com/en/products/microcontrollers-microprocessors/rl78-low-power-8-16-bit-mcus/rl78g14-low-power-high-function-general-purpose-microcontrollers-motor-control-industrial-and-metering)
-(RL78/G14 CISC CPU core, 32pin, 128k flash ROM, 8kb Data flash, 16kb RAM, [datasheet](https://www.renesas.com/en/document/dst/rl78g14-data-sheet?r=1054296)).
-The LCD MSGF013733-04 seems to be custom made for B/S/H/ ("04" likely is a hardware revision and
-the second line on the sticker likely is the production date in YYMMDD format).
-
-The module uses D-Bus address D=6. Command frames have not yet been analyzed.
-
 ### D-Bus
 
 According to the [B/S/H/ patent documents](#misc), [this](https://www.mikrocontroller.net/topic/395115#4543950) and [this](https://forums.ni.com/t5/Instrument-Control-GPIB-Serial/Has-anybody-used-D-Bus-to-communicate-with-and-or-control/m-p/4284296#M84901) forum post, the electronics inside the device are interconnected via a proprietary serial bus called D-Bus or D-Bus-2.
@@ -133,6 +107,13 @@ It looks as if B/S/H/ has gradually introduced the D-Bus more and more into home
 - post-2010 appliances also [control the motor](https://github.com/hn/bsh-home-appliances/issues/3#issuecomment-2367437363) (and presumably other components) via the D-Bus.
 
 All dates are only rough estimates, as the various models were produced and sold over longer periods of time.
+
+### Other home appliance types
+
+The hardware of other home appliance types has been examined:
+
+- [Dishwashers](DISHWASHER.md)
+- [WLAN module to connect to the Home Connect cloud service](WLANMODULE.md)
 
 ## Protocol
 
