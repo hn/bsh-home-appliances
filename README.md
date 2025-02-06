@@ -48,11 +48,11 @@ B/S/H/ has released a very nice [video series](https://www.youtube.com/watch?v=T
 
 #### Control board EPW66018
 
-The control board ([PCB front](bsh-EPW66018-pcb-front.jpg), [PCB back](bsh-EPW66018-pcb-back.jpg)) is based on an Freescale (now NXP) Semiconductor `MC9S12Q128C-PBE16` MCU (52-pin LQFP package).
+The control board ([PCB front](photos/bsh-EPW66018-pcb-front.jpg), [PCB back](photos/bsh-EPW66018-pcb-back.jpg)) is based on an Freescale (now NXP) Semiconductor `MC9S12Q128C-PBE16` MCU (52-pin LQFP package).
 It also supplies power to all connected electronics.
 The sticker suggests it was produced by [melecs](https://www.melecs.com/en).
 
-It has 11 [RAST connectors](https://de.wikipedia.org/wiki/RAST-Steckverbinder) for I/O (numbering according to [PCB front](bsh-EPW66018-pcb-front.jpg)):
+It has 11 [RAST connectors](https://de.wikipedia.org/wiki/RAST-Steckverbinder) for I/O (numbering according to [PCB front](photos/bsh-EPW66018-pcb-front.jpg)):
 ```
 01 ?
 02 Switch (not front door?)
@@ -69,13 +69,13 @@ It has 11 [RAST connectors](https://de.wikipedia.org/wiki/RAST-Steckverbinder) f
 
 #### User control panel EPW66027
 
-The control panel ([Front view](bsh-EPW66027-front.jpg), [back view](bsh-EPW66027-back.jpg)) lets the user select 15 different washing programs, 8 temperatures, 7 spin speeds and and other options.
+The control panel ([Front view](photos/bsh-EPW66027-front.jpg), [back view](photos/bsh-EPW66027-back.jpg)) lets the user select 15 different washing programs, 8 temperatures, 7 spin speeds and and other options.
 The (mechanical) rotary switch is not only used to select the program, but also to switch the mains power on and off.
 The control panel is connected to the control board via D-Bus.
 
 #### Unbalance sensor SEUFFER 9000444823
 
-This sensors detects unbalanced loads ([PCB front](bsh-9000444823-pcb-front.jpg), [PCB back](bsh-9000444823-pcb-back.jpg), [Enclosure](bsh-9000444823-enclosure.jpg)).
+This sensors detects unbalanced loads ([PCB front](photos/bsh-9000444823-pcb-front.jpg), [PCB back](photos/bsh-9000444823-pcb-back.jpg), [Enclosure](photos/bsh-9000444823-enclosure.jpg)).
 It uses an [PIC18F24J10](https://www.microchip.com/en-us/product/pic18f24j10) MCU (28 pin QFN package)
 and an `A007MPL DREMAS` IC, which [according to the manufacturer](https://www.ast-international.com/en.products.position-force-sensors.html#product-11) is a specialized 3D hall sensor
 (the [corresponding magnet](https://www.siemens-home.bsh-group.com/uk/shop-productlist/00615666) is attached to the washing drum).
@@ -88,7 +88,7 @@ The code can not easily be downloaded because the device has the Code Protection
 
 ### Internet connection module BSH 8001056350 COM1/COMGEN1
 
-The module ([PCB top](bsh-8001056350-COM1-pcb-top.jpg), [PCB bottom](bsh-8001056350-COM1-pcb-bottom.jpg))
+The module ([PCB top](photos/bsh-8001056350-COM1-pcb-top.jpg), [PCB bottom](photos/bsh-8001056350-COM1-pcb-bottom.jpg))
 is used to connect home appliances to the [Home Connect](https://www.home-connect.com/global) cloud (it was bought separately, according to the B/S/H/ website, it is not compatible with the washing machine WM14S750).
 The model `COM1 3/21` with FCC ID `2AHES-COMGEN1` uses an
 ST [STM32F415](https://www.st.com/en/microcontrollers-microprocessors/stm32f415rg.html) MCU (LQFP64 package, 1024kB flash)
@@ -102,8 +102,8 @@ Unfortunately the antenna PCB is missing on my side.
 
 The timelight projector module is used in dishwashers. It breaks quite often, the super-bright LED apparently burns the LCD over time.
 
-The module ([Enclosure](bsh-EPG53533-enclosure.jpg), [Enclosure open](bsh-EPG53533-enclosure-open.jpg),
-[PCB top](bsh-EPG53533-pcb-top.jpg), [PCB top closeup](bsh-EPG53533-pcb-top-closeup.jpg), [PCB bottom](bsh-EPG53533-pcb-bottom.jpg))
+The module ([Enclosure](photos/bsh-EPG53533-enclosure.jpg), [Enclosure open](photos/bsh-EPG53533-enclosure-open.jpg),
+[PCB top](photos/bsh-EPG53533-pcb-top.jpg), [PCB top closeup](photos/bsh-EPG53533-pcb-top-closeup.jpg), [PCB bottom](photos/bsh-EPG53533-pcb-bottom.jpg))
 has a 3-pin D-Bus connector (Attention! VBUS is 13.5V instead of 9V) and
 uses a [RENESAS R5F104BGA MCU](https://www.renesas.com/en/products/microcontrollers-microprocessors/rl78-low-power-8-16-bit-mcus/rl78g14-low-power-high-function-general-purpose-microcontrollers-motor-control-industrial-and-metering)
 (RL78/G14 CISC CPU core, 32pin, 128k flash ROM, 8kb Data flash, 16kb RAM, [datasheet](https://www.renesas.com/en/document/dst/rl78g14-data-sheet?r=1054296)).
