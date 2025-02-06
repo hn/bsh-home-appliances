@@ -1,8 +1,8 @@
-# B/S/H/ Home Appliances
+# B/S/H/ Home Appliances - WLAN modules
 
 :warning: Warning: Please double check that you have read and followed the [safety notes](README.md#warning)
 
-## WLAN modules
+## Hardware
 
 ### Internet connection module BSH 8001056350 COM1/COMGEN1
 

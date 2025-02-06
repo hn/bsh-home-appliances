@@ -1,13 +1,13 @@
-# B/S/H/ Home Appliances
+# B/S/H/ Home Appliances - Dishwashers
 
 :warning: Warning: Please double check that you have read and followed the [safety notes](README.md#warning)
 
-## Dishwashers
+## Hardware
 
 ### Timelight projector module EPG53533
 
-The timelight projector module is used in dishwashers.
-It breaks quite often, the super-bright LED apparently burns the LCD over time.
+The Timelight projector module breaks quite often,
+the super-bright LED apparently burns the LCD over time.
 
 The module ([Enclosure](photos/bsh-EPG53533-enclosure.jpg), [Enclosure open](photos/bsh-EPG53533-enclosure-open.jpg),
 [PCB top](photos/bsh-EPG53533-pcb-top.jpg), [PCB top closeup](photos/bsh-EPG53533-pcb-top-closeup.jpg), [PCB bottom](photos/bsh-EPG53533-pcb-bottom.jpg))
@@ -16,8 +16,6 @@ uses a [RENESAS R5F104BGA MCU](https://www.renesas.com/en/products/microcontroll
 (RL78/G14 CISC CPU core, 32pin, 128k flash ROM, 8kb Data flash, 16kb RAM, [datasheet](https://www.renesas.com/en/document/dst/rl78g14-data-sheet?r=1054296)).
 The LCD MSGF013733-04 seems to be custom made for B/S/H/ ("04" likely is a hardware revision and
 the second line on the sticker likely is the production date in YYMMDD format).
-
-The module uses D-Bus address D=6. Command frames have not yet been analyzed.
 
 ### Control board EPG700xx
 
@@ -57,6 +55,24 @@ $ openocd -f interface/stlink.cfg \
 -c "exit"
 ```
 
-### Further reading
+## D-Bus Protocol
+
+```
+DS.CC-CC MM MM MM
+17.10-00 00 yy       Select wash options (bitfield)
+17.10-10 xx          Select wash program xx
+24.20-06 xx          xx:bit0 => Rinse aid LED, xx:bit1 => Salt LED
+25.20-08 xx yy zz aa bb cc dd ee    Remaining time xx in minutes
+
+DESTINATION ("D" of DS-byte) (physical location in brackets)
+0x0 Network management / Broadcast (control board)
+0x1 Washing control unit (control board)
+0x2 User control panel
+0x6 TimeLight module
+0xa Internet communication end point (control board)
+0xb Internet WiFi connection module
+```
+
+## Further reading
 
 - [nophead](https://github.com/nophead/) has some [interesting dishwasher findings](https://hydraraptor.blogspot.com/2022/07/diy-repair-nightmare.html).
