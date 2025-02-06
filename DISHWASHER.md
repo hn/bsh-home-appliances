@@ -56,3 +56,7 @@ $ openocd -f interface/stlink.cfg \
 -c "flash read_bank 0 firmware.bin 0 0x40000" \
 -c "exit"
 ```
+
+### Further reading
+
+- [nophead](https://github.com/nophead/) has some [interesting dishwasher findings](https://hydraraptor.blogspot.com/2022/07/diy-repair-nightmare.html).
