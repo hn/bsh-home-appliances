@@ -21,18 +21,18 @@ The module uses D-Bus address D=6. Command frames have not yet been analyzed.
 
 ### Control board EPG700xx
 
-The control boards (EPG70002, EPG70003, EPG70012 [Enclosure](bsh-EPG70012-enclosure.jpg))
+The control boards (EPG70002, EPG70003, EPG70012 [PCB top](photos/bsh-EPG70012-pcb-top.jpg) [PCB bottom](photos/bsh-EPG70012-pcb-bottom.jpg) [Enclosure](photos/bsh-EPG70012-enclosure.jpg))
 are equipped with an STM32F301VCT6 (sometimes STM32P301VCT6) ARM Cortex M4 processor.
 The EPG70002 got two relays for heating while the 70003 got three.
 Depending on the board model, there is also an additional motor driver chip FSB50550AB from fairchild semiconductors
 to power the fan motor for the Zeolith active drying technology.
 
 The board has three D-Bus connectors (X9, X10, X11), the latter on the
-[left side](photos/bsh-EPG700xx-dbus.jpg) with four pins: 1. Unknown, 2. VBUS, 3. DATA, 4. GND.
+[left side with four pins](photos/bsh-EPG700xx-dbus.jpg): 1. Unknown, 2. VBUS, 3. DATA, 4. GND.
 Additionally, there is one (galvanically isolated) D-Bus connector on the [daughter board](photos/bsh-EPG700xx-dbus-daughter.jpg).
 
 On the [lower left side of the board](photos/bsh-EPG700xx-STlink-pins.jpg)
-one can find pins for [SWD debugging](https://stm32-base.org/guides/connecting-your-debugger.html) with an [STLinkV2-Dongle](bsh-EPG70012-STlink.jpg):
+one can find connector X20 for [SWD debugging](https://stm32-base.org/guides/connecting-your-debugger.html) with an [STLinkV2-Dongle](bsh-EPG70012-STlink.jpg):
 
 ```
 1. SWCLK
