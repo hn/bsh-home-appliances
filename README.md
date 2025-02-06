@@ -119,8 +119,7 @@ The hardware of other home appliance types has been examined:
 
 ### D-Bus
 
-Data is transferred on the D-Bus in a `8N2` configuration (2 stop bits). However, for reading the bus the more common `8N1` configuration will work as well.
-The washing machine uses 9600 baud transfer rate.
+Data is transmitted on the D-Bus in a `8N1` configuration and the washing machine uses a transfer rate of 9600 baud.
 The `COM1` internet connection module cyclically tries out transfer rates from 9600 up to 38400 baud during startup, so newer devices probably use one of the higer rates.
 
 The D-Bus is a (1-wire, the DATA wire) bus and not a straight serial cable (2-wire, RX and TX).
