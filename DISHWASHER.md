@@ -73,6 +73,16 @@ DESTINATION ("D" of DS-byte) (physical location in brackets)
 0xb Internet WiFi connection module
 ```
 
+Minimal command sequence to light up the TimeLight module:
+
+```
+65.10-17 | 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+65.20-07 | 04				# 04 => clock/digit animation
+65.20-12 | 01
+65.20-06 | 08				# bit 3: turn LED on/off
+65.10-12 | 07 03 2a 00 00 01 01		# 03 2a => set HH:MM 03:42 for animation 04
+```
+
 ## Further reading
 
 - [nophead](https://github.com/nophead/) has some [interesting dishwasher findings](https://hydraraptor.blogspot.com/2022/07/diy-repair-nightmare.html).
