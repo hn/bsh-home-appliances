@@ -38,7 +38,7 @@ use Time::HiRes        qw(gettimeofday);
 use Device::SerialPort qw( :PARAM :STAT 0.07 );
 use constant {
     MINMLEN  => 2,
-    MAXMLEN  => 64,
+    MAXMLEN  => 250,
     HDRLEN   => 2,
     CRCLEN   => 2,
     ACKLEN   => 1,
