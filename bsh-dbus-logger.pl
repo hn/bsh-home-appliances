@@ -133,7 +133,9 @@ sub dbusparse {
 }
 
 my %opt = ();
-getopts( "c:", \%opt );
+getopts( "nc:", \%opt );
+
+if ( $opt{n} ) { $| = 1; }
 
 if ( -c $ARGV[0] ) {
     my $sp = new Device::SerialPort( $ARGV[0] )
