@@ -42,7 +42,7 @@ use constant {
     HDRLEN   => 2,
     CRCLEN   => 2,
     ACKLEN   => 1,
-    RTIMEOUT => 1.2 * 2,
+    RTIMEOUT => 1.04 * 100,
 };
 
 sub dbusparse {
