@@ -89,9 +89,9 @@ The code can not easily be downloaded because the device has the Code Protection
 ### D-Bus
 
 According to the [B/S/H/ patent documents](#misc), [this](https://www.mikrocontroller.net/topic/395115#4543950) and [this](https://forums.ni.com/t5/Instrument-Control-GPIB-Serial/Has-anybody-used-D-Bus-to-communicate-with-and-or-control/m-p/4284296#M84901) forum post, the electronics inside the device are interconnected via a proprietary serial bus called D-Bus or D-Bus-2.
-Since there are no public technical specifications, it is unclear what the possible difference between version 1 and 2 might be.
+Since there are no public technical specifications, it can only be speculated that the D-Bus-1 corresponds more to the CAN bus and the D-Bus-2 more to a bus with UART data framing.
 
-The bus found on the "EP" circuit boards consists of three wires: GND, VBUS and DATA. VBUS is 9V and DATA is TTL (5V).
+The bus found on the "EP" circuit boards likely is a D-Bus-2 and consists of three wires: GND, VBUS and DATA. VBUS is 9V (13.5V for dishwashers) and DATA is TTL (5V).
 Connections are established using 3 pin 2.5 pitch [RAST connectors](https://de.wikipedia.org/wiki/RAST-Steckverbinder).
 The connectors have coding lugs to ensure that they cannot be plugged into the wrong socket: The plugs with the two coding lugs in the middle are D-Bus plugs.
 They are commercially available from [Lumberg](https://www.lumberg.com/en/products/product/3521), [Stocko](https://www.stocko-contact.com/downloads/STOCKO_Connector%20systems_pitch%202.5_ECO-TRONIC_de_en.pdf) and probably many more suppliers.
@@ -99,7 +99,7 @@ B/S/H/ sells somewhat pricy pre-assembled cables as well, e.g. the [spare part 0
 
 :warning: Watch out: The assignment of the connector depends on the end point: on the control board the connector is configured as GND-DATA-VBUS and then the cable is crossed and on the other side (e.g. for sensors) the wiring is VBUS-DATA-GND:
 
-![BSH D-Bus pinout, control bord bottom, slave top right](bsh-dbus-pinout.jpg)
+![BSH D-Bus 2 pinout, control bord bottom, slave top right](bsh-dbus-pinout.jpg)
 
 It looks as if B/S/H/ has gradually introduced the D-Bus more and more into home appliances over the years:
 - pre-2006 washing machines use the D-Bus only to control the display (in a rather [simplistic way](https://github.com/hn/bsh-home-appliances/blob/master/contrib/bsh-dbus-wae284f0nl.yaml#L122)),
@@ -117,18 +117,18 @@ The hardware of other home appliance types has been examined:
 
 ## Protocol
 
-### D-Bus
+### D-Bus 2
 
-Data is transmitted on the D-Bus in a `8N1` configuration and the washing machine uses a transfer rate of 9600 baud.
+Data is transmitted on the D-Bus 2 in a `8N1` configuration and the washing machine uses a transfer rate of 9600 baud.
 The `COM1` internet connection module cyclically tries out transfer rates from 9600 up to 38400 baud during startup, so newer devices probably use one of the higer rates.
 
-The D-Bus is a (1-wire, the DATA wire) bus and not a straight serial cable (2-wire, RX and TX).
+The D-Bus 2 is a (1-wire, the DATA wire) bus and not a straight serial cable (2-wire, RX and TX).
 All participants are reading (and possibly writing) the bus simultaneously.
 It is not yet clear whether the control panel acts as a master for the coordination or whether it is a [multi-master bus](https://en.wikipedia.org/wiki/Multi-master_bus)
 (where something simliar to [CMSA/CR](https://de.wikipedia.org/wiki/Carrier_Sense_Multiple_Access/Collision_Resolution) or [CSMA/CD](https://en.wikipedia.org/wiki/Carrier-sense_multiple_access_with_collision_detection) is used).
 
-This is by no means a complete description of the D-Bus protocol, but rather a layman's approach.
-If you look at the comparable specification for the [CAN bus](https://en.wikipedia.org/wiki/CAN_bus) or [LIN bus](https://en.wikipedia.org/wiki/Local_Interconnect_Network),
+This is by no means a complete description of the D-Bus 2 protocol, but rather a layman's approach.
+If you look at the comparable specification for other serial buses like the [CAN bus](https://en.wikipedia.org/wiki/CAN_bus) or [LIN bus](https://en.wikipedia.org/wiki/Local_Interconnect_Network),
 you will see that there may be many more bits and tricks.
 
 #### Frame format
@@ -178,7 +178,7 @@ However, these have not yet been observed in normal operation.
 #### Acknowledgement byte
 
 After sending a frame, the sender leaves a gap of at least one byte
-(with 9600 baud data rate and 8N2 coding an idle time of 1.145 ms = 11 x 104.167 µs)
+(with 9600 baud data rate and 8N1 coding an idle time of 1.042 ms = 10 x 104.167 µs)
 before before possibly sending the next frame.
 The receiver responsible for processing the frame inserts an acknowledgement byte precisely into this gap.
 The sender can read this byte and knows that the frame has been delivered successfully.
