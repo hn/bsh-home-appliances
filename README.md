@@ -149,8 +149,9 @@ RR = checksum (CRC16-XMODEM)
 
 The destination node ("D" of DS-byte) designates the (unique) logical receiver of the frame and not necessarily a piece of hardware.
 
-The subsystem nibble ("S" of DS-byte) specifies the subsystem within the destination node or classifies different types of frames.
-It is suspected to be of little importance, as an example the unbalance sensor works regardless of what value the “S” nibble has.
+The subsystem nibble ("S" of DS-byte) specifies the subsystem within the destination node.
+For lower complexity nodes it is of little importance (e.g. the unbalance sensor ignores the value of the “S” nibble),
+for higher complexity nodes (e.g. the control board) it seperates logical sections within the program code.
 
 ##### Command frames
 
