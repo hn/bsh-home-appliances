@@ -167,8 +167,9 @@ M1-M2 is therefore relabeled CC-CC (command),
 which then also determines the length and format of the following message bytes.
 The notation DS.CC-CC is introduced here as a distinct declaration for a command frame.
 
-The DS.CC-CC tuples used depend heavily on the machine type (washing machine, dryer, etc.), the respective model and
-the components and commands used.  It seems that there is no overarching defined set of commands.
+For the DS.CC-CC tuples, there is only a very small, overarching defined set of commands ([subsystem S=0](#subsystem-s0)).
+All other commands and communication concepts depend heavily on the machine type (washing machine, dryer, etc.),
+the respective model and the components used.
 
 ##### Other frame types
 
@@ -325,6 +326,74 @@ is preserved for debugging and archiving purposes.
 Fortunately, people have started to create configuration files for devices they own.
 You can find them in the [contrib](contrib/) directory.
 You are very welcome to add more devices, just open a [pull request](https://docs.github.com/de/pull-requests/collaborating-with-pull-requests).
+
+## Firmware analysis
+
+### Basics
+
+Some components are [shipped without readout protection and with debug interface exposed](DISHWASHER.md#control-board-epg700xx),
+making them well suited for static and dynamic firmware analysis.
+
+With your [favourite RE tool](https://ghidra-sre.org/) one can find arrays of structs defining
+the subsystems compiled into the specific version of the device firmware.
+For example, these structures can be identified for the dishwasher firmware:
+
+```
+struct dbus_subsystem {
+    byte subsystemid;			/* S */
+    struct dbus_cmdin * p_s_cmdin;	/* array of incoming cmds */
+    struct dbus_cmdout * p_s_cmdout;	/* array of outgoing cmds */
+    byte * p_b_numcmdout;		/* size of cmdout array */
+    pointer p_sramunknown;		/* likely state byte */
+};
+```
+
+The subsystem definition refers to more detailed arrays of incoming and outgoing
+commands defined for this subsystem:
+
+```
+struct dbus_cmdin {
+    byte eolist;			/* byte & 0x80 != 0 => end of list */
+    byte unkknown;
+    word cccc;
+    pointer p_f_cmdin_handle;		/* int f_cmdin_handle(int len, byte* buf) */
+};
+
+struct dbus_cmdout {
+    byte unknown;
+    byte ds;
+    word cccc;
+    byte len;
+    pointer p_f_fillbuf;		/* int f_fillbuf(int len, byte* buf) */
+    pointer p_f_unknown;		/* mostly no-op */
+};
+```
+
+The best way to initially locate these structures is to search the firmware binary
+for known cmdout DS.CC-CC byte sequences (litte endian).
+By iterating through the arrays, one can list all subsystems
+with all corresponding incoming and outgoing CC-CC commands.
+The intended action of the respective commands can be determined by analyzing the linked functions.
+Some arrays are located in SRAM, as the firmware dynamically patches
+the definitions according to its specific runtime requirements.
+
+### Subsystem S=0
+
+The subsystem S=0 appears to be the same for all devices and allows, among other things,
+the memory content to be read out, which is a convenient way of
+dumping the firmware (flash) and RAM content via D-Bus:
+
+```
+DS.CC-CC
+_0.f0-00 xx yy zz zz        Request dest to dump yy bytes of memory starting at address zz (16 bit)
+_0.f0-01 xx yy zz zz zz zz  Request dest to dump yy bytes of memory starting at address zz (32 bit)
+                            (xx = node to which the response is to be sent)
+
+_0.f1-00 xx yy zz[]         Response of node xx with yy bytes of memory data zz (16 bit)
+_0.f1-01 xx yy zz[]         Response of node xx with yy bytes of memory data zz (32 bit)
+```
+
+The subsystem offers some more commands which have not been analyzed yet.
 
 ## Serial numbers
 
