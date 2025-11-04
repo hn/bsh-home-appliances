@@ -113,6 +113,7 @@ All dates are only rough estimates, as the various models were produced and sold
 The hardware of other home appliance types has been examined:
 
 - [Dishwashers](DISHWASHER.md)
+- [Dryers](DRYER.md)
 - [WLAN module to connect to the Home Connect cloud service](WLANMODULE.md)
 
 ## Protocol
