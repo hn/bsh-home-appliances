@@ -25,7 +25,7 @@ The EPG70002 got two relays for heating while the 70003 got three.
 Depending on the board model, there is also an additional motor driver chip FSB50550AB from fairchild semiconductors
 to power the fan motor for the Zeolith active drying technology.
 
-The board has three D-Bus connectors (X9, X10, X11), the latter on the
+The board has three D-Bus connectors (X9, X10, X11), the first at the top left and the latter two on the
 [left side with four pins](photos/bsh-EPG700xx-dbus.jpg): 1. Unknown, 2. VBUS, 3. DATA, 4. GND.
 Additionally, there is one (galvanically isolated) D-Bus connector on the [daughter board](photos/bsh-EPG700xx-dbus-daughter.jpg).
 
