@@ -20,10 +20,14 @@ Please do me a favor: :thumbsup: If you use any information or code you find her
 Household appliances work with high voltages and currents. They generate heat and steam, they shake, vibrate and have rotating parts.
 You should have a good knowledge of electrics and take appropriate safety measures before opening or modifying such an appliance. Parts can get wet or hot, move or fall off.
 
-:warning: Warning: Even if parts of the appliances operate at low voltages, depending on your specific model they may or may not be isolated from earth. This is a good chance of death or serious injury.
-It is also not recommended to lead cables out of the appliance. So if you're dreaming of connecting your Raspberry Pi to the control electronics, it's probably not a good idea.
+> [!WARNING]
+> Even if parts of the appliances operate at low voltages, depending on your specific model they may or may not be isolated from earth.
+> This is a good chance of death or serious injury. It is also not recommended to lead cables out of the appliance.
+> So if you're dreaming of connecting your Raspberry Pi to the control electronics, it's probably not a good idea.
 
-:warning: Warning: I'm not responsible if you kill your cat, your wife or yourself, whichever of these is the worst for you. You have been warned.
+> [!WARNING]
+> I'm not responsible if you kill your cat, your wife or yourself, whichever of these is the worst for you.
+> You have been warned.
 
 ## Hardware
 
@@ -31,11 +35,12 @@ Even if the marketing materials suggest otherwise, the technology of household a
 A number of motors, heaters, valves and sensors are connected to a control unit and made available to the user via the fanciest possible user interface.
 It also seems to be the case that a manufacturer's devices, regardless of their external appearance and brand logo, differ only marginally on the inside.
 
-:raised_hand: The following findings are probably only applicable to a certain generation of B/S/H/ home appliances, namely those with "EP" circuit boards.
-The washing machine boards are labeled "EPW", which probably stands for "Elektronik Platine Waschmaschine" (electronic circuit board washing machine).
-The dryer boards are labeled "EPT", with "T" for "Trockner" (dryer) and the dishwasher boards are using "EPG", with "G" for "Geschirrspüler".
-However, there is currently no known way of deducing the board version used internally from the external appearance or the model name.
-You have to open the machine and look inside.
+> [!NOTE]
+> The following findings are probably only applicable to a certain generation of B/S/H/ home appliances, namely those with "EP" circuit boards.
+> The washing machine boards are labeled "EPW", which probably stands for "Elektronik Platine Waschmaschine" (electronic circuit board washing machine).
+> The dryer boards are labeled "EPT", with "T" for "Trockner" (dryer) and the dishwasher boards are using "EPG", with "G" for "Geschirrspüler".
+> However, there is currently no known way of deducing the board version used internally from the external appearance or the model name.
+> You have to open the machine and look inside.
 
 The control electronics were likely developed by [BSH PED in Regensburg](https://wiki.bsh-group.com/de/wiki/BSH_Regensburg_%E2%80%93_Produktbereich_Electronic_Systems,_Drives_(PED)).
 The site has worked for the automotive industry in the past, which explains why some components and approaches share similarities.
@@ -97,7 +102,8 @@ The connectors have coding lugs to ensure that they cannot be plugged into the w
 They are commercially available from [Lumberg](https://www.lumberg.com/en/products/product/3521), [Stocko](https://www.stocko-contact.com/downloads/STOCKO_Connector%20systems_pitch%202.5_ECO-TRONIC_de_en.pdf) and probably many more suppliers.
 B/S/H/ sells somewhat pricy pre-assembled cables as well, e.g. the [spare part 00631780](https://www.siemens-home.bsh-group.com/de/produktliste/00631780).
 
-:warning: Watch out: The assignment of the connector depends on the end point: on the control board the connector is configured as GND-DATA-VBUS and then the cable is crossed and on the other side (e.g. for sensors) the wiring is VBUS-DATA-GND:
+> [!WARNING]
+> The assignment of the connector depends on the end point: on the control board the connector is configured as GND-DATA-VBUS and then the cable is crossed and on the other side (e.g. for sensors) the wiring is VBUS-DATA-GND:
 
 ![BSH D-Bus 2 pinout, control bord bottom, slave top right](bsh-dbus-pinout.jpg)
 
@@ -293,17 +299,20 @@ DS CC CC
 With just an [ESP8266, a piggyback 9V-to-5V-DC-DC converter and a few cables](bsh-dbus-esp8266-logger.jpg) one easily can interface the D-Bus
 (lab setup only, not recommended to be installed in a real home appliance, see notes below).
 
-:warning: Warning: Please double check that you have read and followed the [safety notes](#warning) before connecting anything to a live device.
-I repeat: It is not guaranteed that the D-Bus is isolated from earth.
+> [!WARNING]
+> Please double check that you have read and followed the [safety notes](#warning) before connecting anything to a live device.
+> I repeat: It is not guaranteed that the D-Bus is isolated from earth.
 
-:question: The [ESP8266 GPIOs are 5V-tolerant](https://twitter.com/ba0sh1/status/759239169071837184),
-but unsure whether this is the best way to connect to the D-Bus or whether pull-up resistors or similar are missing.
-Please help if you have expertise in this area.
+> [!IMPORTANT]
+> The [ESP8266 GPIOs are 5V-tolerant](https://twitter.com/ba0sh1/status/759239169071837184),
+> but unsure whether this is the best way to connect to the D-Bus or whether pull-up resistors or similar are missing.
+> Please help if you have expertise in this area.
 
-:question: Additionally, the ESP8266 is drawing too much power from the 9V VBUS pin.
-During the WiFi connection phase, [current spikes of up to 430mA](https://www.ondrovo.com/a/20170207-esp-consumption/) occur, which seems to exceed the maximum available current of the machine's power supply.
-Adding a 470uF capacitor between the GND and VBUS pin of the D1 and limiting the WiFi output power (`output_power: 10.5dB`) seems to be a dirty workaround, though not a reliable solution everyone should use.
-Please help if you have expertise in this area.
+> [!IMPORTANT]
+> Additionally, the ESP8266 is drawing too much power from the 9V VBUS pin.
+> During the WiFi connection phase, [current spikes of up to 430mA](https://www.ondrovo.com/a/20170207-esp-consumption/) occur, which seems to exceed the maximum available current of the machine's power supply.
+> Adding a 470uF capacitor between the GND and VBUS pin of the D1 and limiting the WiFi output power (`output_power: 10.5dB`) seems to be a dirty workaround, though not a reliable solution everyone should use.
+> Please help if you have expertise in this area.
 
 ### Arduino
 
