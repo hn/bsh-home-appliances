@@ -335,7 +335,7 @@ You are very welcome to add more devices, just open a [pull request](https://doc
 Some components are [shipped without readout protection and with debug interface exposed](DISHWASHER.md#control-board-epg700xx),
 making them well suited for static and dynamic firmware analysis.
 
-With your [favourite RE tool](https://ghidra-sre.org/) one can find arrays of structs defining
+With your [favourite RE tool](https://reverseengineering.stackexchange.com/questions/1817/is-there-any-disassembler-to-rival-ida-pro) one can find arrays of structs defining
 the subsystems compiled into the specific version of the device firmware.
 For example, these structures can be identified for the dishwasher firmware:
 
