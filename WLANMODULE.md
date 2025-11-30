@@ -22,3 +22,15 @@ The module has not been analyzed in detail. Some information can be found [here]
 It is suspected that the STM32F4 and the WLAN/Bluetooth were combined into a (propietary?) single IC for the COM2,
 which is probably more cost-effective.
 
+### System Master Module 2AHES-M2 - SystemMaster M2
+
+No info yet. See [here](https://fcc.report/FCC-ID/2AHES-M2)
+
+It is suspected that this module not only establishes Internet connectivity,
+but also controls the entire logic of the household appliance (“system master”),
+i.e., it takes over the tasks that were previously performed by the power module.
+
+### System Master Module 2AHES-SMB - SystemMaster S2
+
+No info yet. See [here](https://fcc.report/FCC-ID/2AHES-SMB)
+
