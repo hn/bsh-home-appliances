@@ -35,12 +35,11 @@ Even if the marketing materials suggest otherwise, the technology of household a
 A number of motors, heaters, valves and sensors are connected to a control unit and made available to the user via the fanciest possible user interface.
 It also seems to be the case that a manufacturer's devices, regardless of their external appearance and brand logo, differ only marginally on the inside.
 
-> [!NOTE]
-> The following findings are probably only applicable to a certain generation of B/S/H/ home appliances, namely those with "EP" circuit boards.
-> The washing machine boards are labeled "EPW", which probably stands for "Elektronik Platine Waschmaschine" (electronic circuit board washing machine).
-> The dryer boards are labeled "EPT", with "T" for "Trockner" (dryer) and the dishwasher boards are using "EPG", with "G" for "Geschirrspüler".
-> However, there is currently no known way of deducing the board version used internally from the external appearance or the model name.
-> You have to open the machine and look inside.
+The following findings are probably only applicable to a certain generation of B/S/H/ home appliances, namely those with "EP" circuit boards.
+The washing machine boards are labeled "EPW", which probably stands for "Elektronik Platine Waschmaschine" (electronic circuit board washing machine).
+The dryer boards are labeled "EPT", with "T" for "Trockner" (dryer) and the dishwasher boards are using "EPG", with "G" for "Geschirrspüler".
+However, there is currently no known way of deducing the board version used internally from the external appearance or the model name.
+You have to open the machine and look inside.
 
 The control electronics were likely developed by [BSH PED in Regensburg](https://wiki.bsh-group.com/de/wiki/BSH_Regensburg_%E2%80%93_Produktbereich_Electronic_Systems,_Drives_(PED)).
 The site has worked for the automotive industry in the past, which explains why some components and approaches share similarities.
@@ -102,7 +101,7 @@ The connectors have coding lugs to ensure that they cannot be plugged into the w
 They are commercially available from [Lumberg](https://www.lumberg.com/en/products/product/3521), [Stocko](https://www.stocko-contact.com/downloads/STOCKO_Connector%20systems_pitch%202.5_ECO-TRONIC_de_en.pdf) and probably many more suppliers.
 B/S/H/ sells somewhat pricy pre-assembled cables as well, e.g. the [spare part 00631780](https://www.siemens-home.bsh-group.com/de/produktliste/00631780).
 
-> [!WARNING]
+> [!IMPORTANT]
 > The assignment of the connector depends on the end point: on the control board the connector is configured as GND-DATA-VBUS and then the cable is crossed and on the other side (e.g. for sensors) the wiring is VBUS-DATA-GND:
 
 ![BSH D-Bus 2 pinout, control bord bottom, slave top right](bsh-dbus-pinout.jpg)
