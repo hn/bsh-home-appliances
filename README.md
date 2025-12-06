@@ -128,10 +128,10 @@ The hardware of other home appliance types has been examined:
 Data is transmitted on the D-Bus 2 in a `8N1` configuration and the washing machine uses a transfer rate of 9600 baud.
 The `COM1` internet connection module cyclically tries out transfer rates from 9600 up to 38400 baud during startup, so newer devices probably use one of the higer rates.
 
-The D-Bus 2 is a (1-wire, the DATA wire) bus and not a straight serial cable (2-wire, RX and TX).
-All participants are reading (and possibly writing) the bus simultaneously.
-It is not yet clear whether the control panel acts as a master for the coordination or whether it is a [multi-master bus](https://en.wikipedia.org/wiki/Multi-master_bus)
-(where something simliar to [CMSA/CR](https://de.wikipedia.org/wiki/Carrier_Sense_Multiple_Access/Collision_Resolution) or [CSMA/CD](https://en.wikipedia.org/wiki/Carrier-sense_multiple_access_with_collision_detection) is used).
+The D-Bus 2 is a (1-wire, the DATA wire) bus, not a conventional 2-wire serial link with separate RX and TX signals.
+It operates as a [multi-master bus](https://en.wikipedia.org/wiki/Multi-master_bus) in which all participants
+are reading (and possibly writing) the bus simultaneously.
+Bus arbitration appears to follow a [non-persistent CSMA](https://en.wikipedia.org/wiki/Carrier-sense_multiple_access#Non-persistent) scheme.
 
 This is by no means a complete description of the D-Bus 2 protocol, but rather a layman's approach.
 If you look at the comparable specification for other serial buses like the [CAN bus](https://en.wikipedia.org/wiki/CAN_bus) or [LIN bus](https://en.wikipedia.org/wiki/Local_Interconnect_Network),
