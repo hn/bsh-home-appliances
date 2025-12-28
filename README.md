@@ -11,6 +11,9 @@ This project shows some of the things that have been discovered through reverse 
 This project is in no way affilliated with B/S/H/.
 No intelectual property of B/S/H/ was used at any time.
 
+There has been a talk about the findings of this project at the [39C3](https://events.ccc.de/congress/2025/).
+A recording of the talk is available [here](https://media.ccc.de/v/39c3-hacking-washing-machines).
+
 Please do me a favor: :thumbsup: If you use any information or code you find here, please link back to this page.
 :star: Also, please consider to star this project. I really like to keep track of who is using this to do creative things, especially if you are from other parts of the world.
 :smiley: You are welcome to open an issue to report on your personal success project and share it with others.
