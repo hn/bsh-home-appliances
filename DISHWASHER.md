@@ -17,6 +17,10 @@ uses a [RENESAS R5F104BGA MCU](https://www.renesas.com/en/products/microcontroll
 The LCD MSGF013733-04 seems to be custom made for B/S/H/ ("04" likely is a hardware revision and
 the second line on the sticker likely is the production date in YYMMDD format).
 
+With [bsh-timelight-extract-icons.pl](bsh-timelight-extract-icons.pl) one can extract
+the icons from the firmware image. Some icons are compressed with a simple run-length encoding,
+the script will decompress them as needed.
+
 ### Control board EPG700xx
 
 The control boards (EPG70002, EPG70003, EPG70012 [PCB top](photos/bsh-EPG70012-pcb-top.jpg) [PCB bottom](photos/bsh-EPG70012-pcb-bottom.jpg) [Enclosure](photos/bsh-EPG70012-enclosure.jpg))
