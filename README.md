@@ -29,7 +29,7 @@ You should have a good knowledge of electrics and take appropriate safety measur
 > So if you're dreaming of connecting your Raspberry Pi to the control electronics, it's probably not a good idea.
 
 > [!WARNING]
-> I'm not responsible if you kill your cat, your wife or yourself, whichever of these is the worst for you.
+> I'm not responsible if you kill your cat, your spouse, your favourite pet fish, or yourself, whichever of these is the worst for you.
 > You have been warned.
 
 ## Hardware
