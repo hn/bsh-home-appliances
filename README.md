@@ -298,23 +298,12 @@ DS CC CC
 
 ## Software
 
-With just an [ESP8266, a piggyback 9V-to-5V-DC-DC converter and a few cables](bsh-dbus-esp8266-logger.jpg) one easily can interface the D-Bus
-(lab setup only, not recommended to be installed in a real home appliance, see notes below).
+With just an [ESP32, a TXS0102 open-drain level shifter, a 5V-DC-DC converter and a few cables](bsh-dbus-esp32.jpg)
+one easily can interface the D-Bus (lab setup only).
 
 > [!WARNING]
 > Please double check that you have read and followed the [safety notes](#warning) before connecting anything to a live device.
 > I repeat: It is not guaranteed that the D-Bus is isolated from earth.
-
-> [!IMPORTANT]
-> The [ESP8266 GPIOs are 5V-tolerant](https://twitter.com/ba0sh1/status/759239169071837184),
-> but unsure whether this is the best way to connect to the D-Bus or whether pull-up resistors or similar are missing.
-> Please help if you have expertise in this area.
-
-> [!IMPORTANT]
-> Additionally, the ESP8266 is drawing too much power from the 9V VBUS pin.
-> During the WiFi connection phase, [current spikes of up to 430mA](https://www.ondrovo.com/a/20170207-esp-consumption/) occur, which seems to exceed the maximum available current of the machine's power supply.
-> Adding a 470uF capacitor between the GND and VBUS pin of the D1 and limiting the WiFi output power (`output_power: 10.5dB`) seems to be a dirty workaround, though not a reliable solution everyone should use.
-> Please help if you have expertise in this area.
 
 ### Arduino
 
