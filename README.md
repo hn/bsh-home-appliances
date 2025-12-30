@@ -307,7 +307,11 @@ one easily can interface the D-Bus (lab setup only).
 
 ### Arduino
 
-[bsh-dbus-logger.ino](bsh-dbus-logger.ino) aims to fully interpret bus traffic including acknowledgements. It's work in progress, though.
+[open-d-bus](open-d-bus/src/main.cpp) is a somewhat hackish implementation of a D-Bus-2 stack.
+It parses D-Bus traffic, acknowledges frames for locally registered nodes and
+routes commands to corresponding handler functions.
+
+[bsh-dbus-logger.ino](bsh-dbus-logger.ino) is an older approach to interpret bus traffic including acknowledgements.
 
 ### Home Assistant / ESPHome
 
