@@ -1,0 +1,302 @@
+#
+# bsh-dbus-wm14s750.yaml -- Interface B/S/H/ washing machine WM14S750
+#
+# (C) 2024 Hajo Noerenberg
+#
+# Usage: Connect D-Bus DATA pin to pin D5
+#
+# http://www.noerenberg.de/
+# https://github.com/hn/bsh-home-appliances
+#
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 3.0 as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program. If not, see <http://www.gnu.org/licenses/gpl-3.0.txt>.
+#
+#
+
+# !! Specifics for WM14Q441 !!
+#  This washing machine sends relatively sparse updates for the remaining time. 
+# Therefore a little bit of home assistant template magic is needed: 
+# 
+# creating a new template sensor with the following template gives you the remaining time of the washing machine
+# {{(timedelta(minutes=int(states.sensor.waschmaschine_dbus_restzeit.state))+states.sensor.waschmaschine_dbus_restzeit.last_updated) - now()}}
+#
+#
+#
+
+esphome:
+  name: waschmaschine_dbus
+  friendly_name: waschmaschine dbus
+
+external_components:
+  - source: github://hn/bsh-home-appliances@master
+
+esp8266:
+  board: d1_mini
+
+logger:
+
+api:
+  encryption:
+    key: "="
+
+ota:
+  - platform: esphome
+    password: ""
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  # Dirty workaround because the machine's power supply unit cannot provide enough current:
+  #output_power: 10.5dB
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+
+uart:
+  id: dbus_uart
+  rx_pin: D5
+  baud_rate: 9600
+
+bshdbus:
+  uart_id: dbus_uart
+
+binary_sensor:
+  - platform: bshdbus
+    dest: 0x14
+    command: 0x1007
+    binary_sensors:
+      - id: bsh_wm_feat_waterplus
+        name: Extraspülen
+        icon: mdi:water-plus
+        lambda: return (x[0] >> 4) & 0x01;
+      - id: bsh_wm_speedperfect
+        name: SpeedPerfect
+        icon: mdi:clock-fast
+        lambda: return !((x[0] >> 6) & 0x01);
+      - id: bsh_wm_feat_stains
+        name: ECOPerfect
+        icon: mdi:liquid-spot
+        lambda: return (x[0] >> 5) & 0x01;
+      - id: bsh_wm_feat_prewash
+        name: Vorwäsche
+        icon: mdi:rotate-orbit
+        lambda: return (x[0] >> 7) & 0x01;
+      - id: bsh_wm_feat_anticrease
+        name: Knitterschutz
+        icon: mdi:iron
+        lambda: return (x[1] >> 7) & 0x01;
+  - platform: bshdbus
+    dest: 0x15
+    command: 0x1100
+    binary_sensors:
+      - id: bsh_wm_start_button
+        name: Startknopf
+        icon: mdi:button-pointer
+        lambda: return 1;
+        on_press:
+          - delay: 1s
+          - lambda: id(bsh_wm_start_button).publish_state(NAN);
+  - platform: bshdbus
+    dest: 0x26
+    command: 0x1701
+    binary_sensors:
+      - id: bsh_wm_program_started
+        name: Waschprogramm gestarted
+        entity_category: diagnostic
+        icon: mdi:ray-start-arrow
+        lambda: return 1;
+        on_press:
+          - delay: 1s
+          - lambda: id(bsh_wm_program_started).publish_state(NAN);
+  - platform: bshdbus
+    dest: 0x14
+    command: 0x1008
+    binary_sensors:
+      - id: bsh_wm_kein_schleudern
+        name: kein Schleudern
+        entity_category: diagnostic
+        lambda: |-
+          bool keinschleudern = (x[0] & 0x01);
+          if(keinschleudern == true) {
+            id(bsh_wm_rpm).publish_state(0);
+          }
+          return keinschleudern;
+
+sensor:
+  - platform: bshdbus
+    dest: 0x14
+    command: 0x1004
+    sensors:
+      - id: bsh_wm_temperature
+        name: Temperatur
+        device_class: temperature
+        state_class: measurement
+        unit_of_measurement: °C
+        accuracy_decimals: 0
+        lambda: return x[0];
+        filters:
+          - lambda: |-
+              switch((int)x){
+                case 0:
+                  return 0.0;
+                  break;
+                case 1:
+                  return 20.0;
+                  break;
+                case 2:
+                  return 30.0;
+                  break;
+                case 3:
+                  return 40.0;
+                  break;
+                case 4:
+                  return 60.0;
+                  break;
+                case 7:
+                  return 90.0;
+                  break;
+                default:
+                  return (x*10);
+                  break;
+              }
+  - platform: bshdbus
+    dest: 0x14
+    command: 0x1006
+    sensors:
+      - id: bsh_wm_rpm
+        name: Umdrehungen
+        device_class: speed
+        state_class: measurement
+        unit_of_measurement: rpm
+        accuracy_decimals: 0
+        lambda: return x[0];
+        filters:
+          - multiply: 10
+  - platform: bshdbus
+    dest: 0x17
+    command: 0x4010
+    sensors:
+      - id: bsh_wm_unbalance_x
+        name: Unwucht X
+        entity_category: diagnostic
+        icon: mdi:axis-x-rotate-clockwise
+        accuracy_decimals: 0
+        lambda: return (int16_t) ((x[1] << 8) | x[2]);
+        filters:
+          - throttle: 30s
+          - timeout: 90s
+      - id: bsh_wm_unbalance_z
+        name: Unwucht Z
+        entity_category: diagnostic
+        icon: mdi:axis-z-rotate-clockwise
+        accuracy_decimals: 0
+        lambda: return (int16_t) ((x[3] << 8) | x[4]);
+        filters:
+          - throttle: 30s
+          - timeout: 90s
+      - id: bsh_wm_unbalance_y
+        name: Unwucht Y
+        entity_category: diagnostic
+        icon: mdi:axis-y-rotate-clockwise
+        accuracy_decimals: 0
+        lambda: return (int16_t) ((x[5] << 8) | x[6]);
+        filters:
+          - throttle: 30s
+          - timeout: 90s
+  - platform: bshdbus
+    dest: 0x2a
+    command: 0x1600
+    sensors:
+      - id: bsh_wm_remain
+        name: Restzeit
+        device_class: duration
+        state_class: measurement
+        unit_of_measurement: min
+        accuracy_decimals: 0
+        lambda: return x[0];
+
+text_sensor:
+  - platform: bshdbus
+    dest: 0x14
+    command: 0x1005
+    text_sensors:
+      - id: bsh_wm_program
+        name: Waschprogramm
+        icon: mdi:numeric
+        lambda: return std::to_string(x[2]);
+        filters:
+          - map:
+            - 0 -> Aus
+            - 1 -> Baumwolle
+            - 2 -> Baumwolle + v
+            - 3 -> Pflegeleicht
+            - 4 -> Pflegeleicht + v
+            - 5 -> Schnell/Mix
+            - 6 -> Fein/Seide
+            - 7 -> Wolle
+            - 8 -> Spülen/Schleudern
+            - 9 -> Abpumpen
+            - 10 -> Schonschleudern
+            - 11 -> Super 15
+            - 12 -> Pflegeleicht Plus
+            - 13 -> Super Fein
+            - 14 -> Hemden/Business
+            - 15 -> Outdoor
+  - platform: bshdbus
+    dest: 0x26
+    command: 0x1020
+    text_sensors:
+      - id: bsh_wm_washmodule
+        name: Waschprogramm Modul
+        entity_category: diagnostic
+        icon: mdi:map-marker-path
+        lambda: return std::to_string(x[0]);
+        filters:
+          - map:
+            - 3 -> Waschmittel einspülen (3)
+            - 4 -> Wassereinlauf (4)
+            - 5 -> Aufheizen (5)
+            - 6 -> Walken (6)
+            - 9 -> Abpumpen / Schleudern (9)
+            - 13 -> Spülen (13)
+            - 15 -> Abpumpen / Schleudern (15)
+            - 16 -> Spülen (16)
+            - 20 -> Abpumpen / Schleudern  (20)
+            - 23 -> Spülen (23)
+            - 26 -> Endschleudern (26)
+            - 28 -> Auflockern (28)
+  - platform: bshdbus
+    dest: 0x26
+    command: 0x1200
+    text_sensors:
+      - id: bsh_wm_door
+        name: Tür
+        icon: mdi:door
+        lambda: return std::to_string(x[0]);
+        filters:
+          - map:
+            - 0 -> Zu und nicht verriegelt
+            - 1 -> Zu und verriegelt
+            - 2 -> Offen
+  - platform: bshdbus
+    dest: 0x26
+    command: 0x1101
+    text_sensors:
+      - id: bsh_wm_state
+        name: Status
+        icon: mdi:state-machine
+        lambda: return std::to_string(x[0]);
+        filters:
+        - map:
+          - 0 -> Angehalten/Bereit
+          - 1 -> Fertig
+          - 2 -> Läuft
