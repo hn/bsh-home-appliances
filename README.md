@@ -124,7 +124,7 @@ an open-drain level shifter, and a DC-DC voltage converter for the supply voltag
 Thankfully, several users have contributed their ideas and are sharing their PCBs:
 
 - [kiu](https://github.com/kiu) uses an ESP32-C3 and a compact PCB design called [BaSHi](https://github.com/kiu/BaSHi).
-- [Bouni](https://github.com/Bouni) uses an [ESP32-C6 with on-board USB status LEDs](https://github.com/Bouni/BSH-Board).
+- [Bouni](https://github.com/Bouni) uses an [ESP32-C6 with on-board USB and status LEDs](https://github.com/Bouni/BSH-Board).
 - [tubist2004](https://github.com/tubist2004) takes a [truly minimalistic approach, fitting entirely inside a connector](https://github.com/tubist2004/ESP32_D-Bus_Adapter).
 - my old tinkering with an [ESP32, a TXS0102, a 5V-DC-DC converter and a few cables](bsh-dbus-esp32.jpg) is not recommended.
 
@@ -471,7 +471,7 @@ The information in this paragraph was compiled from various forum posts, there i
     describes how to add a cryptography layer to the D-Bus (a kind of DRM to protect e.g. cooking recipes).
 
 - [Trammell Hudson](https://github.com/osresearch) has done a in-depth research on how to
-  [cloudlessly interface aplliances](https://github.com/osresearch/hcpy) with python.
+  [cloudlessly interface appliances](https://github.com/osresearch/hcpy) with python.
 
 - I don't own a WM14S750 washing machine, but only, let's call it, a [lab setup](bsh-wm-lab-setup.jpg).
 
