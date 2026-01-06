@@ -116,6 +116,25 @@ It looks as if B/S/H/ has gradually introduced the D-Bus more and more into home
 
 All dates are only rough estimates, as the various models were produced and sold over longer periods of time.
 
+#### D-Bus adapter
+
+To interface your own projects with the D-Bus, you need an MCU, for example an ESP32,
+an open-drain level shifter, and a DC-DC voltage converter for the supply voltage.
+Thankfully, several users have contributed their ideas and are sharing their PCBs:
+
+- [kiu](https://github.com/kiu) uses an ESP32-C3 and a compact PCB design called [BaSHi](https://github.com/kiu/BaSHi).
+- [Bouni](https://github.com/Bouni) uses an [ESP32-C6 with on-board USB status LEDs](https://github.com/Bouni/BSH-Board).
+- [tubist2004](https://github.com/tubist2004) takes a [truly minimalistic approach, fitting entirely inside a connector](https://github.com/tubist2004/ESP32_D-Bus_Adapter).
+- my old tinkering with an [ESP32, a TXS0102, a 5V-DC-DC converter and a few cables](bsh-dbus-esp32.jpg) is not recommended.
+
+> [!WARNING]
+> Please double check that you have read and followed the [safety notes](#warning) before connecting anything to a live device.
+> I repeat: It is not guaranteed that the D-Bus is isolated from earth.
+> Never connect the adapter to both the appliance and your computer at the same time.
+
+If you have your own adapter design, I’ll be happy to link it in the list above,
+provided it has a proper OSS license and all source files are available.
+
 ### Other home appliance types
 
 The hardware of other home appliance types has been examined:
@@ -298,12 +317,7 @@ DS CC CC
 
 ## Software
 
-With just an [ESP32, a TXS0102 open-drain level shifter, a 5V-DC-DC converter and a few cables](bsh-dbus-esp32.jpg)
-one easily can interface the D-Bus (lab setup only).
-
-> [!WARNING]
-> Please double check that you have read and followed the [safety notes](#warning) before connecting anything to a live device.
-> I repeat: It is not guaranteed that the D-Bus is isolated from earth.
+Using a [D-Bus adapter](#d-bus-adapter), you can connect to the bus and interface it with your own software.
 
 ### Arduino
 
