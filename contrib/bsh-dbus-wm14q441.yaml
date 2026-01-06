@@ -1,6 +1,7 @@
 #
-# bsh-dbus-wm14s750.yaml -- Interface B/S/H/ washing machine WM14S750
+# bsh-dbus-wm14q441.yaml -- Interface B/S/H/ washing machine WM14Q441
 #
+# (C) 2025 fkzle
 # (C) 2024 Hajo Noerenberg
 #
 # Usage: Connect D-Bus DATA pin to pin D5
