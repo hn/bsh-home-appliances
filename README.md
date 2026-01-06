@@ -98,7 +98,8 @@ The code can not easily be downloaded because the device has the Code Protection
 According to the [B/S/H/ patent documents](#misc), [this](https://www.mikrocontroller.net/topic/395115#4543950) and [this](https://forums.ni.com/t5/Instrument-Control-GPIB-Serial/Has-anybody-used-D-Bus-to-communicate-with-and-or-control/m-p/4284296#M84901) forum post, the electronics inside the device are interconnected via a proprietary serial bus called D-Bus or D-Bus-2.
 Since there are no public technical specifications, it can only be speculated that the D-Bus-1 corresponds more to the CAN bus and the D-Bus-2 more to a bus with UART data framing.
 
-The bus found on the "EP" circuit boards likely is a D-Bus-2 and consists of three wires: GND, VBUS and DATA. VBUS is 9V (13.5V for dishwashers) and DATA is TTL (5V).
+The bus found on the "EP" circuit boards likely is a D-Bus-2 and consists of three wires: GND, VBUS and DATA.
+VBUS is 9V for washing machines, 13.5V for dishwashers and 5V for extractor hoods. DATA is TTL (5V).
 Connections are established using 3 pin 2.5 pitch [RAST connectors](https://de.wikipedia.org/wiki/RAST-Steckverbinder).
 The connectors have coding lugs to ensure that they cannot be plugged into the wrong socket.
 They are commercially available from [Lumberg](https://www.lumberg.com/en/products/product/3521), [Stocko](https://www.stocko-contact.com/downloads/STOCKO_Connector%20systems_pitch%202.5_ECO-TRONIC_de_en.pdf) and probably many more suppliers.
