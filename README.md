@@ -110,6 +110,15 @@ B/S/H/ sells somewhat pricy pre-assembled cables as well, e.g. the [spare part 0
 
 ![BSH D-Bus 2 pinout, control bord bottom, slave top right](bsh-dbus-pinout.jpg)
 
+#### External access
+
+At least in dishwashers, the D-Bus is accessible via [PCB traces well hidden inside the power connector](bsh-dbus-powerplug.jpg).
+The power plug has special recesses that likely accommodate spring contacts
+in a different cable configuration intended for service personnel,
+allowing easy external access to the bus.
+
+#### History
+
 It looks as if B/S/H/ has gradually introduced the D-Bus more and more into home appliances over the years:
 - pre-2006 washing machines use the D-Bus only to control the display (in a rather [simplistic way](https://github.com/hn/bsh-home-appliances/blob/master/contrib/bsh-dbus-wae284f0nl.yaml#L122)),
 - 2006-2010 washing machines only use the D-Bus for the unbalance sensor and the control panel,
