@@ -4,7 +4,9 @@
 # (C) 2025 fkzle
 # (C) 2024 Hajo Noerenberg
 #
-# Usage: Connect D-Bus DATA pin to pin D5
+# More info:
+# https://github.com/hn/bsh-home-appliances/pull/22
+# https://github.com/hn/bsh-home-appliances/issues/20
 #
 # http://www.noerenberg.de/
 # https://github.com/hn/bsh-home-appliances
