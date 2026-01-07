@@ -130,7 +130,8 @@ All dates are only rough estimates, as the various models were produced and sold
 
 To interface your own projects with the D-Bus, you need an MCU, for example an ESP32,
 an open-drain level shifter, and a DC-DC voltage converter for the supply voltage.
-Thankfully, several users have contributed their ideas and are sharing their PCBs:
+Thankfully, [several users have contributed their ideas](https://github.com/hn/bsh-home-appliances/issues/17)
+and are sharing their PCBs:
 
 - [kiu](https://github.com/kiu) uses an ESP32-C3 and a compact PCB design called [BaSHi](https://github.com/kiu/BaSHi).
 - [Bouni](https://github.com/Bouni) uses an [ESP32-C6 with on-board USB and status LEDs](https://github.com/Bouni/BSH-Board).
