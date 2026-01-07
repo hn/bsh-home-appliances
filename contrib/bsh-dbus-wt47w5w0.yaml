@@ -1,0 +1,223 @@
+#
+# bsh-dbus-wt47w5w0.yaml -- Interface B/S/H/ dryer WT47W5W0 (Siemens iQ700)
+#
+# This file has been contributed by
+# (C) 2025 Tristan Bastian
+# https://github.com/reey
+# 
+# Based on bsh-dbus-wt47r440.yaml provided by:
+# (C) 2024 Stefan Hirt 
+# https://github.com/stefanhirt
+#
+# (C) 2024 Hajo Noerenberg
+#
+# Usage: Connect D-Bus DATA pin to pin 6
+#
+# http://www.noerenberg.de/
+# https://github.com/hn/bsh-home-appliances
+#
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 3.0 as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program. If not, see <http://www.gnu.org/licenses/gpl-3.0.txt>.
+#
+
+esphome:
+  name: bsh-dbus-wt47w5w0
+  friendly_name: BSH dryer WT47W5W0
+  
+external_components:
+  - source: github://hn/bsh-home-appliances@master
+
+esp32:
+  variant: esp32c3
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  # Dirty workaround because the machine's power supply unit cannot provide enough current:
+  output_power: 10.5dB
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "D-Bus-WT47W5W0 Fallback Hotspot"
+    password: !secret wifi_ap_password
+
+captive_portal:
+
+
+uart:
+  id: dbus_uart
+  rx_pin: GPIO6
+  baud_rate: 9600
+
+bshdbus:
+  uart_id: dbus_uart
+
+binary_sensor:
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1006
+    binary_sensors:
+      - id: bsh_dryer_low_heat
+        name: Schontrocknen
+        icon: mdi:feather
+        lambda: return (x[6]) & 0x04;
+  
+sensor:
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1002
+    sensors:
+      - id: bsh_dryer_time_remaining
+        name: Restzeit
+        icon: mdi:clock-outline
+        device_class: duration
+        state_class: measurement
+        unit_of_measurement: min
+        accuracy_decimals: 0
+        lambda: return (x[0] << 8 | x[1]) / 60;
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1006
+    sensors:
+      - id: bsh_dryer_anti_crease_time
+        name: Knitterschutz
+        icon: mdi:shield-refresh
+        device_class: duration
+        state_class: measurement
+        unit_of_measurement: min
+        accuracy_decimals: 0
+        lambda: return ((int16_t)x[1]);
+
+text_sensor:
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1006
+    text_sensors:
+      - id: bsh_dryer_program
+        name: Trocknungsprogramm
+        icon: mdi:tshirt-crew-outline
+        lambda: return std::to_string(x[0]);
+        filters:
+          - map:
+            - 0 -> Aus
+            - 1 -> Baumwolle
+            - 2 -> Pflegeleicht
+            - 3 -> Mix
+            - 4 -> Outdoor
+            - 5 -> Wolle finish
+            - 6 -> zeitlich kalt
+            - 7 -> zeitlich warm
+            - 8 -> Hygiene
+            - 9 -> Super 40
+            - 10 -> Handtücher
+            - 11 -> Outdoor
+            - 12 -> Kopfkissen
+            - 13 -> Steppdecken
+            - 14 -> Hemden
+            - 15 -> Pflegeleicht extratrocken
+            - 16 -> Dessous
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1006
+    text_sensors:
+      - id: bsh_dryer_fine_adjust
+        name: Trockengrad
+        icon: mdi:white-balance-sunny
+        lambda: return std::to_string(x[4]);
+        filters:
+          - map:
+            - 6 -> Aus
+            - 8 -> I
+            - 10 -> II
+            - 12 -> III
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1000
+    text_sensors:
+      - id: bsh_dryer_door
+        name: Tür
+        icon: mdi:door
+        lambda: return std::to_string(x[1]);
+        filters:
+          - map:
+            - 0 -> unbekannt
+            - 3 -> Offen
+            - 6 -> Geschlossen
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1000
+    text_sensors:
+      - id: bsh_dryer_status
+        name: Trockner Status
+        icon: mdi:tumble-dryer
+        lambda: return std::to_string(x[0]);
+        filters:
+          - map:
+            # a lot more status codes available
+            - 12 -> Bereit/Pause
+            - 20 -> Aus
+            - 22 -> Läuft
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1001
+    text_sensors:
+      - id: bsh_dryer_ready
+        name: Trockner Startbereit
+        icon: mdi:tumble-dryer
+        lambda: return std::to_string(x[0]);
+        # Values unclear
+        filters:
+          - map:
+            - 1 -> In betrieb
+            - 3 -> Startbereit
+            - 35 -> Gestartet
+            - 36 -> verzögerter Start
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1004
+    text_sensors:
+      - id: bsh_dryer_finished
+        name: Trockner Fertig
+        icon: mdi:tumble-dryer
+        lambda: return std::to_string(x[0]);
+        filters:
+          - map:
+            - 12 -> Bereit/Pause
+            - 22 -> Läuft
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1006
+    text_sensors:
+      - id: bsh_dryer_drying_goal
+        name: Trockenziel
+        icon: mdi:target
+        lambda: return std::to_string(x[2]);
+        filters:
+          - map:
+            - 0 -> Bügeln
+            - 2 -> Schrank
+            - 3 -> Schrank+
