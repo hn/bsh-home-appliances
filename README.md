@@ -98,7 +98,7 @@ The code can not easily be downloaded because the device has the Code Protection
 According to the [B/S/H/ patent documents](#misc), [this](https://www.mikrocontroller.net/topic/395115#4543950) and [this](https://forums.ni.com/t5/Instrument-Control-GPIB-Serial/Has-anybody-used-D-Bus-to-communicate-with-and-or-control/m-p/4284296#M84901) forum post, the electronics inside the device are interconnected via a proprietary serial bus called D-Bus or D-Bus-2.
 Since there are no public technical specifications available, one can only speculate about what exactly D-Bus-1 and D-Bus-2 are, and what the differences between the two might be.
 
-The bus found on the "EP" circuit boards likely is a D-Bus-2 and consists of three wires: GND, VBUS and DATA.
+The bus found on the "EP" circuit boards likely is a D-Bus-2 and consists of [three wires](https://www.bosch-home.com/de/de/product/15000685): GND, VBUS and DATA.
 VBUS is 9V for washing machines, 13.5V for dishwashers and 5V for extractor hoods. DATA is TTL (5V).
 Connections are established using 3 pin 2.5 pitch [RAST connectors](https://de.wikipedia.org/wiki/RAST-Steckverbinder).
 The connectors have coding lugs to ensure that they cannot be plugged into the wrong socket.
@@ -113,8 +113,8 @@ B/S/H/ sells somewhat pricy pre-assembled cables as well, e.g. the [spare part 0
 #### External access
 
 At least in dishwashers, the D-Bus is accessible via [PCB traces well hidden inside the power connector](bsh-dbus-powerplug.jpg).
-The power plug has special recesses that likely accommodate spring contacts
-in a different cable configuration intended for service personnel,
+The power plug has special recesses that accommodate spring contacts
+in a [different cable configuration intended for service personnel](https://www.bosch-home.com/de/de/product/12018126),
 allowing easy external access to the bus.
 
 #### History
