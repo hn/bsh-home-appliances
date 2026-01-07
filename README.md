@@ -96,7 +96,7 @@ The code can not easily be downloaded because the device has the Code Protection
 ### D-Bus
 
 According to the [B/S/H/ patent documents](#misc), [this](https://www.mikrocontroller.net/topic/395115#4543950) and [this](https://forums.ni.com/t5/Instrument-Control-GPIB-Serial/Has-anybody-used-D-Bus-to-communicate-with-and-or-control/m-p/4284296#M84901) forum post, the electronics inside the device are interconnected via a proprietary serial bus called D-Bus or D-Bus-2.
-Since there are no public technical specifications, it can only be speculated that the D-Bus-1 corresponds more to the CAN bus and the D-Bus-2 more to a bus with UART data framing.
+Since there are no public technical specifications available, one can only speculate about what exactly D-Bus-1 and D-Bus-2 are, and what the differences between the two might be.
 
 The bus found on the "EP" circuit boards likely is a D-Bus-2 and consists of three wires: GND, VBUS and DATA.
 VBUS is 9V for washing machines, 13.5V for dishwashers and 5V for extractor hoods. DATA is TTL (5V).
@@ -148,7 +148,7 @@ The hardware of other home appliance types has been examined:
 
 ### D-Bus 2
 
-Data is transmitted on the D-Bus 2 in a `8N1` configuration and the washing machine uses a transfer rate of 9600 baud.
+Data is transmitted on D-Bus-2 using UART framing with an 8N1 configuration at a baud rate of 9600.
 The `COM1` internet connection module cyclically tries out transfer rates from 9600 up to 38400 baud during startup, so newer devices probably use one of the higer rates.
 
 The D-Bus 2 is a (1-wire, the DATA wire) bus, not a conventional 2-wire serial link with separate RX and TX signals.
@@ -208,16 +208,21 @@ However, these have not yet been observed in normal operation.
 
 #### Acknowledgement byte
 
-After sending a frame, the sender leaves a gap of at least one byte
-(with 9600 baud data rate and 8N1 coding an idle time of 1.042 ms = 10 x 104.167 µs)
-before before possibly sending the next frame.
-The receiver responsible for processing the frame inserts an acknowledgement byte precisely into this gap.
-The sender can read this byte and knows that the frame has been delivered successfully.
+When the destination node of a frame receives it correctly,
+it immediately sends an acknowledgement byte right after the frame.
+The sender reads this byte and thus knows that the frame has been delivered successfully.
 
 The lower bits of the acknowledgement byte are always set to 0xA (can it be that it is "A" for "Acknowledgement", really?)
 and the upper bits correspond to those of the receiving target: `ACK = 0x0A | (DS & 0xF0)`.
 This needs further investigation: on certain models or software versions, the acknowledgement byte
 contains the identifier of the control unit (`ACK = 0x1A`) if DS was a network broadcast (`DS=0x0F`).
+
+If the sender does not receive an acknowledgement byte,
+it waits for a random backoff time of 5 to 8 byte times
+(at 9600 baud with 8N1 framing, one byte time is 1.042 ms = 10 × 104.167 µs)
+and then retransmits the frame.
+After three retransmission attempts without an acknowledgement,
+the transmission is considered to have failed.
 
 #### Boot log
 
