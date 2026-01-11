@@ -84,7 +84,8 @@ The control panel is connected to the control board via D-Bus.
 
 This sensors detects unbalanced loads ([PCB front](photos/bsh-9000444823-pcb-front.jpg), [PCB back](photos/bsh-9000444823-pcb-back.jpg), [Enclosure](photos/bsh-9000444823-enclosure.jpg)).
 It uses an [PIC18F24J10](https://www.microchip.com/en-us/product/pic18f24j10) MCU (28 pin QFN package)
-and an `A007MPL DREMAS` IC, which [according to the manufacturer](https://www.ast-international.com/en.products.position-force-sensors.html#product-11) is a specialized 3D hall sensor
+and an `A007MPL DREMAS` IC (MPL likely refers to a custom-made Mask Programmable Logic),
+which [according to the manufacturer](https://www.ast-international.com/en.products.position-force-sensors.html#product-11) is a specialized 3D hall sensor
 (the [corresponding magnet](https://www.siemens-home.bsh-group.com/uk/shop-productlist/00615666) is attached to the washing drum).
 The device is connected to the control board via D-Bus.
 
