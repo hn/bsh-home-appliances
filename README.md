@@ -123,7 +123,7 @@ was offered, which likely contains just a [COM1 PCB](WLANMODULE.md#internet-conn
 #### History
 
 It looks as if B/S/H/ has gradually introduced the D-Bus more and more into home appliances over the years:
-- pre-2006 washing machines use the D-Bus only to control the display (in a rather [simplistic way](https://github.com/hn/bsh-home-appliances/blob/master/contrib/bsh-dbus-wae284f0nl.yaml#L122)),
+- pre-2006 washing machines use the D-Bus only to control the display (in a rather [simplistic way](contrib/bsh-dbus-wae284f0nl.yaml#L122)),
 - 2006-2010 washing machines only use the D-Bus for the unbalance sensor and the control panel,
 - post-2010 appliances also [control the motor](https://github.com/hn/bsh-home-appliances/issues/3#issuecomment-2367437363) (and presumably other components) via the D-Bus.
 
