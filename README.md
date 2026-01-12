@@ -117,6 +117,8 @@ At least in dishwashers, the D-Bus is accessible via [PCB traces well hidden ins
 The power plug has special recesses that accommodate spring contacts
 in a [different cable configuration intended for service personnel](https://www.bosch-home.com/de/de/product/12018126),
 allowing easy external access to the bus.
+For certain refrigerators, an [external communication module](https://www.siemens-home.bsh-group.com/de/de/product/KS10ZHC00)
+was offered, which likely contains just a [COM1 PCB](WLANMODULE.md#internet-connection-module-bsh-8001056350-com1comgen1).
 
 #### History
 
