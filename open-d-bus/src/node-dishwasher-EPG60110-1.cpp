@@ -9,7 +9,7 @@
 
 */
 
-//#include "node-washer-EPG60110-1.h"
+//#include "node-dishwasher-EPG60110-1.h"
 #include "bsh-dbus-node.h"
 
 #define BUTTON_BLUE 8
@@ -124,7 +124,7 @@ static dbus_rx_cmd_entry_t rx_cmd_table[] = {
 
 };
 
-static const dbus_node_info_t node_washer_1 = {
+static const dbus_node_info_t node_dishwasher_1 = {
     .node_id = 0x1,
     .rx_cmd_table = rx_cmd_table,
     .rx_cmd_table_len = sizeof(rx_cmd_table) / sizeof(rx_cmd_table[0]),
@@ -132,5 +132,5 @@ static const dbus_node_info_t node_washer_1 = {
     .setup_func = node_setup
 };
 
-DBUS_REGISTER_NODE(node_washer_1);
+DBUS_REGISTER_NODE(node_dishwasher_1);
 
