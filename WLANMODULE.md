@@ -46,6 +46,9 @@ It is suspected that this module not only establishes Internet connectivity,
 but also controls the entire logic of the household appliance (hence “system master”),
 i.e., it takes over the tasks that were previously performed by the power module.
 
+The SMM modules use a proprietary `BSH Embedded Linux Platform` operating system.
+Some parts have been open-sourced, e.g. they have been included in the [Buildroot](https://github.com/buildroot/buildroot/tree/master/board/bsh) distribution.
+
 ## System Master Module 2AHES-SMB - SystemMaster S2
 
 No info yet. See [here](https://fcc.report/FCC-ID/2AHES-SMB)
