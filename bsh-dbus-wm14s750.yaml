@@ -1,9 +1,9 @@
 #
 # bsh-dbus-wm14s750.yaml -- Interface B/S/H/ washing machine WM14S750
 #
-# (C) 2024 Hajo Noerenberg
+# (C) 2024-2025 Hajo Noerenberg
 #
-# Usage: Connect D-Bus DATA pin to pin D5
+# Usage: Config (pinout) for Bouni's board: https://github.com/Bouni/BSH-Board
 #
 # http://www.noerenberg.de/
 # https://github.com/hn/bsh-home-appliances
@@ -29,8 +29,11 @@ esphome:
 external_components:
   - source: github://hn/bsh-home-appliances@master
 
-esp8266:
-  board: d1_mini
+esp32:
+  board: esp32-c6-devkitc-1
+  variant: esp32c6
+  framework:
+    type: esp-idf
 
 logger:
 
@@ -44,8 +47,8 @@ ota:
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
-  # Dirty workaround because the machine's power supply unit cannot provide enough current:
-  output_power: 10.5dB
+  # Dirty workaround if the machine's power supply unit cannot provide enough current:
+  # output_power: 10.5dB
 
   # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
@@ -54,9 +57,22 @@ wifi:
 
 captive_portal:
 
+status_led:
+  pin:
+    number: GPIO6
+    inverted: true
+
+output:
+  - platform: gpio
+    pin:
+      number: GPIO7
+      inverted: true
+    id: activity_led
+
 uart:
   id: dbus_uart
-  rx_pin: D5
+  rx_pin: GPIO4
+  tx_pin: GPIO5
   baud_rate: 9600
 
 bshdbus:
