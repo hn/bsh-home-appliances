@@ -136,7 +136,7 @@ an open-drain level shifter, and a DC-DC voltage converter for the supply voltag
 Thankfully, [several users have contributed their ideas](https://github.com/hn/bsh-home-appliances/issues/17)
 and are sharing their PCBs:
 
-- [kiu](https://github.com/kiu) uses an ESP32-C3 and a compact PCB design called [BaSHi](https://github.com/kiu/BaSHi).
+- [kiu](https://github.com/kiu) uses an ESP32-C3/S3/C6 adapter in a compact PCB design called [BaSHi](https://github.com/kiu/BaSHi).
 - [Bouni](https://github.com/Bouni) uses an [ESP32-C6 with on-board USB and status LEDs](https://github.com/Bouni/BSH-Board).
 - [tubist2004](https://github.com/tubist2004) takes a [truly minimalistic approach, fitting entirely inside a connector](https://github.com/tubist2004/ESP32_D-Bus_Adapter).
 - my old tinkering with an [ESP32, a TXS0102, a 5V-DC-DC converter and a few cables](bsh-dbus-esp32.jpg) is not recommended.
