@@ -77,6 +77,13 @@ uart:
 
 bshdbus:
   uart_id: dbus_uart
+  on_frame:
+    - logger.log:
+        format: "Received frame dest 0x%02x cmd 0x%04x: 0x%s"
+        args: [dest, command, format_hex(message).c_str()]
+    - output.turn_on: activity_led
+    - delay: 20ms
+    - output.turn_off: activity_led
 
 binary_sensor:
   - platform: bshdbus
