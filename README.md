@@ -356,9 +356,6 @@ It uses an [external component](https://esphome.io/components/external_component
 called [bshdbus](components/bshdbus/). There is no documentation (yet) but
 you'll quickly get the idea on how to add your own sensors.
 
-The old proof-of-concept code [bsh-dbus-wm14s750-poc.yaml](bsh-dbus-wm14s750-poc.yaml)
-is preserved for debugging and archiving purposes.
-
 #### Other home appliance models
 
 Fortunately, people have started to create configuration files for devices they own.
