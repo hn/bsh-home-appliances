@@ -32,11 +32,16 @@ class BSHDBus : public uart::UARTDevice, public Component {
   float get_setup_priority() const override { return setup_priority::DATA; }
 
   void register_listener(BSHDBusListener *listener) { this->listeners_.push_back(listener); }
+  void add_on_frame_callback(std::function<void(std::vector<uint8_t>, uint8_t, uint16_t,
+                             std::vector<uint8_t>)> &&frame_callback);
 
  protected:
-  std::vector<uint8_t> buffer_;
-  uint32_t lastread_{0};
+  std::vector<uint8_t> rx_buffer_;
+  uint32_t last_rx_{0};
+  uint8_t expect_ack_for_{0};
   std::vector<BSHDBusListener *> listeners_{};
+  CallbackManager<void(const std::vector<uint8_t> &, uint8_t, uint16_t,
+                       const std::vector<uint8_t> &)> frame_callbacks_{};
 };
 
 }  // namespace bshdbus

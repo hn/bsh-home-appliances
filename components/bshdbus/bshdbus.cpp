@@ -1,8 +1,12 @@
 /*
 
-   B/S/H/ D-Bus frame parser
+   B/S/H/ D-Bus command frame parser
 
-   (C) 2024 Hajo Noerenberg
+   Because the read logic does not run in an ISR, correct timing as
+   presumed for the protocol cannot be guaranteed. This component tries
+   to make the best of it, which generally works well.
+
+   (C) 2024-2025 Hajo Noerenberg
 
    http://www.noerenberg.de/
    https://github.com/hn/bsh-home-appliances
@@ -22,19 +26,26 @@
 */
 
 #include "bshdbus.h"
+#include "esphome/core/application.h"
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
-#include <cinttypes>
-
-#define BSHDBUS_MIN_FRAME_LENGTH 6
-#define BSHDBUS_MAX_FRAME_LENGTH 32
-#define BSHDBUS_READ_TIMEOUT 50
-#define BSHDBUS_BUFFER_SIZE 1024
 
 namespace esphome {
 namespace bshdbus {
 
 static const char *const TAG = "bshdbus";
+
+/* There seems to be no official min/max frame length; especially the max
+   appears device-specific and covers the largest frame of all components.
+   We assume the largest possible value for safety. */
+static constexpr size_t BSHDBUS_MIN_CMDFRAME_LENGTH = 2;
+static constexpr size_t BSHDBUS_MAX_CMDFRAME_LENGTH = 251;
+
+/* This would be much stricter if we were in an ISR. */
+static constexpr uint16_t BSHDBUS_RX_TIMEOUT = 50;
+
+/* Sufficient for most cases, some larger frames may be truncated */
+static constexpr size_t BSHDBUS_MAX_LOG_BYTES = 128;
 
 void BSHDBus::dump_config() {
   ESP_LOGCONFIG(TAG, "BSHDBus:");
@@ -42,64 +53,81 @@ void BSHDBus::dump_config() {
 }
 
 void BSHDBus::loop() {
-  if (!available())
-    return;
+  const uint32_t now = App.get_loop_component_start_time();
+  const uint32_t delta_rx = now - this->last_rx_;
+  char hex_buf[format_hex_size(BSHDBUS_MAX_LOG_BYTES)];
 
-  const uint32_t now = millis();
-
-  if (now - this->lastread_ > BSHDBUS_READ_TIMEOUT) {
-    this->buffer_.clear();
-    this->lastread_ = now;
+  if (delta_rx > BSHDBUS_RX_TIMEOUT) {
+    if (!this->rx_buffer_.empty()) {
+      ESP_LOGD(TAG, "Discarding %zu bytes of unparsed data after timeout of %d milliseconds: 0x%s",
+               this->rx_buffer_.size(), delta_rx, format_hex_to(hex_buf, this->rx_buffer_));
+      this->rx_buffer_.clear();
+    }
+    if (this->expect_ack_for_) {
+      ESP_LOGD(TAG, "Timed out ACK for dest 0x%02x of preceeding frame", this->expect_ack_for_);
+      this->expect_ack_for_ = 0;
+    }
   }
 
-  while (available() && (this->buffer_.size() < BSHDBUS_BUFFER_SIZE)) {
-    uint8_t c;
-    read_byte(&c);
-    this->buffer_.push_back(c);
-  }
+  while (this->available()) {
+    this->last_rx_ = now;
 
-  this->lastread_ = now;
-  size_t lastvalid = 0;
+    uint8_t byte;
+    this->read_byte(&byte);
 
-  for (size_t p = 0; p < this->buffer_.size(); ) {
-    const uint8_t* framedata = this->buffer_.data() + p;
-    const uint16_t framelen = 4 + framedata[0];
+    if (this->expect_ack_for_) {
+      if ((byte == ((this->expect_ack_for_ & 0xF0) | 0x0A)) ||
+          ((byte == 0x1A) && (this->expect_ack_for_ == 0x0F))) {
+        ESP_LOGV(TAG, "Received valid ACK 0x%02x for preceeding frame", byte);
+        this->expect_ack_for_ = 0;
+        continue;
+      } else {
+        ESP_LOGD(TAG, "Missed ACK for dest 0x%02x of preceeding frame", this->expect_ack_for_);
+        this->expect_ack_for_ = 0;
+      }
+    }
 
-    if ((framelen < BSHDBUS_MIN_FRAME_LENGTH) ||
-            (framelen > BSHDBUS_MAX_FRAME_LENGTH) ||
-            (framelen > (this->buffer_.size() - p)) ||
-            crc16be(framedata, framelen, 0x0, 0x1021, false, false)) {
-      ESP_LOGV(TAG, "Ignoring byte at %d with value 0x%02X", p, framedata[0]);
-      p++;
+    if (this->rx_buffer_.empty() &&
+        ((byte < BSHDBUS_MIN_CMDFRAME_LENGTH) || (byte > BSHDBUS_MAX_CMDFRAME_LENGTH))) {
+      ESP_LOGD(TAG, "Invalid command frame length %d, discarding byte", byte);
       continue;
     }
 
-    p += framelen;
-    if ((p < this->buffer_.size()) &&
-            ((framedata[framelen] == ((framedata[1] & 0xF0) | 0x0A)) ||
-            ((framedata[framelen] == 0x1A) && (framedata[1] == 0x0F)))) {
-      ESP_LOGV(TAG, "Skipping ack byte at %d with value 0x%02X", p, framedata[framelen]);
-      p++;
+    this->rx_buffer_.push_back(byte);
+
+    /* framelen = LL + DS + MM[] + CRC */
+    const size_t framelen = 1 + 1 + static_cast<size_t>(this->rx_buffer_[0]) + 2;
+    if (framelen > this->rx_buffer_.size()) {
+      /* Wait for more bytes */
+      continue;
     }
 
-    lastvalid = p;
-    const uint8_t dest = framedata[1];
-    const uint16_t command = (framedata[2] << 8) + framedata[3];
-    std::vector<uint8_t> message(framedata + 4, framedata + framelen - 2);
+    if (crc16be(this->rx_buffer_.data(), this->rx_buffer_.size(), 0x0, 0x1021, false, false)) {
+      ESP_LOGD(TAG, "Invalid CRC, discarding %zu bytes of data: 0x%s", this->rx_buffer_.size(),
+               format_hex_to(hex_buf, this->rx_buffer_));
+      this->rx_buffer_.clear();
+      continue;
+    }
 
-    ESP_LOGD(TAG, "Valid frame dest 0x%02X cmd 0x%04X: 0x%s", dest, command,
-            format_hex(message).c_str());
+    const uint8_t dest = this->rx_buffer_[1];
+    this->expect_ack_for_ = dest;
+    const uint16_t command = encode_uint16(this->rx_buffer_[2], this->rx_buffer_[3]);
+    /* Skip LL + DS + CCCC at beginning, CRC at end */
+    std::vector<uint8_t> message(this->rx_buffer_.begin() + 1 + 1 + 2, this->rx_buffer_.end() - 2);
+
+    ESP_LOGV(TAG, "Valid frame dest 0x%02x cmd 0x%04x: 0x%s", dest, command,
+             format_hex_to(hex_buf, message));
+    this->frame_callbacks_.call(this->rx_buffer_, dest, command, message);
     for (auto &listener : this->listeners_)
       listener->on_message(dest, command, message);
-  }
 
-  if (lastvalid) {
-    /* Remove all valid frames and (possibly) preceeding trash from buffer */
-    this->buffer_.erase(this->buffer_.begin(), this->buffer_.begin() + lastvalid);
-  } else if (this->buffer_.size() > BSHDBUS_MAX_FRAME_LENGTH) {
-    /* Remove a first batch of trash from buffer if no valid frames are found */
-    this->buffer_.erase(this->buffer_.begin(), this->buffer_.end() - BSHDBUS_MAX_FRAME_LENGTH);
+    this->rx_buffer_.clear();
   }
+}
+
+void BSHDBus::add_on_frame_callback(std::function<void(std::vector<uint8_t>, uint8_t, uint16_t,
+                                    std::vector<uint8_t>)> &&frame_callback) {
+  this->frame_callbacks_.add(std::move(frame_callback));
 }
 
 void BSHDBusListener::on_message(uint8_t dest, uint16_t command, std::vector<uint8_t> &message) {
