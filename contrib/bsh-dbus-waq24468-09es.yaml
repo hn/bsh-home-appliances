@@ -5,11 +5,11 @@
 # (C) 2024 Akdri
 # https://github.com/akdri
 #
+# More info:
+# https://github.com/hn/bsh-home-appliances/issues/3
+#
 # (C) 2024 Hajo Noerenberg
-#
-# Usage: Connect D-Bus DATA pin to pin (GPIO14)
-#
-# http://www.noerenberg.de/
+# https://www.noerenberg.de/
 # https://github.com/hn/bsh-home-appliances
 #
 #

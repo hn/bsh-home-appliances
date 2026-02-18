@@ -1,12 +1,15 @@
 #
 # bsh-dbus-sn66p080eu.yaml -- Interface B/S/H/ dishwasher SN66P080EU
 #
+# This file has been contributed by
 # (C) 2025 Nurster
+# https://github.com/Nurster
+#
+# More info:
+# https://github.com/hn/bsh-home-appliances/issues/10#issuecomment-2638139836
+#
 # (C) 2025 Hajo Noerenberg
-#
-# Usage: Connect D-Bus DATA pin to pin D5
-#
-# http://www.noerenberg.de/
+# https://www.noerenberg.de/
 # https://github.com/hn/bsh-home-appliances
 #
 #

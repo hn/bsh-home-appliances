@@ -1,14 +1,16 @@
 #
 # bsh-dbus-wm14q441.yaml -- Interface B/S/H/ washing machine WM14Q441
 #
+# This file has been contributed by
 # (C) 2025 fkzle
-# (C) 2024 Hajo Noerenberg
+# https://github.com/fkzle
 #
 # More info:
 # https://github.com/hn/bsh-home-appliances/pull/22
 # https://github.com/hn/bsh-home-appliances/issues/20
 #
-# http://www.noerenberg.de/
+# (C) 2024 Hajo Noerenberg
+# https://www.noerenberg.de/
 # https://github.com/hn/bsh-home-appliances
 #
 #

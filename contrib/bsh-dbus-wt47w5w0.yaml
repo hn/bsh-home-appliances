@@ -9,11 +9,11 @@
 # (C) 2024 Stefan Hirt 
 # https://github.com/stefanhirt
 #
+# More info:
+# https://github.com/hn/bsh-home-appliances/pull/24
+#
 # (C) 2024 Hajo Noerenberg
-#
-# Usage: Connect D-Bus DATA pin to pin 6
-#
-# http://www.noerenberg.de/
+# https://www.noerenberg.de/
 # https://github.com/hn/bsh-home-appliances
 #
 #

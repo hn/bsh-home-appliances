@@ -1,15 +1,15 @@
 #
 # bsh-dbus-wae284f0nl.yaml -- ESPHome config to interface B/S/H/ washing machine WAE284F0NL
 #
-# Log data and a lot of help has been contributed by
+# This file has been contributed by
 # (C) 2024 Thijn
 # https://github.com/Thijn
 #
+# More info:
+# https://github.com/hn/bsh-home-appliances/issues/6
+#
 # (C) 2024 Hajo Noerenberg
-#
-# Usage: Connect D-Bus DATA pin to pin D5
-#
-# http://www.noerenberg.de/
+# https://www.noerenberg.de/
 # https://github.com/hn/bsh-home-appliances
 #
 #

@@ -6,10 +6,7 @@
 # https://github.com/stefanhirt
 #
 # (C) 2024 Hajo Noerenberg
-#
-# Usage: Connect D-Bus DATA pin to pin D1 (GPIO5)
-#
-# http://www.noerenberg.de/
+# https://www.noerenberg.de/
 # https://github.com/hn/bsh-home-appliances
 #
 #

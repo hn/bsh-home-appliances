@@ -1,12 +1,15 @@
 #
 # bsh-dbus-wm14e3a0.yaml -- Interface B/S/H/ washing machine WM14E3A0
 #
-# (C) 2024-2025 Hajo Noerenberg
+# This file has been contributed by
 # (C) 2026 Bouni
+# https://github.com/Bouni
 #
-# Usage: Config (pinout) for Bouni's board: https://github.com/Bouni/BSH-Board
+# More info:
+# https://github.com/hn/bsh-home-appliances/issues/15
 #
-# http://www.noerenberg.de/
+# (C) 2024-2025 Hajo Noerenberg
+# https://www.noerenberg.de/
 # https://github.com/hn/bsh-home-appliances
 #
 #
