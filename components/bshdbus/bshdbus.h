@@ -1,7 +1,13 @@
 #pragma once
 
 #include "esphome/core/component.h"
+#include "esphome/core/helpers.h"
 #include "esphome/components/uart/uart.h"
+#include "esphome/core/version.h"
+
+#if ESPHOME_VERSION_CODE < VERSION_CODE(2026, 1, 0)
+#error "BSHDBus component requires ESPHome >= 2026.1.0"
+#endif
 
 namespace esphome {
 namespace bshdbus {
