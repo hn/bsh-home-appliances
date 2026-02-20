@@ -46,7 +46,9 @@ enum rx_se rx_state = RX_READING;
 CRC16 rx_crc(CRC16_XMODEM_POLYNOME, CRC16_XMODEM_INITIAL, CRC16_XMODEM_XOR_OUT, CRC16_XMODEM_REV_IN,
 	     CRC16_XMODEM_REV_OUT);
 
-bool node_id_cache[0xF] = { 0 };
+static const dbus_node_info_t *dbus_node_registry[DBUS_MAX_NODES];
+static int dbus_node_count = 0;
+bool dbus_node_id_cache[0xF] = { 0 };
 
 #ifdef  DBUS_CB_DEBUG
 String debugstr = "";
@@ -80,7 +82,7 @@ void rx_callback() {
 			continue;
 		}
 
-		if (rx_pos >= DBUX_FRAME_MAX_SIZE) {
+		if (rx_pos >= DBUS_FRAME_MAX_SIZE) {
 			DBUS_CB_DEBUG_PRINT("max frame size exceeded", "", 0);
 			rx_pos = 0;
 			rx_crc.restart();
@@ -98,7 +100,7 @@ void rx_callback() {
 				    && (memcmp(tx_buf, rx_buf, tx_len) == 0)) {
 					tx_state = TX_WAITFORACK;
 					DBUS_CB_DEBUG_PRINT("CRC ok, frame echo received, waiting for tx ACK: ", rx_buf, rx_pos);
-				} else if (node_id_cache[rx_buf[1] >> 4]) {
+				} else if (dbus_node_id_cache[rx_buf[1] >> 4]) {
 					if ((rx_pos + rx_queue.size()) >= rx_queue.maxSize()) {
 						DBUS_CB_DEBUG_PRINT("CRC ok, received frame for me, queue full, no ACK for: ", rx_buf, rx_pos);
 						rx_pos = 0;
@@ -146,11 +148,13 @@ void dbus_setup(HardwareSerial & serialport, unsigned int pin_rx, unsigned int p
 	// this will force to emulate byte-by-byte reading
 	serialport.setRxFIFOFull(1);
 
-	for (dbus_node_info_t * n = __start_dbus_node_list; n < __stop_dbus_node_list; n++)
-		node_id_cache[n->node_id] = 1;
+	for (int n = 0; n < dbus_node_count; n++) {
+		dbus_node_id_cache[dbus_node_registry[n]->node_id] = 1;
+	}
 
-	for (dbus_node_info_t * n = __start_dbus_node_list; n < __stop_dbus_node_list; n++)
-		n->setup_func();
+	for (int n = 0; n < dbus_node_count; n++) {
+		if (dbus_node_registry[n]->setup_func) dbus_node_registry[n]->setup_func();
+	}
 }
 
 void dbus_loop() {
@@ -189,13 +193,13 @@ void dbus_loop() {
 			Serial.print(h);
 		}
 
-		for (dbus_node_info_t * n = __start_dbus_node_list; n < __stop_dbus_node_list; n++) {
-			if ((p_buf[1] >> 4) == n->node_id) {
-				for (size_t j = 0; j < n->rx_cmd_table_len; j++) {
-					if (n->rx_cmd_table[j].cmd == (p_buf[2] << 8 | p_buf[3])) {
+		for (int n = 0; n < dbus_node_count; n++) {
+			if ((p_buf[1] >> 4) == dbus_node_registry[n]->node_id) {
+				for (size_t j = 0; j < dbus_node_registry[n]->rx_cmd_table_len; j++) {
+					if (dbus_node_registry[n]->rx_cmd_table[j].cmd == (p_buf[2] << 8 | p_buf[3])) {
 						Serial.print(", handled by: ");
-						Serial.print(n->rx_cmd_table[j].description);
-						n->rx_cmd_table[j].handler(p_buf);
+						Serial.print(dbus_node_registry[n]->rx_cmd_table[j].description);
+						dbus_node_registry[n]->rx_cmd_table[j].handler(p_buf);
 						break;
 					}
 				}
@@ -256,6 +260,12 @@ void dbus_loop() {
 		}
 	}
 
-	for (dbus_node_info_t * n = __start_dbus_node_list; n < __stop_dbus_node_list; n++)
-		n->loop_func(tx_state);
+	for (int i = 0; i < dbus_node_count; i++) {
+		if (dbus_node_registry[i]->loop_func) dbus_node_registry[i]->loop_func(tx_state);
+	}
+}
+
+void dbus_addnode(const dbus_node_info_t *dbus_node) {
+    if (dbus_node_count < DBUS_MAX_NODES)
+        dbus_node_registry[dbus_node_count++] = dbus_node;
 }

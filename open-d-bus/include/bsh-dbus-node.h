@@ -17,15 +17,19 @@
 #define DBUS_WAIT_MIN ( 8 * DBUS_BYTETIME )
 #define DBUS_WAIT_MAX ( 18 * DBUS_BYTETIME )
 
-#define DBUX_FRAME_MAX_SIZE (UINT8_MAX - 2 - 2)
+#define DBUS_FRAME_MAX_SIZE (UINT8_MAX - 2 - 2)
 #define DBUS_BUFLEN 256
 
 #define DBUS_TX_QUEUE_SIZE (DBUS_BUFLEN * 8)
 #define DBUS_RX_QUEUE_SIZE (DBUS_BUFLEN * 4)
 
-#define DBUS_REGISTER_NODE(dbus_node) \
-    __attribute__((used, section("dbus_node_list"))) \
-    static const dbus_node_info_t _reg_##dbus_node = dbus_node;
+#define DBUS_MAX_NODES 8
+
+#define DBUS_ADDNODE(node) \
+    do { \
+        extern const dbus_node_info_t node; \
+        dbus_addnode(&node); \
+    } while(0)
 
 #ifdef	DBUS_CB_DEBUG
 #define DBUS_CB_DEBUG_PRINT(prefix, buf, len) do { \
@@ -73,6 +77,4 @@ typedef struct {
 void dbus_setup(HardwareSerial &serialport, unsigned int pin_rx, unsigned int pin_tx);
 int dbus_tx_qpush(uint8_t destnode, uint16_t cmd, const uint8_t *message, const uint8_t size);
 void dbus_loop();
-
-extern dbus_node_info_t __start_dbus_node_list[];
-extern dbus_node_info_t __stop_dbus_node_list[];
+void dbus_addnode(const dbus_node_info_t *dbus_node);

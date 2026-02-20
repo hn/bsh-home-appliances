@@ -2,14 +2,14 @@
 /*
 
   Just a quick and dirty hack to emulate the EPG60110 control board at D-Bus 0x1.
-  Displays some hopefully entertaining things at the user interface panel BSH9000329063.
+  Displays some hopefully entertaining things at the user control board BSH9000329063.
 
-  Used for the dishwasher user interface panel, which was on the lectern
+  Used for the dishwasher control panel, which was on the lectern
   during the 39C3 talk https://media.ccc.de/v/39c3-hacking-washing-machines
 
 */
 
-//#include "node-dishwasher-EPG60110-1.h"
+//#include "node-dishwasher-EPG60110-1-39C3.h"
 #include "bsh-dbus-node.h"
 
 #define BUTTON_BLUE 8
@@ -124,13 +124,11 @@ static dbus_rx_cmd_entry_t rx_cmd_table[] = {
 
 };
 
-static const dbus_node_info_t node_dishwasher_1 = {
+extern "C" const dbus_node_info_t node_dishwasher_1_39C3 __attribute__((used)) = {
     .node_id = 0x1,
     .rx_cmd_table = rx_cmd_table,
     .rx_cmd_table_len = sizeof(rx_cmd_table) / sizeof(rx_cmd_table[0]),
     .loop_func = node_loop,
     .setup_func = node_setup
 };
-
-DBUS_REGISTER_NODE(node_dishwasher_1);
 

@@ -30,55 +30,30 @@
 #include "Arduino.h"
 #include "bsh-dbus-node.h"
 
-#define LED_PIN 8
-
-#define DBUS_RX 6
-#define DBUS_TX 7
-
-byte user_buf[DBUS_BUFLEN];
-unsigned int user_buflen;
+unsigned long led_tick;
 
 void setup() {
 	Serial.begin(115200);
 
+#ifdef LED_PIN
 	pinMode(LED_PIN, OUTPUT);
+#endif
 
+//	DBUS_ADDNODE(node_dishwasher_a_COM1);
+//	DBUS_ADDNODE(node_dishwasher_1_39C3);
+	DBUS_ADDNODE(node_uda_9);
 	dbus_setup(Serial1, DBUS_RX, DBUS_TX);
 
 	Serial.println("Open-D-Bus startup");
 }
 
 void loop() {
-	if (millis() & 1024)
+#ifdef LED_PIN
+	if (millis() - led_tick >= 1000) {
+		led_tick = millis();
 		digitalWrite(LED_PIN, !digitalRead(LED_PIN));
+	}
+#endif
 
 	dbus_loop();
-
-	// Process D-Bus command submitted by the user via terminal
-	while (Serial.available()) {
-		byte c = Serial.read();
-		Serial.write(c);
-		if (((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f'))
-		    && user_buflen < DBUS_BUFLEN) {
-			if (user_buflen % 2) {
-				user_buf[user_buflen / 2] |= (c % 32 + 9) % 25;
-			} else {
-				user_buf[user_buflen / 2] = (c % 32 + 9) % 25 << 4;
-			}
-			user_buflen++;
-		}
-
-		if (c != '\r' && c != '\n')
-			continue;
-
-		if (user_buflen < 6 || user_buflen % 2) {
-			Serial.println("Error: Invalid input length");
-			user_buflen = 0;
-			continue;
-		}
-
-		Serial.println();
-		dbus_tx_qpush(user_buf[0], (user_buf[1] << 8) | user_buf[2], &user_buf[3], (user_buflen / 2) - 3);
-		user_buflen = 0;
-	}
 }
