@@ -28,9 +28,9 @@
 #include "CRC.h"
 
 #define BSHDBUSRX D5
-#define BSHDBUSTX D6    // not used here
+#define BSHDBUSTX D6
 
-#define FRAMEBUFLEN 64
+#define FRAMEBUFLEN 250
 #define USERBUFLEN 32
 
 SoftwareSerial dbus(BSHDBUSRX, BSHDBUSTX);
