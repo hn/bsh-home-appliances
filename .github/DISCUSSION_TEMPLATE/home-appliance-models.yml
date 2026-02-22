@@ -1,0 +1,72 @@
+title: "<Brand e.g. Siemens> <E-Nr. e.g. WM14E3A0/16> <Type e.g. Washing machine> <More info>"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        It’s great that you want to contribute to this project. To help others properly understand your contribution, please provide the following information:
+  - type: input
+    id: model-e-nr
+    attributes:
+      label: Model (E-Nr.)
+      description: The exact model identifier including revision as seen on the [type plate](https://www.siemens-home.bsh-group.com/de/kundendienst/typenschildfinder).
+      placeholder: WM14E3A0/16
+    validations:
+      required: true
+  - type: input
+    id: sparepartspage
+    attributes:
+      label: Spare parts page
+      description: Hyperlink to the spare parts page, can be found via the [Siemens](https://www.siemens-home.bsh-group.com/de/produkte/ersatzteile) or [Bosch](https://www.bosch-home.com/de/produkte/ersatzteile) spare parts search.
+      placeholder: https://www.siemens-home.bsh-group.com/de/sparepartslist/WM14E3A0/16
+    validations:
+      required: true
+  - type: dropdown
+    id: type
+    attributes:
+      label: Appliance type
+      options:
+        - Washing machine
+        - Dishwasher
+        - Dryer
+        - CleaningRobot
+        - CoffeeMaker
+        - CookProcessor
+        - Freezer
+        - FridgeFreezer
+        - Hood
+        - HotWaterHeatPump
+        - Microwave
+        - Oven
+        - RangeCooker
+        - Refrigerator
+        - Steamer
+        - WasherDryer
+        - WaterHeater
+        - WineCooler
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: content
+    attributes:
+      label: Your contribution
+      description: Feel free to ask a question, or even better, share how you analyzed and connected your home appliance
+    validations:
+      required: true
+  - type: checkboxes
+    attributes:
+      label: Please confirm
+      options:
+        - label: I understand that I am not allowed to upload copyrighted material, particularly images, exploded views, or firmware binaries that I do not own.
+          required: true
+        - label: I read and understood the [safety warnings](https://github.com/hn/bsh-home-appliances?tab=readme-ov-file#warning).
+          required: true
+        - label: I checked the exploded diagrams on the spare parts page to learn more about my home appliance.
+        - label: I searched the discussion forum and the [contrib directory](https://github.com/hn/bsh-home-appliances/tree/master/contrib) for similar problems or appliance types.
+  - type: markdown
+    attributes:
+      value: |
+        ### Additional recommendations
+        Help others out by uploading as many photos of your home appliance as you can (only your own photos) in the next step. Don’t forget to add extra details, like where you found the D-Bus connector, how you decoded individual frames, or anything else interesting!
+
+        If you have created your own ESPHome YAML configuration, it would be fantastic if you could add it to the [contrib directory](https://github.com/hn/bsh-home-appliances/tree/master/contrib). Please check the [README there](https://github.com/hn/bsh-home-appliances/blob/master/contrib/README.md) for instructions on how to do this.
