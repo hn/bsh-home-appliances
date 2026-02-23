@@ -41,7 +41,7 @@ void setup() {
 
 //	DBUS_ADDNODE(node_dishwasher_a_COM1);
 //	DBUS_ADDNODE(node_dishwasher_1_39C3);
-	DBUS_ADDNODE(node_uda_9);
+	DBUS_ADDNODE(node_uda_c);
 	dbus_setup(Serial1, DBUS_RX, DBUS_TX);
 
 	Serial.println("Open-D-Bus startup");
