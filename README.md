@@ -20,16 +20,21 @@ Please do me a favor: :thumbsup: If you use any information or code you find her
 
 ## Warning
 
-Household appliances work with high voltages and currents. They generate heat and steam, they shake, vibrate and have rotating parts.
-You should have a good knowledge of electrics and take appropriate safety measures before opening or modifying such an appliance. Parts can get wet or hot, move or fall off.
+Household appliances work with high voltages and currents.
+They generate heat and steam, they shake, vibrate and have rotating parts.
+Parts can get wet or hot, move or fall off.
+
+You should have an expert knowledge of electrics and take appropriate safety measures before opening or modifying such an appliance.
 
 > [!WARNING]
 > Even if parts of the appliances operate at low voltages, depending on your specific model they may or may not be isolated from earth.
-> This is a good chance of death or serious injury. It is also not recommended to lead cables out of the appliance.
-> So if you're dreaming of connecting your Raspberry Pi to the control electronics, it's probably not a good idea.
+> This is a good chance of death or serious injury.
+> Under no circumstances should you connect external devices, such as your computer, directly to the appliance's electronics.
 
 > [!WARNING]
 > I'm not responsible if you kill your cat, your spouse, your favourite pet fish, or yourself, whichever of these is the worst for you.
+> Everything in this project is distributed in the hope that it will be useful, but without any warranty or fitness for a particular purpose.
+> If you damage your appliance, or if your house is flooded or burns down, you do so entirely at your own risk.
 > You have been warned.
 
 ## Hardware
