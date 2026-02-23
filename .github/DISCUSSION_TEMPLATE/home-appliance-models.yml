@@ -57,7 +57,7 @@ body:
     attributes:
       label: Please confirm
       options:
-        - label: I understand that I am not allowed to upload copyrighted material, particularly images, exploded views, or firmware binaries that I do not own.
+        - label: I understand that it is not allowed to upload copyrighted material, particularly images, exploded views, or firmware binaries that I do not own.
           required: true
         - label: I read and understood the [safety warnings](https://github.com/hn/bsh-home-appliances?tab=readme-ov-file#warning).
           required: true
