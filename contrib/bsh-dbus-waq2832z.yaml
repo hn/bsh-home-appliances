@@ -1,0 +1,480 @@
+#
+# bsh-dbus-waq2832z.yaml -- Interface B/S/H/ washing machine WAQ2832Z/12 (Aventixx 7 EcoEdition)
+# 
+# This file has been contributed by
+# (C) 2026 domhit
+# https://github.com/domhit
+#
+# More info:
+# https://github.com/hn/bsh-home-appliances/discussions/48
+#
+# Based on bsh-dbus-wm14s750.yaml provided by
+# (C) 2024-2025 Hajo Noerenberg
+# 
+# Ideas and findings from all other contributions read and partly integrated.
+# Thank you all for that!
+#
+# Usage: Config (pinout) for Bouni's board: https://github.com/Bouni/BSH-Board
+#
+# http://www.noerenberg.de/
+# https://github.com/hn/bsh-home-appliances
+#
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 3.0 as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program. If not, see <http://www.gnu.org/licenses/gpl-3.0.txt>.
+#
+
+esphome:
+  name: bsh-dbus-waq2832z
+  friendly_name: BSH Waschmaschine Aventixx 7
+
+external_components:
+  - source: github://hn/bsh-home-appliances@master
+
+esp32:
+  board: esp32-c6-devkitc-1
+  variant: esp32c6
+  framework:
+    type: esp-idf
+
+logger:
+
+time:
+  - platform: homeassistant
+    id: ha_time
+
+api:
+  encryption:
+    key: !secret bsh_wm_api_encryption_key
+  reboot_timeout: 0s
+
+ota:
+  - platform: esphome
+    id: my_ota
+    password: !secret bsh_wm_ota_password
+
+wifi:
+  networks:
+  - ssid: !secret wifi_ssid_iot
+    password: !secret wifi_password_iot
+    channel: 6    
+    bssid: !secret wifi_mac_ug
+    manual_ip: 
+      static_ip: !secret bsh_wm_static_ip
+      gateway: !secret gateway_iot
+      subnet: !secret subnet_iot
+      dns1: !secret dns_iot
+  fast_connect: true
+  power_save_mode: none
+  reboot_timeout: 0s
+  # Dirty workaround if the machine's power supply unit cannot provide enough current:
+  # output_power: 10.5dB
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "D-Bus Fallback Hotspot"
+    password: !secret bsh_wm_wifi_ap_password
+
+captive_portal:
+
+status_led:
+  pin:
+    number: GPIO6
+    inverted: true
+
+output:
+  - platform: gpio
+    pin:
+      number: GPIO7
+      inverted: true
+    id: activity_led
+
+uart:
+  id: dbus_uart
+  rx_pin: GPIO4
+  tx_pin: GPIO5
+  baud_rate: 9600
+  rx_buffer_size: 1024
+
+bshdbus:
+  uart_id: dbus_uart
+  # Logger for frame analysis, needed after update of ESPHome component to 2026.2.0
+  # comment out if not needed
+  # on_frame: 
+  #   - logger.log:
+  #       format: "Received frame dest 0x%02x cmd 0x%04x: 0x%s"
+  #       args: [dest, command, format_hex(message).c_str()]
+
+globals:
+  - id: current_program
+    type: int
+    initial_value: '0'
+  - id: rinsehold
+    type: bool
+    initial_value: 'false'
+  - id: bsh_wm_remaining_minutes
+    type: int
+    initial_value: '0'
+  - id: rpm_buffer
+    type: float
+    initial_value: '0'
+  - id: bsh_wm_program_schedule_state
+    type: int
+    initial_value: '0'
+  - id: bsh_wm_state_raw
+    type: int
+    initial_value: '0'
+interval:  # countdown remaining time if machine is running
+  - interval: 60s
+    then:
+      - lambda: |-
+          if (id(bsh_wm_state_raw) == 2) {
+            if (id(bsh_wm_remaining_minutes) > 0) {
+              id(bsh_wm_remaining_minutes)--;
+
+              id(bsh_wm_remaining_display).publish_state(id(bsh_wm_remaining_minutes));
+
+              if (id(ha_time).now().is_valid()) {
+                auto now = id(ha_time).now();
+                time_t end_timestamp =
+                  now.timestamp + (id(bsh_wm_remaining_minutes) * 60);
+
+                struct tm *end_time = localtime(&end_timestamp);
+
+                char buffer[6];
+                sprintf(buffer, "%02d:%02d",
+                        end_time->tm_hour,
+                        end_time->tm_min);
+
+                id(bsh_wm_endtime).publish_state(buffer);
+              }
+            }
+          }
+          
+binary_sensor:
+  # - platform: bshdbus
+  #   dest: 0x0F
+  #   command: 0xE000     #Payload 0x05
+  #   binary_sensors:
+  #     - id: bsh_wm_alive_control
+  #       name: Bus aktiv control
+  #       icon: mdi:washing-machine
+  #       device_class: connectivity
+  #       lambda: return true;
+  #       filters:
+  #         - delayed_off: 5s   #0x0F and 0x1F pair every 2s on the bus
+   # - platform: bshdbus
+  #   dest: 0x1F
+  #   command: 0xE000     #Payload 0x0502
+  #   binary_sensors:
+  #     - id: bsh_wm_alive_display
+  #       name: Bus aktiv displeay
+  #       icon: mdi:washing-machine
+  #       device_class: connectivity
+  #       lambda: return true;
+  #       filters:
+  #         - delayed_off: 5s   #0x0F and 0x1F pair every 2s on the bus
+   # - platform: bshdbus
+  #   dest: 0x026
+  #   command: 0x1021
+  #   binary_sensors:
+  #     - id: bsh_wm_unknown
+  #       name: unbekannt
+  #       icon: mdi:washing-machine
+  #       device_class: connectivity
+  #       lambda: return true;
+  #       filters:
+  #         - delayed_off: 5s   #while washing multiple times
+
+  - platform: bshdbus
+    dest: 0x14
+    command: 0x1007
+    binary_sensors:
+      - id: bsh_wm_feat_waterplus
+        name: Spülen Plus
+        icon: mdi:water-plus
+        lambda: return (x[0] & 0x10);
+      - id: bsh_wm_feat_prewash
+        name: Vorwäsche
+        icon: mdi:rotate-orbit
+        lambda: return (x[0] & 0x80);
+      - id: bsh_wm_feat_anticrease
+        name: Bügelleicht
+        icon: mdi:iron
+        lambda: return x[1] == 0x80;
+      - id: bsh_wm_feat_ecoperfect
+        name: Eco Perfect
+        icon: mdi:liquid-spot
+        lambda: return x[2] == 0x02;
+      - id: bsh_wm_feat_speedplus
+        name: Speed Perfect
+        icon: mdi:clock-fast
+        lambda: |-
+          int prog = id(current_program);
+          if (prog == 7 || prog == 8 || prog == 9 || prog == 10 || prog == 11)
+            return false;
+          return (x[2] == 0x00);
+  - platform: bshdbus
+    dest: 0x14
+    command: 0x1008
+    binary_sensors:
+      - id: bsh_wm_feat_rinsehold
+        name: Spülstop
+        icon: mdi:pause-circle
+        lambda: |-
+          id(rinsehold) = (x[0] == 0x01); 
+          return x[0] == 0x01;
+
+  - platform: bshdbus
+    dest: 0x26
+    command: 0x1701
+    binary_sensors:
+      - id: bsh_wm_program_started
+        name: Waschprogramm gestartet
+        entity_category: diagnostic
+        icon: mdi:ray-start-arrow
+        lambda: |-
+          id(bsh_wm_program_schedule_state) = 1;
+          id(bsh_wm_program_schedule).update();
+          return true;
+          
+sensor:
+  - platform: template
+    id: bsh_wm_rpm_delayed
+    name: Umdrehungen
+    device_class: speed
+    state_class: measurement
+    unit_of_measurement: rpm
+    accuracy_decimals: 0
+
+  - platform: bshdbus
+    dest: 0x14
+    command: 0x1006
+    sensors:
+      - id: bsh_wm_rpm_raw
+        internal: true
+        lambda: |-
+          id(rpm_buffer) = x[0]*10;
+          return {};
+        on_value:
+          then:
+            - delay: 50ms   #rinsehold after rpm frame > wrong rpm reported, no debounce implemented b/c 
+                            #longest delay seen for rinsehold after rpm was 21 ms, fastest rpm frame after 
+                            #rinsehold was 96 ms (fast spinning jobwheel)
+            - lambda: |-
+                float value = id(rpm_buffer);
+                if (id(rinsehold) == false) {
+                  if (value > 1300) value = 1400;
+                  id(bsh_wm_rpm_delayed).publish_state(value);
+                } else {
+                  id(bsh_wm_rpm_delayed).publish_state(0);
+                }
+
+  - platform: bshdbus
+    dest: 0x2a
+    command: 0x1600
+    sensors:
+      - id: bsh_wm_remain
+        device_class: duration
+        internal: true
+        state_class: measurement
+        unit_of_measurement: min
+        accuracy_decimals: 0
+        lambda: |-
+          id(bsh_wm_remaining_minutes) = x[0];
+          id(bsh_wm_remaining_display).publish_state(id(bsh_wm_remaining_minutes));
+          if (!id(ha_time).now().is_valid())
+            return x[0];
+
+          int remaining_minutes = x[0];
+          auto now = id(ha_time).now();
+
+          time_t end_timestamp = now.timestamp + (remaining_minutes * 60);
+          struct tm *end_time = localtime(&end_timestamp);
+
+          char buffer[6];
+          sprintf(buffer, "%02d:%02d", end_time->tm_hour, end_time->tm_min);
+
+          id(bsh_wm_endtime).publish_state(buffer);
+
+          return x[0];
+
+  - platform: template
+    id: bsh_wm_remaining_display
+    name: Restzeit
+    device_class: duration
+    state_class: measurement
+    unit_of_measurement: min
+    accuracy_decimals: 0
+    update_interval: never
+    lambda: return id(bsh_wm_remaining_minutes);
+
+text_sensor:
+  - platform: bshdbus
+    dest: 0x14
+    command: 0x1004
+    text_sensors:
+      - id: bsh_wm_temperature
+        name: Temperatur
+        icon: mdi:thermometer
+        lambda: return std::to_string(x[0]);
+        filters:
+          - map:
+            - 0 -> kalt
+            - 2 -> 30°C
+            - 3 -> 40°C
+            - 4 -> 60°C
+            - 7 -> 90°C
+
+  - platform: bshdbus
+    dest: 0x14
+    command: 0x1005
+    text_sensors:
+      - id: bsh_wm_program
+        name: Waschprogramm
+        icon: mdi:numeric
+        lambda: |-
+          id(current_program) = x[2];
+          return std::to_string(x[2]);
+        filters:
+          - map:
+            - 0 -> Aus
+            - 1 -> Baumwolle 30°
+            - 2 -> Baumwolle 40°
+            - 3 -> Baumwolle 40°+Vorwäsche
+            - 4 -> Baumwolle 60°
+            - 5 -> Baumwolle 90°
+            - 6 -> Schnell/Mix 30°
+            - 7 -> ExtraKurz 15' 40°
+            - 8 -> Spülen/Schleudern
+            - 9 -> Abpumpen
+            - 10 -> Wolle 30°
+            - 11 -> Wolle kalt
+            - 12 -> Fein/Seide 30°
+            - 13 -> Pflegeleicht 60°
+            - 14 -> Pflegeleicht 40°
+            - 15 -> Pflegeleicht 30°
+  - platform: bshdbus
+    dest: 0x26
+    command: 0x1020
+    text_sensors:
+      - id: bsh_wm_washmodule
+        name: Waschprogramm Modul
+        entity_category: diagnostic
+        icon: mdi:map-marker-path
+        lambda: |-
+          if (x[0] >= 3 && x[0] <= 6)
+            id(bsh_wm_program_schedule_state) = 2;
+          else if (x[0] >= 9 && x[0] <= 25)
+            id(bsh_wm_program_schedule_state) = 3;
+          else if (x[0] >= 26 && x[0] <= 28)
+            id(bsh_wm_program_schedule_state) = 4;
+          id(bsh_wm_program_schedule).update();
+          return std::to_string(x[0]);
+        filters:
+          - map:
+            - 3 -> Waschmittel einspülen (3)
+            - 4 -> Wassereinlauf (4)
+            - 5 -> Aufheizen (5)
+            - 6 -> Walken (6)
+            - 9 -> Abpumpen / Schleudern (9)
+            - 13 -> Spülen (13)
+            - 15 -> Abpumpen / Schleudern (15)
+            - 16 -> Spülen (16)
+            - 20 -> Abpumpen / Schleudern  (20)
+            - 23 -> Spülen (23)
+            - 25 -> Abpumpen (25)
+            - 26 -> Endschleudern (26)
+            - 28 -> Auflockern (28)
+  - platform: bshdbus
+    dest: 0x26
+    command: 0x1200
+    text_sensors:
+      - id: bsh_wm_door
+        name: Tür
+        icon: mdi:door
+        lambda: return std::to_string(x[0]);
+        filters:
+          - map:
+            - 0 -> Zu und nicht verriegelt
+            - 1 -> Zu und verriegelt
+            - 2 -> Offen
+        on_value:
+          then:
+            - lambda: |-
+                if (id(bsh_wm_door).state =="Offen") {
+                  if (id(bsh_wm_state_raw) != 2) {
+                    id(bsh_wm_program_schedule_state)=0;
+                    id(bsh_wm_program_schedule).update();
+                  }
+                }
+  - platform: bshdbus
+    dest: 0x26
+    command: 0x1101
+    text_sensors:
+      - id: bsh_wm_state
+        name: Status
+        icon: mdi:state-machine
+        lambda: |-
+          id(bsh_wm_state_raw) = x[0];
+          return std::to_string(x[0]);
+        filters:
+        - map:
+          - 0 -> Angehalten/Bereit
+          - 1 -> Fertig    #only active for around 2 seconds, after that state is returned to 0
+          - 2 -> Läuft
+          - 3 -> Nachlegen
+        on_value:
+          then:
+            - lambda: |-
+                if (id(bsh_wm_state_raw) == 1) {
+                  id(bsh_wm_program_started).publish_state(false);
+                  id(bsh_wm_program_schedule_state) = 5;
+                  id(bsh_wm_program_schedule).update();
+                  id(bsh_wm_washmodule).publish_state("Inaktiv");
+                }
+  - platform: template
+    id: bsh_wm_program_schedule
+    name: Programmablauf
+    update_interval: never
+    lambda: |-
+      switch (id(bsh_wm_program_schedule_state)) {
+        case 0: return {"Inaktiv"};
+        case 1: return {"Gestartet"};
+        case 2: return {"Waschen"};
+        case 3: return {"Spülen"};
+        case 4: return {"Schleudern"};
+        case 5: return {"Fertig"};
+        default: return {"Inaktiv"};
+      }
+
+  - platform: bshdbus
+    dest: 0x15
+    command: 0x1100
+    text_sensors:
+      - id: bsh_wm_start_event
+        name: Start_Nachlegen
+        lambda: |-
+          switch (x[0]) {
+            case 0x00: return std::string("Nachlegen");
+            case 0x01: return std::string("Start");
+            case 0x03: return std::string("Verzögerter Start - Bereit");
+            case 0x04: return std::string("Verzögerter Start - Nachlegen");
+            case 0x06: return std::string("Verzögerter Start - Start Programm");
+            default: return std::to_string(x[0]);
+          }
+
+  - platform: template
+    id: bsh_wm_endtime
+    name: Endzeit
+    icon: mdi:clock-end
+    update_interval: never
