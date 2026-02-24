@@ -1,0 +1,315 @@
+#
+# bsh-dbus-wm14s750.yaml -- Interface B/S/H/ washing machine WM14S750
+#
+# (C) 2024-2025 Hajo Noerenberg
+#
+# Usage: Config (pinout) for Bouni's board: https://github.com/Bouni/BSH-Board
+#
+# http://www.noerenberg.de/
+# https://github.com/hn/bsh-home-appliances
+#
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 3.0 as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program. If not, see <http://www.gnu.org/licenses/gpl-3.0.txt>.
+#
+
+esphome:
+  name: waschmaschine-esphome
+  friendly_name: BSH Waschmaschine WU14UT40
+
+external_components:
+  - source: github://hn/bsh-home-appliances@master
+
+esp32:
+  board: esp32-c6-devkitc-1
+  variant: esp32c6
+  framework:
+    type: esp-idf
+
+logger:
+
+api:
+  encryption:
+    key: !secret api_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_key
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "D-Bus Fallback Hotspot"
+    password: !secret wifi_ap_password
+
+captive_portal:
+
+status_led:
+  pin:
+    number: GPIO6
+    inverted: true
+
+output:
+  - platform: gpio
+    pin:
+      number: GPIO7
+      inverted: true
+    id: activity_led
+
+uart:
+  id: dbus_uart
+  rx_pin: GPIO4
+  tx_pin: GPIO5
+  baud_rate: 9600
+
+bshdbus:
+  uart_id: dbus_uart
+  on_frame:
+    - if:
+        condition:
+          lambda: |-
+            // Filtering out Spam/Ping-Frames for better visibility
+            return !(dest == 0x0f && command == 0xe000 && message.size() == 1 && message[0] == 0x05);
+            return !(dest == 0x75 && command == 0x5000 && message[0] == 0x02);
+        then:
+          - logger.log:
+              format: "Received frame dest 0x%02x cmd 0x%04x: 0x%s"
+              args: [dest, command, format_hex(message).c_str()]
+          - output.turn_on: activity_led
+          - delay: 20ms
+          - output.turn_off: activity_led
+
+binary_sensor:
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1006
+    binary_sensors:
+      - id: bsh_wm_feat_waterplus
+        name: Extra Spülen
+        icon: mdi:water-plus
+        lambda: return x[5] & 0x02;
+      - id: bsh_wm_feat_prewash
+        name: Vorwäsche
+        icon: mdi:rotate-orbit
+        lambda: return x[5] & 0x80;
+      - id: bsh_wm_feat_variospeed
+        name: Vario Speed
+        icon: mdi:clock-fast
+        lambda: return x[3] == 0; ## Vario-Speed is on, when 4th byte = 0
+  
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1001
+    binary_sensors:
+      - id: bsh_wm_start_button
+        name: Startknopf
+        icon: mdi:button-pointer
+        lambda: return (x[0] == 0x23);
+        on_press:
+          - delay: 1s
+          - lambda: id(bsh_wm_start_button).publish_state(NAN);
+      - id: bsh_wm_program_started
+        name: Waschprogramm gestartet
+        entity_category: diagnostic
+        icon: mdi:ray-start-arrow
+        lambda: return (x[0] == 0x24);
+        on_press:
+          - delay: 1s
+          - lambda: id(bsh_wm_program_started).publish_state(NAN);
+
+sensor:
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1006
+    sensors:
+      - id: bsh_wm_temperature
+        name: Temperatur
+        device_class: temperature
+        state_class: measurement
+        unit_of_measurement: °C
+        accuracy_decimals: 0
+        lambda: return x[2];
+        filters:
+          - calibrate_linear:
+             datapoints:
+              - 0 -> 10.0
+              - 1 -> 20.0
+              - 2 -> 30.0
+              - 3 -> 40.0
+              - 4 -> 50.0
+              - 5 -> 60.0
+              - 6 -> 70.0
+              - 7 -> 80.0
+              - 8 -> 90.0
+
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1006
+    sensors:
+      - id: bsh_wm_rpm
+        name: Umdrehungen
+        device_class: speed
+        state_class: measurement
+        unit_of_measurement: rpm
+        accuracy_decimals: 0
+        lambda: return x[1];
+        filters:
+          - multiply: 10
+
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1002
+    sensors:
+      - id: bsh_wm_remain
+        name: Restzeit
+        device_class: duration
+        state_class: measurement
+        unit_of_measurement: min
+        accuracy_decimals: 0
+        lambda: return (x[0] << 8 | x[1]) / 60;
+
+  - platform: bshdbus
+    dest: 0x13
+    command: 0x3015
+    sensors:
+      - id: bsh_wm_rpm_real
+        name: U⁄min
+        accuracy_decimals: 0
+        device_class: speed
+        unit_of_measurement: rpm
+        lambda: return (((int16_t) x[3] << 8 | x[4])/16);
+
+  - platform: bshdbus
+    dest: 0x33
+    command: 0x3001     
+    sensors:
+      - id: bsh_wm_rpm_target
+        name: U⁄min (soll)
+        accuracy_decimals: 0
+        device_class: speed
+        unit_of_measurement: rpm
+        lambda: return (((int16_t) x[3] << 8 | x[4])/16);
+
+
+text_sensor:
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1006
+    text_sensors:
+      - id: bsh_wm_program
+        name: Waschprogramm
+        icon: mdi:numeric
+        lambda: return std::to_string(x[0]);
+        filters:
+          - map:
+            - 0 -> Aus
+            - 1 -> Baumwolle
+            - 2 -> Eco 40-60
+            - 3 -> Bunt
+            - 4 -> Pflegeleicht
+            - 5 -> Fein/Seide
+            - 6 -> Wolle
+            - 7 -> Schnell/Mix
+            - 8 -> Schleudern/Abpumpen
+            - 9 -> Spülen
+            - 10 -> Pflegeleicht Plus
+            - 11 -> Trommel Reinigen
+            - 12 -> Hemden/Business
+            - 13 -> Dessous
+            - 14 -> Outdoor
+            - 15 -> Super 15'/30'
+
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1000
+    text_sensors:
+      - id: bsh_wm_door
+        name: Tür
+        icon: mdi:door
+        lambda: |-
+          if (x.size() < 2) return "";
+          if (x[0] != 0x29) return "";
+          return std::to_string(x[1]);
+        filters:
+        - lambda: |-
+            if (x == "") return {};   // Empty String? -> Discard!
+            return x;                 // Else -> Forward to map-Filter
+        - map:
+          - 0 -> Unbekannt
+          - 3 -> Offen
+          - 5 -> Verriegelt
+          - 6 -> Geschlossen
+  
+  ## Status noch unbekannt. 
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1000
+    text_sensors:
+      - id: bsh_wm_state
+        name: Status
+        icon: mdi:state-machine
+        lambda: |-
+          if (x.size() < 2) return "";
+          if (x[0] == 0x29) return "";     
+          if (x[0] == 0x43) return "";     
+          return std::to_string(x[0]);
+        filters:
+        - lambda: |-
+            if(x == "") return {};
+            return x;
+        - map:
+          - 12 -> Bereit/Pause ## status kommt, wenn Maschine gestoppt = 0x0c 00
+          - 20 -> Fertig
+          - 22 -> Läuft ## 22 scheint zu stimmen 0x16 00
+
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1001
+    text_sensors:
+      - id: bsh_wm_ready
+        name: Bereitschaft
+        icon: mdi:tumble-dryer
+        lambda: |-
+          if (x[0] == 5 || x[0] == 46) {
+            id(bsh_wm_remain).publish_state(0);
+          }
+          return std::to_string(x[0]);
+        # Some values unclear
+        filters:
+          - map:
+            - 1 -> In betrieb
+            - 3 -> Startbereit
+            - 5 -> Beendet
+            - 6 -> Initialisiere        # 0x06 - comes during startup for a short period
+            - 35 -> Gestartet           # 0x23
+            - 36 -> verzögerter Start   # 0x24
+            - 37 -> Aus
+            - 46 -> Fertig      
+            - 47 -> Unbekannt (47)      # TDB - could be power save
+
+
+  - platform: bshdbus
+    dest: 0x33
+    command: 0x3001     
+    text_sensors:
+      - id: bsh_wm_direction
+        name: Drehrichtung
+        icon: mdi:reload
+        lambda: return std::to_string(x[0]);
+        filters:
+          - map:
+            - 114 -> Rechts
+            - 108 -> Links
