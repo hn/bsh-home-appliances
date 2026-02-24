@@ -1,5 +1,13 @@
 #
-# bsh-dbus-wm14s750.yaml -- Interface B/S/H/ washing machine WM14S750
+# bsh-dbus-wu14ut40.yaml -- Interface B/S/H/ washing machine WU14UT40
+# This file was conributed by 
+# (C) 2026 satchafunkilus
+# https://github.com/satchafunkilus
+#
+# Discussion for this machine / config can be found here:
+# https://github.com/hn/bsh-home-appliances/discussions/53
+#
+#
 #
 # (C) 2024-2025 Hajo Noerenberg
 #
@@ -313,3 +321,4 @@ text_sensor:
           - map:
             - 114 -> Rechts
             - 108 -> Links
+
