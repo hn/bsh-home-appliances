@@ -28,6 +28,7 @@
 */
 
 #include "bsh-dbus-node.h"
+#include "FlexConsole.h"
 
 RingBuf < byte, DBUS_TX_QUEUE_SIZE > tx_queue;
 byte tx_buf[DBUS_BUFLEN];
@@ -161,8 +162,8 @@ void dbus_loop() {
 
 #ifdef  DBUS_CB_DEBUG
 	if (debugstr.length() > 0) {
-		Serial.print("Debug: ");
-		Serial.print(debugstr);
+		console.print("Debug: ");
+		console.print(debugstr);
 		debugstr = "";
 	}
 #endif
@@ -179,26 +180,26 @@ void dbus_loop() {
 			sprintf(h, "%02X", d);
 
 			if (i == 1) {
-				Serial.printf(" | ");
+				console.printf(" | ");
 			} else if (i == 2) {
-				Serial.printf(".");
+				console.printf(".");
 			} else if (i == 3) {
-				Serial.printf("-");
+				console.printf("-");
 			} else if (i == 4) {
-				Serial.printf(" | ");
+				console.printf(" | ");
 			} else if (i == p_len + 2) {
-				Serial.printf(" | ");
+				console.printf(" | ");
 			}
 
-			Serial.print(h);
+			console.print(h);
 		}
 
 		for (int n = 0; n < dbus_node_count; n++) {
 			if ((p_buf[1] >> 4) == dbus_node_registry[n]->node_id) {
 				for (size_t j = 0; j < dbus_node_registry[n]->rx_cmd_table_len; j++) {
 					if (dbus_node_registry[n]->rx_cmd_table[j].cmd == (p_buf[2] << 8 | p_buf[3])) {
-						Serial.print(", handled by: ");
-						Serial.print(dbus_node_registry[n]->rx_cmd_table[j].description);
+						console.print(", handled by: ");
+						console.print(dbus_node_registry[n]->rx_cmd_table[j].description);
 						dbus_node_registry[n]->rx_cmd_table[j].handler(p_buf);
 						break;
 					}
@@ -206,7 +207,7 @@ void dbus_loop() {
 			}
 		}
 
-		Serial.println();
+		console.println();
 	}
 
 	if (tx_state == TX_DELIVERED) {

@@ -9,7 +9,7 @@
 
 */
 
-//#include "node-dishwasher-EPG60110-1-39C3.h"
+//#include "node-dishwasher-1-EPG60110-39C3.h"
 #include "bsh-dbus-node.h"
 
 #define BUTTON_BLUE 8
@@ -124,7 +124,7 @@ static dbus_rx_cmd_entry_t rx_cmd_table[] = {
 
 };
 
-extern "C" const dbus_node_info_t node_dishwasher_1_39C3 __attribute__((used)) = {
+extern "C" const dbus_node_info_t node_dishwasher_1_EPG60110_39C3 __attribute__((used)) = {
     .node_id = 0x1,
     .rx_cmd_table = rx_cmd_table,
     .rx_cmd_table_len = sizeof(rx_cmd_table) / sizeof(rx_cmd_table[0]),
