@@ -1,8 +1,15 @@
 # Open-D-Bus
 
-This is an initial approach for a D-Bus 2 stack, which provides the
-infrastructure to implement one or more nodes capable of bidirectional
+This is an alpha quality approach for a B/S/H/ D-Bus 2 stack, which provides
+the infrastructure to implement one or more nodes capable of bidirectional
 frame communication on the bus.
+
+To put it more vividly: This stack is intended to eventually facilitate
+the development of custom components for B/S/H household appliances.
+It is entirely conceivable to e.g. remove the original user control panel
+from a machine and replace it with a custom-made interface powered by
+this software. While implementing a full replacement would be a significant
+undertaking, the some of the initial groundwork is here.
 
 This is an independent, open-source project and is not affiliated with,
 endorsed by, or sponsored by B/S/H/ or its affiliates. All product names
