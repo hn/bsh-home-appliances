@@ -21,9 +21,9 @@ With [bsh-timelight-extract-icons.pl](bsh-timelight-extract-icons.pl) one can ex
 the icons from the firmware image. Some icons are compressed with a simple run-length encoding,
 the script will decompress them as needed.
 
-### Control board EPG700xx
+### Power module EPG700xx
 
-The control boards (EPG70002, EPG70003, EPG70012 [PCB top](photos/bsh-EPG70012-pcb-top.jpg) [PCB bottom](photos/bsh-EPG70012-pcb-bottom.jpg) [Enclosure](photos/bsh-EPG70012-enclosure.jpg))
+The power modules (EPG70002, EPG70003, EPG70012 [PCB top](photos/bsh-EPG70012-pcb-top.jpg) [PCB bottom](photos/bsh-EPG70012-pcb-bottom.jpg) [Enclosure](photos/bsh-EPG70012-enclosure.jpg))
 are equipped with an STM32F301VCT6 (sometimes STM32P301VCT6) ARM Cortex M4 processor (LQFP100).
 The EPG70002 got two relays for heating while the 70003 got three.
 Depending on the board model, there is also an additional motor driver chip FSB50550AB from fairchild semiconductors
@@ -69,11 +69,11 @@ DS.CC-CC MM MM MM
 25.20-08 xx yy zz aa bb cc dd ee    Remaining time xx in minutes
 
 DESTINATION ("D" of DS-byte) (physical location in brackets)
-0x0 Network management / Broadcast (control board)
-0x1 Washing control unit (control board)
+0x0 Network management / Broadcast (power module)
+0x1 Washing control unit (power module)
 0x2 User control panel
 0x6 TimeLight module
-0xa Internet communication end point (control board)
+0xa Internet communication end point (power module)
 0xb Internet WiFi connection module
 ```
 

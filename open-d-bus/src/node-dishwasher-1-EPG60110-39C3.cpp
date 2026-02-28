@@ -1,8 +1,8 @@
 
 /*
 
-  Just a quick and dirty hack to emulate the EPG60110 control board at D-Bus 0x1.
-  Displays some hopefully entertaining things at the user control board BSH9000329063.
+  Just a quick and dirty hack to emulate the EPG60110 power module at D-Bus 0x1.
+  Displays some hopefully entertaining things at the user interface panel BSH9000329063.
 
   Used for the dishwasher control panel, which was on the lectern
   during the 39C3 talk https://media.ccc.de/v/39c3-hacking-washing-machines

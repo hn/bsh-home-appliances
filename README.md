@@ -58,9 +58,9 @@ The washing machine WM14S750 was sold from around 2010, when it was the test win
 It was likely produced at the [Nauen factory](https://wiki.bsh-group.com/de/wiki/Die_Fabrik_Nauen/en).
 B/S/H/ has released a very nice [video series](https://www.youtube.com/watch?v=T_dcbVZmExU&list=PL8rSAtdt1rTpldsxcCMCIHwK_7gH2FWEZ) in which many details from the production in Nauen can be seen.
 
-#### Control board EPW66018
+#### Power module EPW66018
 
-The control board ([PCB front](photos/bsh-EPW66018-pcb-front.jpg), [PCB back](photos/bsh-EPW66018-pcb-back.jpg)) is based on an Freescale (now NXP) Semiconductor `MC9S12Q128C-PBE16` MCU (52-pin LQFP package).
+The power module ([PCB front](photos/bsh-EPW66018-pcb-front.jpg), [PCB back](photos/bsh-EPW66018-pcb-back.jpg)) is based on an Freescale (now NXP) Semiconductor `MC9S12Q128C-PBE16` MCU (52-pin LQFP package).
 It also supplies power to all connected electronics.
 The sticker suggests it was produced by [melecs](https://www.melecs.com/en).
 
@@ -79,11 +79,11 @@ It has 11 [RAST connectors](https://de.wikipedia.org/wiki/RAST-Steckverbinder) f
 11 D-Bus
 ```
 
-#### User control panel EPW66027
+#### User interface panel EPW66027
 
-The control panel ([Front view](photos/bsh-EPW66027-front.jpg), [back view](photos/bsh-EPW66027-back.jpg)) lets the user select 15 different washing programs, 8 temperatures, 7 spin speeds and and other options.
+The user interface panel ([Front view](photos/bsh-EPW66027-front.jpg), [back view](photos/bsh-EPW66027-back.jpg)) lets the user select 15 different washing programs, 8 temperatures, 7 spin speeds and and other options.
 The (mechanical) rotary switch is not only used to select the program, but also to switch the mains power on and off.
-The control panel is connected to the control board via D-Bus.
+The user interface panel is connected to the power module via D-Bus.
 
 #### Unbalance sensor SEUFFER 9000444823
 
@@ -92,7 +92,7 @@ It uses an [PIC18F24J10](https://www.microchip.com/en-us/product/pic18f24j10) MC
 and an `A007MPL DREMAS` IC (MPL likely refers to a custom-made Mask Programmable Logic),
 which [according to the manufacturer](https://www.ast-international.com/en.products.position-force-sensors.html#product-11) is a specialized 3D hall sensor
 (the [corresponding magnet](https://www.siemens-home.bsh-group.com/uk/shop-productlist/00615666) is attached to the washing drum).
-The device is connected to the control board via D-Bus.
+The device is connected to the power module via D-Bus.
 
 There are 5 contact points on the back of the board that form a contact for [in-circuit serial programming (ICSP)](https://en.wikipedia.org/wiki/In-system_programming#Microchip_ICSP) (top to bottom):
 `(+ sign), VDD, PGC, PGD, MCLR, VSS/GND`. The chip can be interfaced with a [PICkit](https://www.microchip.com/en-us/development-tool/pg164130) programmer
@@ -112,9 +112,9 @@ They are commercially available from [Lumberg](https://www.lumberg.com/en/produc
 B/S/H/ sells somewhat pricy pre-assembled cables as well, e.g. the [spare part 00631780](https://www.siemens-home.bsh-group.com/de/produktliste/00631780).
 
 > [!IMPORTANT]
-> The assignment of the connector depends on the end point: on the control board the connector is configured as GND-DATA-VBUS and then the cable is crossed and on the other side (e.g. for sensors) the wiring is VBUS-DATA-GND:
+> The assignment of the connector depends on the end point: on the power module the connector is configured as GND-DATA-VBUS and then the cable is crossed and on the other side (e.g. for sensors) the wiring is VBUS-DATA-GND:
 
-![BSH D-Bus 2 pinout, control bord bottom, slave top right](bsh-dbus-pinout.jpg)
+![BSH D-Bus 2 pinout, power module bottom, slave top right](bsh-dbus-pinout.jpg)
 
 #### External access
 
@@ -128,8 +128,8 @@ was offered, which likely contains just a [COM1 PCB](WLANMODULE.md#internet-conn
 #### History
 
 It looks as if B/S/H/ has gradually introduced the D-Bus more and more into home appliances over the years:
-- pre-2006 washing machines use the D-Bus only to control the display (in a rather [simplistic way](contrib/bsh-dbus-wae284f0nl.yaml#L122)),
-- 2006-2010 washing machines only use the D-Bus for the unbalance sensor and the control panel,
+- pre-2006 washing machines use the D-Bus only to control the user interface panel (in a rather [simplistic way](contrib/bsh-dbus-wae284f0nl.yaml#L122)),
+- 2006-2010 washing machines only use the D-Bus for the unbalance sensor and the user interface panel,
 - post-2010 appliances also [control the motor](https://github.com/hn/bsh-home-appliances/issues/3#issuecomment-2367437363) (and presumably other components) via the D-Bus.
 
 All dates are only rough estimates, as the various models were produced and sold over longer periods of time.
@@ -198,7 +198,7 @@ The destination node ("D" of DS-byte) designates the (unique) logical receiver o
 
 The subsystem nibble ("S" of DS-byte) specifies the subsystem within the destination node.
 For lower complexity nodes it is of little importance (e.g. the unbalance sensor ignores the value of the “S” nibble),
-for higher complexity nodes (e.g. the control board) it seperates logical sections within the program code.
+for higher complexity nodes (e.g. the power module) it seperates logical sections within the program code.
 
 ##### Command frames
 
@@ -244,7 +244,7 @@ the transmission is considered to have failed.
 
 #### Boot log
 
-A typical boot sequence just for the control board and control panel starts like this:
+A typical boot sequence just for the power module and user interface panel starts like this:
 
 ```
         LL   DS CC CC   MM MM MM MM   RR RR            ACK
@@ -272,7 +272,7 @@ A typical boot sequence just for the control board and control panel starts like
 ```
 
 In the test setup, the motor controller was not connected, so you can see that
-the control unit tries to communicate with it several times
+the power module tries to communicate with it several times
 in vain (request `0f.e7-00 32 03` with no matching `1f.e8-00` response).
 
 #### Interpreting frame data (WM14S750)
@@ -289,7 +289,7 @@ DS CC CC MM MM MM
 14.10-07 xx yy zz    xx = FEATUREBITS1, yy = FEATUREBITS2, zz = 0 .. 2 VarioPerfect program number
 14.10-08 00          ?
 14.10-09 00 00       ?
-15.11-00 01          Start button pressed on user control panel
+15.11-00 01          Start button pressed on user interface panel
 26.10-20 xx          Wash program module xx
 26.11-01 xx yy       Wash programm status: xx = 0=>Stopped, 1=>Running/end 2=>Running
 26.12-00 xx yy zz    Front door status: xx = 0=>Closed+Unlocked, 1=>Closed+Locked, 2=>Open
@@ -308,12 +308,12 @@ FEATUREBITS2 = Logical OR of
 0x80 = Anti-crease protection / Knitterschutz
 
 DESTINATION ("D" of DS-byte) (physical location in brackets)
-0x0 Network management / Broadcast (control board)
-0x1 Washing control unit (control board)
-0x2 User control panel
+0x0 Network management / Broadcast (power module)
+0x1 Washing control unit (power module)
+0x2 User interface panel
 0x3 Motor controller
 0x4 Unbalance sensor
-0xa Internet communication end point (control board)
+0xa Internet communication end point (power module)
 0xb Internet WiFi connection module
 
 SUBSYSTEM ("S" of DS-byte)
@@ -334,7 +334,7 @@ DS CC CC
 0f.e0-00 xx       Request dests to ping back if their operating state is >= xx
 1f.e0-01 xx yy    Response of dest yy that operating state is xx
 0f.ef-ff          End of initialization, changes operating states of all dests to 0x5
-22.13-01 0a       Read hardware/state/something info from user control panel request
+22.13-01 0a       Read hardware/state/something info from user interface panel request
 12.13-00          Read hardware/state/something response
 13.15-00 00       ?
 ```
@@ -345,11 +345,15 @@ Using a [D-Bus adapter](#d-bus-adapter), you can connect to the bus and interfac
 
 ### Arduino
 
-[open-d-bus](open-d-bus/src/main.cpp) is a somewhat hackish implementation of a D-Bus-2 stack.
+[open-d-bus](open-d-bus/) is a somewhat hackish implementation of a D-Bus-2 stack.
 It parses D-Bus traffic, acknowledges frames for locally registered nodes and
 routes commands to corresponding handler functions.
 
 [bsh-dbus-logger.ino](bsh-dbus-logger.ino) is an older approach to interpret bus traffic including acknowledgements.
+
+### Linux
+
+[bsh-dbus-logger.pl](bsh-dbus-logger.pl) is an older approach to interpret bus traffic including acknowledgements.
 
 ### Home Assistant / ESPHome
 

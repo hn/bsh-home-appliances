@@ -6,7 +6,7 @@ frame communication on the bus.
 
 To put it more vividly: This stack is intended to eventually facilitate
 the development of custom components for B/S/H household appliances.
-It is entirely conceivable to e.g. remove the original user control panel
+It is entirely conceivable to e.g. remove the original user interface panel
 from a machine and replace it with a custom-made interface powered by
 this software. While implementing a full replacement would be a significant
 undertaking, the some of the initial groundwork is here.
@@ -40,7 +40,7 @@ Do not enable more than one node with the same node id.
 ### node-dishwasher-EPG60110-1-39C3.cpp
 
 Emulates the dishwasher power module EPG60110 at D-Bus address 0x1. It sends
-frames to the control panel BSH9000329063 to display custom strings and UI
+frames to the user interface panel BSH9000329063 to display custom strings and UI
 elements. This was used during the
 [39C3 talk](https://media.ccc.de/v/39c3-hacking-washing-machines) to
 demonstrate external control over the appliance display.
@@ -82,7 +82,7 @@ The following commands are available:
 | Command | Description |
 | :--- | :--- |
 | _Node_ ||
-| `:nn<hexnumber>` | Sets the node to be addressed (e.g., :nn2 for the control panel, often referred to as `D` in other parts of this project) |
+| `:nn<hexnumber>` | Sets the node to be addressed (e.g., :nn2 for the user interface panel, often referred to as `D` in other parts of this project) |
 | `:nm<hexnumber>` | Selects the software module within the node (note: this refers to the software module, which is _not_ to confuse with the subsystem typically referred to as `S`) |
 | `:ni` | Requests the ID string from the software module. If a response is received, the module's info string memory address is automatically transferred to the memory start listed below |
 | _Memory_ ||
