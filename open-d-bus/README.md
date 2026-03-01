@@ -20,7 +20,9 @@ any association with B/S/H/.
 ## Status
 
 This code is a direct artifact of reverse engineering; any resemblance
-to “good code” is purely coincidental. Feel free to improve.
+to “good code” is purely coincidental. I’d welcome if someone who
+actually knows how to code (which definitely excludes me) could take
+this and implement it properly.
 
 The current implementation reads D-Bus traffic via UART, acknowledges valid
 frames for local nodes, and handles local queuing and processing of frames

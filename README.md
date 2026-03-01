@@ -130,7 +130,7 @@ was offered, which likely contains just a [COM1 PCB](WLANMODULE.md#internet-conn
 It looks as if B/S/H/ has gradually introduced the D-Bus more and more into home appliances over the years:
 - pre-2006 washing machines use the D-Bus only to control the user interface panel (in a rather [simplistic way](contrib/bsh-dbus-wae284f0nl.yaml#L122)),
 - 2006-2010 washing machines only use the D-Bus for the unbalance sensor and the user interface panel,
-- post-2010 appliances also [control the motor](https://github.com/hn/bsh-home-appliances/issues/3#issuecomment-2367437363) (and presumably other components) via the D-Bus.
+- post-2010 appliances also [control the motor](https://github.com/hn/bsh-home-appliances/discussions/67#discussioncomment-15888495) (and presumably other components) via the D-Bus.
 
 All dates are only rough estimates, as the various models were produced and sold over longer periods of time.
 
@@ -141,18 +141,18 @@ an open-drain level shifter, and a DC-DC voltage converter for the supply voltag
 Thankfully, [several users have contributed their ideas](https://github.com/hn/bsh-home-appliances/issues/17)
 and are sharing their PCBs:
 
-- [kiu](https://github.com/kiu) uses an ESP32-C3/S3/C6 adapter in a compact PCB design called [BaSHi](https://github.com/kiu/BaSHi).
-- [Bouni](https://github.com/Bouni) uses an [ESP32-C6 with on-board USB and status LEDs](https://github.com/Bouni/BSH-Board).
+- [Bouni](https://github.com/Bouni) offers a ready-to-use (no soldering required) [ESP32-C6 in a compact design](https://github.com/Bouni/BSH-Board) with a RAST connector.
+- [kiu](https://github.com/kiu) has designed an adapter called [BaSHi](https://github.com/kiu/BaSHi), which can be flexibly populated with an ESP32-C3, S3, or C6.
 - [tubist2004](https://github.com/tubist2004) takes a [truly minimalistic approach, fitting entirely inside a connector](https://github.com/tubist2004/ESP32_D-Bus_Adapter).
-- my old tinkering with an [ESP32, a TXS0102, a 5V-DC-DC converter and a few cables](bsh-dbus-esp32.jpg) is not recommended.
+- my old tinkering with an [ESP32, a TXS0102, a 5V-DC-DC converter and a few cables](bsh-dbus-esp32.jpg) is not recommended anymore (and has never been).
 
 > [!WARNING]
 > Please double check that you have read and followed the [safety notes](#warning) before connecting anything to a live device.
 > I repeat: It is not guaranteed that the D-Bus is isolated from earth.
 > Never connect the adapter to both the appliance and your computer at the same time.
 
-If you have your own adapter design, I’ll be happy to link it in the list above,
-provided it has a proper OSS license and all source files are available.
+If you have your own adapter design, I’ll be happy to link it in the list above, provided it meets
+the [minimum requirements](https://github.com/hn/bsh-home-appliances/discussions/70#discussion-9517724).
 
 ### Other home appliance types
 
@@ -248,27 +248,27 @@ A typical boot sequence just for the power module and user interface panel start
 
 ```
         LL   DS CC CC   MM MM MM MM   RR RR            ACK
-0.412s  04 | 0f.e7-00 | 01 02       | a5 ec (crc=ok) | 0a (ack=ok)
-0.412s  03 | 0f.e0-00 | 00          | 9a 0d (crc=ok) | 0a (ack=ok)
-0.412s  04 | 1f.e8-00 | 01 02       | 75 58 (crc=ok) | 1a (ack=ok)
-0.412s  04 | 1f.e0-01 | 01 02       | c7 ab (crc=ok) | 1a (ack=ok)
-0.581s  04 | 0f.e7-00 | 02 02       | f0 bf (crc=ok) | 0a (ack=ok)
-0.581s  04 | 1f.e8-00 | 02 02       | 20 0b (crc=ok) | 1a (ack=ok)
-0.617s  02 | 0f.ef-ff |             | df 25 (crc=ok) | 0a (ack=ok)
-0.617s  03 | 13.15-00 | 00          | c6 3a (crc=ok) | 1a (ack=ok)
-0.768s  04 | 0f.e7-00 | 32 03       | e5 0b (crc=ok) | 0a (ack=ok)
-0.849s  04 | 26.17-01 | 25 25       | 33 fe (crc=ok) | 2a (ack=ok)
-0.849s  03 | 22.13-01 | 0a          | bc bc (crc=ok) | 2a (ack=ok)
-0.849s  12 | 12.13-00 | 04 00 01 01 00 00 00 00 01 04 00 00 01 00 01 5a | e8 05 (crc=ok) | 1a (ack=ok)
-1.028s  05 | 14.10-05 | 00 ff 01    | ce 43 (crc=ok) | 1a (ack=ok)
-1.028s  03 | 14.10-04 | 04          | f0 a7 (crc=ok) | 1a (ack=ok)
-1.028s  03 | 14.10-06 | 89          | d6 e0 (crc=ok) | 1a (ack=ok)
-1.062s  03 | 14.10-08 | 00          | f5 4e (crc=ok) | 1a (ack=ok)
-1.062s  05 | 14.10-07 | 40 00 01    | 3d 79 (crc=ok) | 1a (ack=ok)
-1.100s  04 | 14.10-09 | 00 00       | 0e cb (crc=ok) | 1a (ack=ok)
-1.634s  04 | 0f.e7-00 | 32 03       | e5 0b (crc=ok) | 0a (ack=ok)
-1.832s  04 | 0f.e7-00 | 32 03       | e5 0b (crc=ok) | 0a (ack=ok)
-1.912s  06 | 26.12-00 | 02 02 00 00 | 5d d4 (crc=ok) | 2a (ack=ok)
+0.000s  04 | 0f.e7-00 | 01 02       | a5 ec (crc=ok) | 0a (ack=ok)
+0.000s  03 | 0f.e0-00 | 00          | 9a 0d (crc=ok) | 0a (ack=ok)
+0.000s  04 | 1f.e8-00 | 01 02       | 75 58 (crc=ok) | 1a (ack=ok)
+0.000s  04 | 1f.e0-01 | 01 02       | c7 ab (crc=ok) | 1a (ack=ok)
+0.169s  04 | 0f.e7-00 | 02 02       | f0 bf (crc=ok) | 0a (ack=ok)
+0.169s  04 | 1f.e8-00 | 02 02       | 20 0b (crc=ok) | 1a (ack=ok)
+0.205s  02 | 0f.ef-ff |             | df 25 (crc=ok) | 0a (ack=ok)
+0.205s  03 | 13.15-00 | 00          | c6 3a (crc=ok) | 1a (ack=ok)
+0.356s  04 | 0f.e7-00 | 32 03       | e5 0b (crc=ok) | 0a (ack=ok)
+0.437s  04 | 26.17-01 | 25 25       | 33 fe (crc=ok) | 2a (ack=ok)
+0.437s  03 | 22.13-01 | 0a          | bc bc (crc=ok) | 2a (ack=ok)
+0.437s  12 | 12.13-00 | 04 00 01 01 00 00 00 00 01 04 00 00 01 00 01 5a | e8 05 (crc=ok) | 1a (ack=ok)
+0.616s  05 | 14.10-05 | 00 ff 01    | ce 43 (crc=ok) | 1a (ack=ok)
+0.616s  03 | 14.10-04 | 04          | f0 a7 (crc=ok) | 1a (ack=ok)
+0.616s  03 | 14.10-06 | 89          | d6 e0 (crc=ok) | 1a (ack=ok)
+0.650s  03 | 14.10-08 | 00          | f5 4e (crc=ok) | 1a (ack=ok)
+0.650s  05 | 14.10-07 | 40 00 01    | 3d 79 (crc=ok) | 1a (ack=ok)
+0.688s  04 | 14.10-09 | 00 00       | 0e cb (crc=ok) | 1a (ack=ok)
+1.222s  04 | 0f.e7-00 | 32 03       | e5 0b (crc=ok) | 0a (ack=ok)
+1.420s  04 | 0f.e7-00 | 32 03       | e5 0b (crc=ok) | 0a (ack=ok)
+1.500s  06 | 26.12-00 | 02 02 00 00 | 5d d4 (crc=ok) | 2a (ack=ok)
 ```
 
 In the test setup, the motor controller was not connected, so you can see that
@@ -345,15 +345,17 @@ Using a [D-Bus adapter](#d-bus-adapter), you can connect to the bus and interfac
 
 ### Arduino
 
-[open-d-bus](open-d-bus/) is a somewhat hackish implementation of a D-Bus-2 stack.
+[Open-D-Bus](open-d-bus/) is an initial approach for a D-Bus-2 stack implementation.
 It parses D-Bus traffic, acknowledges frames for locally registered nodes and
 routes commands to corresponding handler functions.
 
-[bsh-dbus-logger.ino](bsh-dbus-logger.ino) is an older approach to interpret bus traffic including acknowledgements.
+[bsh-dbus-logger.ino](bsh-dbus-logger.ino) is an earlier approach for interpreting bus traffic.
+It includes a rather messy "fire-and-forget" method for writing to the D-Bus,
+which is sometimes all you need for a quick test.
 
 ### Linux
 
-[bsh-dbus-logger.pl](bsh-dbus-logger.pl) is an older approach to interpret bus traffic including acknowledgements.
+[bsh-dbus-logger.pl](bsh-dbus-logger.pl) is an older approach to interpret D-Bus traffic.
 
 ### Home Assistant / ESPHome
 
