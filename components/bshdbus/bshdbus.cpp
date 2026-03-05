@@ -76,8 +76,7 @@ void BSHDBus::loop() {
     this->read_byte(&byte);
 
     if (this->expect_ack_for_) {
-      if ((byte == ((this->expect_ack_for_ & 0xF0) | 0x0A)) ||
-          ((byte == 0x1A) && (this->expect_ack_for_ == 0x0F))) {
+      if ((byte == ((this->expect_ack_for_ & 0xF0) | 0x0A)) || ((byte == 0x1A) && (this->expect_ack_for_ == 0x0F))) {
         ESP_LOGV(TAG, "Received valid ACK 0x%02x for preceeding frame", byte);
         this->expect_ack_for_ = 0;
         continue;
@@ -87,8 +86,7 @@ void BSHDBus::loop() {
       }
     }
 
-    if (this->rx_buffer_.empty() &&
-        ((byte < BSHDBUS_MIN_CMDFRAME_LENGTH) || (byte > BSHDBUS_MAX_CMDFRAME_LENGTH))) {
+    if (this->rx_buffer_.empty() && ((byte < BSHDBUS_MIN_CMDFRAME_LENGTH) || (byte > BSHDBUS_MAX_CMDFRAME_LENGTH))) {
       ESP_LOGD(TAG, "Invalid command frame length %d, discarding byte", byte);
       continue;
     }
@@ -115,8 +113,7 @@ void BSHDBus::loop() {
     /* Skip LL + DS + CCCC at beginning, CRC at end */
     std::vector<uint8_t> message(this->rx_buffer_.begin() + 1 + 1 + 2, this->rx_buffer_.end() - 2);
 
-    ESP_LOGV(TAG, "Valid frame dest 0x%02x cmd 0x%04x: 0x%s", dest, command,
-             format_hex_to(hex_buf, message));
+    ESP_LOGV(TAG, "Valid frame dest 0x%02x cmd 0x%04x: 0x%s", dest, command, format_hex_to(hex_buf, message));
     this->frame_callbacks_.call(this->rx_buffer_, dest, command, message);
     for (auto &listener : this->listeners_)
       listener->on_message(dest, command, message);
@@ -125,8 +122,8 @@ void BSHDBus::loop() {
   }
 }
 
-void BSHDBus::add_on_frame_callback(std::function<void(std::vector<uint8_t>, uint8_t, uint16_t,
-                                    std::vector<uint8_t>)> &&frame_callback) {
+void BSHDBus::add_on_frame_callback(
+    std::function<void(std::vector<uint8_t>, uint8_t, uint16_t, std::vector<uint8_t>)> &&frame_callback) {
   this->frame_callbacks_.add(std::move(frame_callback));
 }
 
