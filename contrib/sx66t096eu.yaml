@@ -1,3 +1,31 @@
+#
+# bsh-dbus-sx66t096eu.yaml -- Interface B/S/H/ dishwasher SX66T096EU
+#
+# This file has been contributed by
+# (C) 2026 LiamHD
+# https://github.com/LiamHD
+#
+# More info:
+# https://github.com/hn/bsh-home-appliances/discussions/58
+#
+# (C) 2025 Hajo Noerenberg
+# https://www.noerenberg.de/
+# https://github.com/hn/bsh-home-appliances
+#
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 3.0 as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program. If not, see <http://www.gnu.org/licenses/gpl-3.0.txt>.
+#
+
 esphome:
   name: sx66t096eu
   friendly_name: Dishwasher
