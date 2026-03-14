@@ -242,6 +242,16 @@ and then retransmits the frame.
 After three retransmission attempts without an acknowledgement,
 the transmission is considered to have failed.
 
+#### Timing
+
+The D-Bus protocol is highly dependent on precise timing, as it utilizes inter-frame gaps to
+establish synchronization. The state machine resets its status whenever no character is received
+for a duration equivalent to 2 bytes (which corresponds to 2.083ms at 9600 baud).
+
+Implementations that lack access to exact timing information (such as the [ESPHome component](components/bshdbus/))
+can therefore only approximate the protocol. However, in practice, these approximations
+generally function quite reliably.
+
 #### Boot log
 
 A typical boot sequence just for the power module and user interface panel starts like this:
