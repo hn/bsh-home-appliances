@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BSH D-Bus2 Frame Analyzer</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            max-width: 900px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        h1 { font-size: 1.5rem; color: #2c3e50; margin-bottom: 0.5rem; }
+        .subtitle { color: #64748b; margin-bottom: 1.5rem; font-size: 0.9rem; }
+        textarea {
+            width: 100%;
+            height: 120px;
+            font-family: 'Cascadia Code', 'Source Code Pro', monospace;
+            font-size: 1.1rem;
+            padding: 0.8rem;
+            border: 2px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+            resize: vertical;
+        }
+        textarea:focus { border-color: #3498db; outline: none; }
+        .status {
+            margin-top: 1rem;
+            padding: 0.8rem;
+            border-radius: 6px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .status.wait { background-color: #e2e8f0; color: #475569; }
+        .status.valid { background-color: #dcfce7; color: #166534; }
+        .status.error { background-color: #fee2e2; color: #991b1b; }
+        .status.warning { background-color: #fef08a; color: #854d0e; }
+        
+        .result-frame {
+            background: white;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            margin-top: 1.5rem;
+            padding: 1.2rem;
+            border-left: 5px solid #cbd5e1;
+        }
+        .result-frame.valid { border-left-color: #22c55e; }
+        .result-frame.invalid { border-left-color: #ef4444; }
+
+        h3 { margin-top: 0; font-size: 1.1rem; color: #475569; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 0.6rem; text-align: left; border-bottom: 1px solid #f1f5f9; }
+        th { background-color: #f8fafc; font-weight: 600; width: 180px; font-size: 0.85rem; text-transform: uppercase; color: #64748b; }
+        td { font-family: 'Cascadia Code', monospace; font-size: 1rem; word-break: break-all; }
+        
+        .byte-box {
+            display: inline-block;
+            background: #f1f5f9;
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+            margin-right: 3px;
+            border: 1px solid #e2e8f0;
+        }
+        .explanation { font-size: 0.85rem; color: #64748b; font-family: sans-serif; display: block; margin-top: 4px;}
+        .ack-row { background-color: #fafafa; }
+
+        footer {
+            margin-top: 3rem;
+            padding: 1rem 0;
+            font-size: 0.85rem;
+            color: #94a3b8;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+            width: 100%;
+        }
+        footer a { color: #64748b; text-decoration: none; border-bottom: 1px solid #cbd5e1; }
+        footer a:hover { color: #334155; border-bottom-color: #64748b; }
+    </style>
+</head>
+<body>
+
+    <h1>BSH D-Bus2 Frame Analyzer</h1>
+    <div class="subtitle">This tool was generated entirely with AI and may contain inaccuracies</div>
+    
+    <textarea id="hexInput" placeholder="Paste hex dump here..." spellcheck="false"></textarea>
+
+    <div id="statusBox" class="status wait">Waiting for input...</div>
+
+    <div id="resultContainer"></div>
+
+    <footer>
+        This is an independent, open-source project and is not affiliated with, endorsed by, or sponsored by B/S/H/ or its affiliates. &copy; <a href="https://github.com/hn/bsh-home-appliances/" target="_blank">Hajo Noerenberg</a>
+    </footer>
+
+    <script>
+        function calculateCrc16Xmodem(buffer) {
+            let crc = 0x0000;
+            for (let i = 0; i < buffer.length; i++) {
+                crc ^= (buffer[i] << 8);
+                for (let j = 0; j < 8; j++) {
+                    if (crc & 0x8000) crc = (crc << 1) ^ 0x1021;
+                    else crc = crc << 1;
+                }
+            }
+            return crc & 0xFFFF;
+        }
+
+        function toHexHtml(array, maxVisible = 24) {
+            if (!array || array.length === 0) return '<em>none</em>';
+            let hexes = Array.from(array).map(b => b.toString(16).padStart(2, '0').toUpperCase());
+            if (hexes.length <= maxVisible) {
+                return hexes.map(h => `<span class="byte-box">${h}</span>`).join('');
+            }
+            const firstPart = hexes.slice(0, maxVisible - 4).map(h => `<span class="byte-box">${h}</span>`).join('');
+            const lastPart = hexes.slice(-2).map(h => `<span class="byte-box">${h}</span>`).join('');
+            return `${firstPart} <span class="byte-box">...</span> ${lastPart}`;
+        }
+
+        function analyze() {
+            const rawInput = document.getElementById('hexInput').value;
+            const cleanHex = rawInput.replace(/[^0-9a-fA-F]/g, '');
+            const container = document.getElementById('resultContainer');
+            const statusBox = document.getElementById('statusBox');
+            container.innerHTML = '';
+
+            if (cleanHex.length === 0) {
+                statusBox.className = 'status wait';
+                statusBox.textContent = 'Waiting for input...';
+                return;
+            }
+
+            if (cleanHex.length % 2 !== 0) {
+                statusBox.className = 'status warning';
+                statusBox.textContent = 'Incomplete byte detected (odd number of characters)...';
+                return;
+            }
+
+            const bytes = new Uint8Array(cleanHex.length / 2);
+            for (let i = 0; i < cleanHex.length; i += 2) {
+                bytes[i / 2] = parseInt(cleanHex.substr(i, 2), 16);
+            }
+
+            let cursor = 0;
+            let frameIdx = 1;
+            let errors = 0;
+
+            while (cursor < bytes.length) {
+                const start = cursor;
+                const len = bytes[start];
+                const expectedFrameEnd = start + len + 4; // 1(len) + 1(dest) + len(cmd+payload) + 2(crc)
+                
+                const frameDiv = document.createElement('div');
+                frameDiv.className = 'result-frame';
+                let html = `<h3>Frame #${frameIdx}</h3><table>`;
+
+                // LEN
+                html += `<tr><th>Length</th><td>${toHexHtml([len])} <span class="explanation">Command + Payload = ${len} bytes</span></td></tr>`;
+                cursor++;
+
+                // DEST
+                if (cursor < bytes.length) {
+                    const dest = bytes[cursor];
+                    const isBroadcast = (dest & 0xF0) === 0x00;
+                    const upper = (dest & 0xF0) >> 4;
+                    const lower = (dest & 0x0F);
+
+                    // Hex format for Node and Subsystem
+                    const upperHex = '0x' + upper.toString(16).toUpperCase();
+                    const lowerHex = '0x' + lower.toString(16).toUpperCase();
+                    let desc = isBroadcast ? 'Broadcast' : `Unicast (Node=${upperHex}, Subsystem=${lowerHex})`;
+                    html += `<tr><th>Destination</th><td>${toHexHtml([dest])} <span class="explanation">${desc}</span></td></tr>`;
+                    cursor++;
+                }
+
+                // CMD
+                if (cursor + 1 < bytes.length) {
+                    html += `<tr><th>Command</th><td>${toHexHtml(bytes.slice(cursor, cursor + 2))}</td></tr>`;
+                    cursor += 2;
+                }
+
+                // PAYLOAD
+                const payloadLen = len - 2;
+                if (payloadLen > 0) {
+                    const pEnd = Math.min(cursor + payloadLen, bytes.length);
+                    const payload = bytes.slice(cursor, pEnd);
+                    html += `<tr><th>Payload</th><td>${toHexHtml(payload)} <span class="explanation">Size: ${payloadLen} bytes</span></td></tr>`;
+                    cursor += payload.length;
+                }
+
+                // CRC
+                let frameValid = false;
+                if (cursor + 1 < bytes.length) {
+                    const receivedCrc = (bytes[cursor] << 8) | bytes[cursor+1];
+                    const calculatedCrc = calculateCrc16Xmodem(bytes.slice(start, cursor));
+                    const crcOk = (receivedCrc === calculatedCrc);
+                    const crcHex = calculatedCrc.toString(16).padStart(4, '0').toUpperCase();
+                    
+                    html += `<tr><th>CRC16</th><td>${toHexHtml(bytes.slice(cursor, cursor + 2))} 
+                             <span class="explanation" style="color:${crcOk ? 'green' : 'red'}">
+                             ${crcOk ? 'Valid' : 'Invalid! Expected: ' + crcHex}</span></td></tr>`;
+                    cursor += 2;
+                    frameValid = crcOk;
+                } else {
+                    html += `<tr><th>CRC16</th><td><span class="explanation warning">Missing CRC bytes</span></td></tr>`;
+                    frameValid = false;
+                }
+
+                frameDiv.classList.add(frameValid ? 'valid' : 'invalid');
+                if (!frameValid) errors++;
+
+                // ACK Logic (only after valid frame)
+                if (frameValid && cursor < bytes.length) {
+                    const destByte = bytes[start + 1];
+                    const actualAck = bytes[cursor];
+                    const upperDest = (destByte & 0xF0) >> 4;
+                    const upperAck = (actualAck & 0xF0) >> 4;
+                    const lowerAck = (actualAck & 0x0F);
+
+                    let isAck = (upperDest === 0)
+                        ? (lowerAck === 0x0A && upperAck > 0) // Broadcast: Any upper 1-F, lower A
+                        : (actualAck === ((destByte & 0xF0) | 0x0A)); // Unicast: Exact match
+
+                    if (isAck) {
+                        html += `<tr class="ack-row"><th>ACK Byte</th><td>${toHexHtml([actualAck])} <span class="explanation" style="color:green">Confirmed by Node 0x${upperAck.toString(16).toUpperCase()}</span></td></tr>`;
+                        cursor++;
+                    } else {
+                        html += `<tr class="ack-row"><th>ACK Byte</th><td><span class="explanation">Not present / Next frame follows</span></td></tr>`;
+                    }
+                }
+
+                html += `</table>`;
+                frameDiv.innerHTML = html;
+                container.appendChild(frameDiv);
+                frameIdx++;
+
+                // Safety break if length is 0 and we aren't moving
+                if (len === 0 && cursor === start + 1) cursor = bytes.length; 
+            }
+
+            if (errors === 0) {
+                statusBox.className = 'status valid';
+                statusBox.textContent = `All ${frameIdx - 1} frame(s) analyzed successfully.`;
+            } else {
+                statusBox.className = 'status error';
+                statusBox.textContent = `Analyzed ${frameIdx - 1} frame(s), but ${errors} had errors.`;
+            }
+        }
+
+        document.getElementById('hexInput').addEventListener('input', analyze);
+    </script>
+</body>
+</html>

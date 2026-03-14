@@ -367,6 +367,12 @@ which is sometimes all you need for a quick test.
 
 [bsh-dbus-logger.pl](bsh-dbus-logger.pl) is an older approach to interpret D-Bus traffic.
 
+### Web
+
+The [bsh-dbus-analyzer.html](bsh-dbus-analyzer.html) is a convenient tool designed for quick
+D-Bus hex dump analysis. It is a client-side application that runs fully in the browser and
+can be accessed directly through [this link](https://html-preview.github.io/?url=https://github.com/hn/bsh-home-appliances/blob/master/bsh-dbus-analyzer.html).
+
 ### Home Assistant / ESPHome
 
 [bsh-dbus-wm14s750.yaml](bsh-dbus-wm14s750.yaml) is a ESPHome config file to integrate the washing machine in Home Assistant:
