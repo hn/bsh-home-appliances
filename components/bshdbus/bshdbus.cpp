@@ -51,7 +51,6 @@ static constexpr size_t BSHDBUS_MAX_LOG_BYTES = 128;
 
 void BSHDBus::dump_config() {
   ESP_LOGCONFIG(TAG, "BSH D-Bus:");
-  check_uart_settings(9600);
 }
 
 void BSHDBus::loop() {
