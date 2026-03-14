@@ -48,7 +48,7 @@ static constexpr uint16_t BSHDBUS_RX_TIMEOUT = 50;
 static constexpr size_t BSHDBUS_MAX_LOG_BYTES = 128;
 
 void BSHDBus::dump_config() {
-  ESP_LOGCONFIG(TAG, "BSHDBus:");
+  ESP_LOGCONFIG(TAG, "BSH D-Bus:");
   check_uart_settings(9600);
 }
 
