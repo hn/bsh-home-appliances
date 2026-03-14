@@ -3,10 +3,12 @@
    B/S/H/ D-Bus command frame parser
 
    Because the read logic does not run in an ISR, correct timing as
-   presumed for the protocol cannot be guaranteed. This component tries
-   to make the best of it, which generally works well.
+   presumed for the protocol cannot be guaranteed. Hardware-side
+   buffering (especially on the ESP32) makes detecting the inter-frame
+   gap even more difficult. This component tries to make the best of it,
+   which generally works well.
 
-   (C) 2024-2025 Hajo Noerenberg
+   (C) 2024-2026 Hajo Noerenberg
 
    http://www.noerenberg.de/
    https://github.com/hn/bsh-home-appliances
@@ -38,11 +40,11 @@ static const char *const TAG = "bshdbus";
 /* There seems to be no official min/max frame length; especially the max
    appears device-specific and covers the largest frame of all components.
    We assume the largest possible value for safety. */
-static constexpr size_t BSHDBUS_MIN_CMDFRAME_LENGTH = 2;
-static constexpr size_t BSHDBUS_MAX_CMDFRAME_LENGTH = 251;
+static constexpr size_t BSHDBUS_MIN_CMDFRAME_LENGTH = 6;
+static constexpr size_t BSHDBUS_MAX_CMDFRAME_LENGTH = 255;
 
 /* This would be much stricter if we were in an ISR. */
-static constexpr uint16_t BSHDBUS_RX_TIMEOUT = 50;
+static constexpr uint16_t BSHDBUS_RX_TIMEOUT = 20;
 
 /* Sufficient for most cases, some larger frames may be truncated */
 static constexpr size_t BSHDBUS_MAX_LOG_BYTES = 128;
@@ -59,66 +61,84 @@ void BSHDBus::loop() {
 
   if (delta_rx > BSHDBUS_RX_TIMEOUT) {
     if (!this->rx_buffer_.empty()) {
-      ESP_LOGD(TAG, "Discarding %zu bytes of unparsed data after timeout of %d milliseconds: 0x%s",
+      ESP_LOGD(TAG, "Discarding %zu bytes of unparsed data after timeout of %" PRIu32 " ms: 0x%s",
                this->rx_buffer_.size(), delta_rx, format_hex_to(hex_buf, this->rx_buffer_));
       this->rx_buffer_.clear();
     }
     if (this->expect_ack_for_) {
-      ESP_LOGD(TAG, "Timed out ACK for dest 0x%02x of preceeding frame", this->expect_ack_for_);
+      ESP_LOGD(TAG, "Timed out ACK for dest 0x%02x of preceeding frame after %" PRIu32 " ms", this->expect_ack_for_,
+               delta_rx);
       this->expect_ack_for_ = 0;
     }
   }
 
-  while (this->available()) {
+  size_t avail = this->available();
+  uint8_t buf[64];
+  while (avail > 0) {
+    size_t to_read = std::min(avail, sizeof(buf));
+    if (!this->read_array(buf, to_read))
+      break;
+    avail -= to_read;
     this->last_rx_ = now;
 
-    uint8_t byte;
-    this->read_byte(&byte);
-
-    if (this->expect_ack_for_) {
-      if ((byte == ((this->expect_ack_for_ & 0xF0) | 0x0A)) || ((byte == 0x1A) && (this->expect_ack_for_ == 0x0F))) {
-        ESP_LOGV(TAG, "Received valid ACK 0x%02x for preceeding frame", byte);
-        this->expect_ack_for_ = 0;
-        continue;
-      } else {
-        ESP_LOGD(TAG, "Missed ACK for dest 0x%02x of preceeding frame", this->expect_ack_for_);
-        this->expect_ack_for_ = 0;
+    for (size_t i = 0; i < to_read;) {
+      if (this->expect_ack_for_) {
+        if ((buf[i] == ((this->expect_ack_for_ & 0xF0) | 0x0A)) ||
+            ((buf[i] == 0x1A) && (this->expect_ack_for_ == 0x0F))) {
+          ESP_LOGV(TAG, "Received valid ACK 0x%02x for preceding frame", buf[i]);
+          this->expect_ack_for_ = 0;
+          i++;
+          continue;
+        } else {
+          ESP_LOGD(TAG, "Missed ACK for dest 0x%02x of preceding frame", this->expect_ack_for_);
+          this->expect_ack_for_ = 0;
+        }
       }
-    }
 
-    if (this->rx_buffer_.empty() && ((byte < BSHDBUS_MIN_CMDFRAME_LENGTH) || (byte > BSHDBUS_MAX_CMDFRAME_LENGTH))) {
-      ESP_LOGD(TAG, "Invalid command frame length %d, discarding byte", byte);
-      continue;
-    }
+      /* framelen = bytes for LL + DS + CRC, and message len byte MM added */
+      size_t framelen = 1 + 1 + 2;
+      if (this->rx_buffer_.empty()) {
+        framelen += static_cast<size_t>(buf[i]);
+        if ((framelen < BSHDBUS_MIN_CMDFRAME_LENGTH) || (framelen > BSHDBUS_MAX_CMDFRAME_LENGTH)) {
+          ESP_LOGD(TAG, "Invalid command frame length %zu, discarding byte", framelen);
+          i++;
+          continue;
+        }
+      } else {
+        framelen += static_cast<size_t>(this->rx_buffer_[0]);
+      }
 
-    this->rx_buffer_.push_back(byte);
+      const size_t need_bytes = (framelen > this->rx_buffer_.size()) ? framelen - this->rx_buffer_.size() : 0;
+      const size_t have_bytes = to_read - i;
+      const size_t copy_bytes = std::min(need_bytes, have_bytes);
 
-    /* framelen = LL + DS + MM[] + CRC */
-    const size_t framelen = 1 + 1 + static_cast<size_t>(this->rx_buffer_[0]) + 2;
-    if (framelen > this->rx_buffer_.size()) {
-      /* Wait for more bytes */
-      continue;
-    }
+      this->rx_buffer_.insert(this->rx_buffer_.end(), buf + i, buf + i + copy_bytes);
+      i += copy_bytes;
 
-    if (crc16be(this->rx_buffer_.data(), this->rx_buffer_.size(), 0x0, 0x1021, false, false)) {
-      ESP_LOGD(TAG, "Invalid CRC, discarding %zu bytes of data: 0x%s", this->rx_buffer_.size(),
-               format_hex_to(hex_buf, this->rx_buffer_));
+      if (need_bytes > copy_bytes)
+        /* Wait for more bytes */
+        continue;
+
+      if (crc16be(this->rx_buffer_.data(), this->rx_buffer_.size(), 0x0, 0x1021, false, false)) {
+        ESP_LOGD(TAG, "Invalid CRC, discarding %zu bytes of data: 0x%s", this->rx_buffer_.size(),
+                 format_hex_to(hex_buf, this->rx_buffer_));
+        this->rx_buffer_.clear();
+        continue;
+      }
+
+      const uint8_t dest = this->rx_buffer_[1];
+      this->expect_ack_for_ = dest;
+      const uint16_t command = encode_uint16(this->rx_buffer_[2], this->rx_buffer_[3]);
+      /* Skip bytes for LL + DS + CCCC at beginning, CRC at end */
+      std::vector<uint8_t> message(this->rx_buffer_.begin() + 1 + 1 + 2, this->rx_buffer_.end() - 2);
+
+      ESP_LOGV(TAG, "Valid frame dest 0x%02x cmd 0x%04x: 0x%s", dest, command, format_hex_to(hex_buf, message));
+      this->frame_callbacks_.call(this->rx_buffer_, dest, command, message);
+      for (auto &listener : this->listeners_)
+        listener->on_message(dest, command, message);
+
       this->rx_buffer_.clear();
-      continue;
     }
-
-    const uint8_t dest = this->rx_buffer_[1];
-    this->expect_ack_for_ = dest;
-    const uint16_t command = encode_uint16(this->rx_buffer_[2], this->rx_buffer_[3]);
-    /* Skip LL + DS + CCCC at beginning, CRC at end */
-    std::vector<uint8_t> message(this->rx_buffer_.begin() + 1 + 1 + 2, this->rx_buffer_.end() - 2);
-
-    ESP_LOGV(TAG, "Valid frame dest 0x%02x cmd 0x%04x: 0x%s", dest, command, format_hex_to(hex_buf, message));
-    this->frame_callbacks_.call(this->rx_buffer_, dest, command, message);
-    for (auto &listener : this->listeners_)
-      listener->on_message(dest, command, message);
-
-    this->rx_buffer_.clear();
   }
 }
 
