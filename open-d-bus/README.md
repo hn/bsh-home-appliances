@@ -86,13 +86,14 @@ The following commands are available:
 | _Node_ ||
 | `:nn<hexnumber>` | Sets the node to be addressed (e.g., :nn2 for the user interface panel, often referred to as `D` in other parts of this project) |
 | `:nm<hexnumber>` | Selects the software module within the node (note: this refers to the software module, which is _not_ to confuse with the subsystem typically referred to as `S`) |
-| `:ni` | Requests the ID string from the software module. If a response is received, the module's info string memory address is automatically transferred to the memory start listed below |
+| `:ni` | Requests the ID string from the software module. If a response is received, the bit size of the MCU can be inferred from the response length: the module's info string memory address is either 16-bit or 32-bit long. The address is automatically transferred to the memory start listed below and can then be read directly. Within the info string, individual data fields are separated by a single null byte, while a double null byte indicates the end of the string |
+| `:nr` | Requests the node to restart |
 | _Memory_ ||
 | `:mb<hexaddr>` | Sets the start address for the memory dump |
 | `:me<hexaddr>` | Sets the end address for the memory dump |
 | `:mp<hexaddr>` | Sets the current read position for the memory dump (starts at 0) |
 | `:mc<number>` | Sets the chunk size for the memory dump. Older modules sometimes require a small or even 1-byte chunk size |
-| `:md` | Starts the dump. The output can be converted to binary using `xxd -r -l256` |
+| `:md` | Starts the dump. The output can be converted to binary using `xxd -r -c256` |
 
 Example output for Timelight module (D=6):
 
