@@ -82,16 +82,6 @@ uart:
   # needed higher baud_rate
   baud_rate: 19200
   rx_buffer_size: 1024
-  debug:
-    direction: BOTH
-    dummy_receiver: false
-    after:
-      # Trigger after 1 byte to ensure the LED blinks immediately
-      bytes: 1
-    sequence:
-      - output.turn_on: activity_led
-      - delay: 20ms
-      - output.turn_off: activity_led
 
 bshdbus:
   uart_id: dbus_uart
@@ -99,6 +89,9 @@ bshdbus:
     - logger.log:
         format: "Received frame dest 0x%02x cmd 0x%04x: 0x%s"
         args: [dest, command, format_hex(message).c_str()]
+    - output.turn_on: activity_led
+    - delay: 20ms
+    - output.turn_off: activity_led
 
 status_led:
   pin:
