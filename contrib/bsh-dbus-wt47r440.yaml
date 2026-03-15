@@ -69,9 +69,6 @@ uart:
   rx_pin: GPIO14
   baud_rate: 9600
   rx_buffer_size: 1024
-  debug:
-    direction: BOTH
-    dummy_receiver: false
 
 bshdbus:
   uart_id: dbus_uart
