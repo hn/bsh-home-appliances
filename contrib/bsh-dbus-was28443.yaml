@@ -48,6 +48,7 @@ ota:
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
+  min_auth_mode: WPA2
   # Dirty workaround because the machine's power supply unit cannot provide enough current:
   output_power: 10.5dB
 
