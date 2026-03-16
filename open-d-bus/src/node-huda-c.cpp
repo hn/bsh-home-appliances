@@ -24,15 +24,18 @@
 #define CMD_READ16_RESPONSE	0xf100
 #define CMD_READ32_RESPONSE	0xf101
 
+#define CMD_WRITE16_REQUEST	0xf200
+#define CMD_WRITE32_REQUEST	0xf201
+
 #define CMD_ID_REQUEST		0xff00
 #define CMD_ID_RESPONSE		0xfe00
 
 #define CMD_SET_MODULE		0xf300
 
+#define CMD_NODE_RESTART		0xfd00
 
-static byte user_buf[DBUS_BUFLEN];
-static unsigned int user_buflen;
-static uint8_t cmd_mode = 0;
+static char user_buf[DBUS_BUFLEN];
+static unsigned int user_bufpos;
 
 static uint8_t  work_node  = 0xb;
 static uint8_t  work_module  = 0;
@@ -45,6 +48,30 @@ static uint8_t  memory_chunk = 16;
 
 extern "C" const dbus_node_info_t node_huda_c;
 
+// ### Helper
+
+static size_t hex2bin(const char* src, size_t src_len, uint8_t* dest, size_t dest_max) {
+    size_t processed = 0;
+    size_t written = 0;
+
+    for (size_t i = 0; i < src_len; i++) {
+        char c = src[i];
+
+        if (((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f'))) {
+            if (written >= dest_max) break;
+            uint8_t nibble = (c % 32 + 9) % 25;
+            if (processed % 2 == 0) {
+                dest[written] = nibble << 4;
+            } else {
+                dest[written] |= nibble;
+                written++;
+            }
+            processed++;
+        }
+    }
+    return written;
+}
+
 // ### Setup
 
 static void node_setup() {
@@ -53,41 +80,30 @@ static void node_setup() {
 // ### Loop
 
 static void node_loop(tx_se tx_state) {
+	byte bin_buf[DBUS_BUFLEN];
 
 	// Process user input submitted via terminal
 	while (console.available()) {
 		byte c = console.read();
 		console.write(c);
 
-		if (cmd_mode) {
-			user_buf[user_buflen++] = c;
-		} else if ((user_buflen == 0) && (c == ':')) {
-			cmd_mode = 1;
-		} else if (((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f'))
-		    && user_buflen < DBUS_BUFLEN) {
-			if (user_buflen % 2) {
-				user_buf[user_buflen / 2] |= (c % 32 + 9) % 25;
-			} else {
-				user_buf[user_buflen / 2] = (c % 32 + 9) % 25 << 4;
-			}
-			user_buflen++;
-		}
+		user_buf[user_bufpos++] = c;
 
 		if (c != '\r' && c != '\n')
 			continue;
 
-		if (cmd_mode) {
-			user_buf[user_buflen++] = 0;
-			switch ((user_buf[0] << 8) | user_buf[1]) {
+		if (user_buf[0] == ':') {
+			user_buf[user_bufpos] = 0; /* for strtol */
+			switch ((user_buf[1] << 8) | user_buf[2]) {
 
 				/* Node commands */
 
 				case CMD16("nn"): // set node number
-					work_node = strtol((const char*) &user_buf[2], NULL, 16);
+					work_node = strtol((const char*) &user_buf[3], NULL, 16);
 					work_bits = 0;
 					break;
 				case CMD16("nm"): { // set node module
-					work_module = strtol((const char*) &user_buf[2], NULL, 16);
+					work_module = strtol((const char*) &user_buf[3], NULL, 16);
 					uint8_t msg_CMD_SET_MODULE[] = { work_module };
 					dbus_tx_qpush(work_node << 4, CMD_SET_MODULE, msg_CMD_SET_MODULE, sizeof(msg_CMD_SET_MODULE));
 					} // break; // no break here by intention. Request node info to validate if module exists.
@@ -95,13 +111,16 @@ static void node_loop(tx_se tx_state) {
 					uint8_t msg_CMD_ID_REQUEST[] = { (uint8_t) (node_huda_c.node_id << 4) };
 					dbus_tx_qpush(work_node << 4, CMD_ID_REQUEST, msg_CMD_ID_REQUEST, sizeof(msg_CMD_ID_REQUEST));
 					break; }
+				case CMD16("nr"): { // reset/restart node
+					dbus_tx_qpush(work_node << 4, CMD_NODE_RESTART, NULL, 0);
+					break; }
 
 				/* Memory dump commands */
 
-				case CMD16("mb"): memory_begin = strtol((const char*) &user_buf[2], NULL, 16); break;
-				case CMD16("me"): memory_end = strtol((const char*) &user_buf[2], NULL, 16); break;
-				case CMD16("mp"): memory_pos = strtol((const char*) &user_buf[2], NULL, 16); break;
-				case CMD16("mc"): memory_chunk = strtol((const char*) &user_buf[2], NULL, 10); break;
+				case CMD16("mb"): memory_begin = strtol((const char*) &user_buf[3], NULL, 16); memory_pos = 0; break;
+				case CMD16("me"): memory_end = strtol((const char*) &user_buf[3], NULL, 16); break;
+				case CMD16("mp"): memory_pos = strtol((const char*) &user_buf[3], NULL, 16); break;
+				case CMD16("mc"): memory_chunk = strtol((const char*) &user_buf[3], NULL, 10); break;
 				case CMD16("md"): {
 					if (work_bits == 0) {
 						console.println("Check node bits first with 'ni'");
@@ -119,25 +138,54 @@ static void node_loop(tx_se tx_state) {
 							(uint8_t) (memory_now >> 8), (uint8_t) memory_now };
 						dbus_tx_qpush(work_node << 4, CMD_READ32_REQUEST, msg_CMD_READ32_REQUEST, sizeof(msg_CMD_READ32_REQUEST));
 						break;
-					} }
+					}
+				}
+				case CMD16("mw"): {
+					if (work_bits == 0) {
+						console.println("Check node bits first with 'ni'");
+						break;
+					} else if (work_bits == 16) {
+						uint32_t memory_now = memory_begin + memory_pos;
+						size_t bytes2write = hex2bin(&user_buf[3], user_bufpos - 3, bin_buf + 3, sizeof(bin_buf) - 3);
+						if (bytes2write == 0 || bytes2write > 16) break;
+						bin_buf[0] = (uint8_t) bytes2write;
+						bin_buf[1] = (uint8_t) (memory_now >> 8);
+						bin_buf[2] = (uint8_t) (memory_now >> 0);
+						dbus_tx_qpush(work_node << 4, CMD_WRITE16_REQUEST, bin_buf, bytes2write + 3);
+						memory_pos += bytes2write;
+						break;
+					} else {
+						uint32_t memory_now = memory_begin + memory_pos;
+						size_t bytes2write = hex2bin(&user_buf[3], user_bufpos - 3, bin_buf + 5, sizeof(bin_buf) - 5);
+						if (bytes2write == 0 || bytes2write > 64) break;
+						bin_buf[0] = (uint8_t) bytes2write;
+						bin_buf[1] = (uint8_t) (memory_now >> 24);
+						bin_buf[2] = (uint8_t) (memory_now >> 16);
+						bin_buf[3] = (uint8_t) (memory_now >> 8);
+						bin_buf[4] = (uint8_t) (memory_now >> 0);
+						dbus_tx_qpush(work_node << 4, CMD_WRITE32_REQUEST, bin_buf, bytes2write + 5);
+						memory_pos += bytes2write;
+						break;
+					}
+				}
 
 			}
 			console.printf("| NODE number=0x%x module=%d bits=%d | MEMORY begin=0x%06x end=0x%06x pos=0x%06x chunk=%u |\r\n",
 				work_node, work_module, work_bits, memory_begin, memory_end, memory_pos, memory_chunk);
-			cmd_mode = 0;
-			user_buflen = 0;
+			user_bufpos = 0;
 			continue;
 		}
 
-		if (user_buflen < 6 || user_buflen % 2) {
+		size_t bin_buf_len = hex2bin(user_buf, user_bufpos, bin_buf, sizeof(bin_buf));
+		user_bufpos = 0;
+
+		if (bin_buf_len < 3) {
 			console.println("Error: Invalid input length");
-			user_buflen = 0;
 			continue;
 		}
 
 		console.println();
-		dbus_tx_qpush(user_buf[0], (user_buf[1] << 8) | user_buf[2], &user_buf[3], (user_buflen / 2) - 3);
-		user_buflen = 0;
+		dbus_tx_qpush(bin_buf[0], (bin_buf[1] << 8) | bin_buf[2], &bin_buf[3], bin_buf_len - 3);
 	}
 }
 

@@ -7,8 +7,8 @@ namespace bshdbus {
 
 static const char *const TAG = "bshdbus.text_sensor";
 
-void BSHDBusCustomTSensor::dump_config() {
-  ESP_LOGCONFIG(TAG, "BSHDBus Custom Text Sensor:");
+void BSHDBusTextSensor::dump_config() {
+  ESP_LOGCONFIG(TAG, "BSH D-Bus Text Sensor:");
   if (this->dest_ == 0xff) {
     ESP_LOGCONFIG(TAG, "  Dest node: ANY");
   } else {
@@ -20,17 +20,17 @@ void BSHDBusCustomTSensor::dump_config() {
     ESP_LOGCONFIG(TAG, "  Command: 0x%04x", this->command_);
   }
   ESP_LOGCONFIG(TAG, "  Text Sensors:");
-  for (BSHDBusCustomSubTSensor *tsensor : this->tsensors_) {
+  for (BSHDBusSubTextSensor *tsensor : this->tsensors_) {
     LOG_TEXT_SENSOR("  ", "-", tsensor);
   }
 }
 
-void BSHDBusCustomTSensor::handle_message(std::vector<uint8_t> &message) {
-  for (BSHDBusCustomSubTSensor *tsensor : this->tsensors_)
+void BSHDBusTextSensor::handle_message(std::vector<uint8_t> &message) {
+  for (BSHDBusSubTextSensor *tsensor : this->tsensors_)
     tsensor->parse_message(message);
 }
 
-void BSHDBusCustomSubTSensor::parse_message(std::vector<uint8_t> &message) {
+void BSHDBusSubTextSensor::parse_message(std::vector<uint8_t> &message) {
   this->publish_state(this->message_parser_(message));
 }
 

@@ -242,6 +242,16 @@ and then retransmits the frame.
 After three retransmission attempts without an acknowledgement,
 the transmission is considered to have failed.
 
+#### Timing
+
+The D-Bus protocol is highly dependent on precise timing, as it utilizes inter-frame gaps to
+establish synchronization. The state machine resets its status whenever no character is received
+for a duration equivalent to 2 bytes (which corresponds to 2.083ms at 9600 baud).
+
+Implementations that lack access to exact timing information (such as the [ESPHome component](components/bshdbus/))
+can therefore only approximate the protocol. However, in practice, these approximations
+generally function quite reliably.
+
 #### Boot log
 
 A typical boot sequence just for the power module and user interface panel starts like this:
@@ -356,6 +366,12 @@ which is sometimes all you need for a quick test.
 ### Linux
 
 [bsh-dbus-logger.pl](bsh-dbus-logger.pl) is an older approach to interpret D-Bus traffic.
+
+### Web
+
+The [bsh-dbus-analyzer.html](bsh-dbus-analyzer.html) is a convenient tool designed for quick
+D-Bus hex dump analysis. It is a client-side application that runs fully in the browser and
+can be accessed directly through [this link](https://html-preview.github.io/?url=https://github.com/hn/bsh-home-appliances/blob/master/bsh-dbus-analyzer.html).
 
 ### Home Assistant / ESPHome
 

@@ -7,8 +7,8 @@ namespace bshdbus {
 
 static const char *const TAG = "bshdbus.binary_sensor";
 
-void BSHDBusCustomBSensor::dump_config() {
-  ESP_LOGCONFIG(TAG, "BSHDBus Custom Binary Sensor:");
+void BSHDBusBinarySensor::dump_config() {
+  ESP_LOGCONFIG(TAG, "BSH D-Bus Binary Sensor:");
   if (this->dest_ == 0xff) {
     ESP_LOGCONFIG(TAG, "  Dest node: ANY");
   } else {
@@ -20,17 +20,17 @@ void BSHDBusCustomBSensor::dump_config() {
     ESP_LOGCONFIG(TAG, "  Command: 0x%04x", this->command_);
   }
   ESP_LOGCONFIG(TAG, "  Binary Sensors:");
-  for (BSHDBusCustomSubBSensor *bsensor : this->bsensors_) {
+  for (BSHDBusSubBinarySensor *bsensor : this->bsensors_) {
     LOG_BINARY_SENSOR("  ", "-", bsensor);
   }
 }
 
-void BSHDBusCustomBSensor::handle_message(std::vector<uint8_t> &message) {
-  for (BSHDBusCustomSubBSensor *bsensor : this->bsensors_)
+void BSHDBusBinarySensor::handle_message(std::vector<uint8_t> &message) {
+  for (BSHDBusSubBinarySensor *bsensor : this->bsensors_)
     bsensor->parse_message(message);
 }
 
-void BSHDBusCustomSubBSensor::parse_message(std::vector<uint8_t> &message) {
+void BSHDBusSubBinarySensor::parse_message(std::vector<uint8_t> &message) {
   this->publish_state(this->message_parser_(message));
 }
 

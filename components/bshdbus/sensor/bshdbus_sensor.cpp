@@ -7,8 +7,8 @@ namespace bshdbus {
 
 static const char *const TAG = "bshdbus.sensor";
 
-void BSHDBusCustomSensor::dump_config() {
-  ESP_LOGCONFIG(TAG, "BSHDBus Custom Sensor:");
+void BSHDBusSensor::dump_config() {
+  ESP_LOGCONFIG(TAG, "BSH D-Bus Sensor:");
   if (this->dest_ == 0xff) {
     ESP_LOGCONFIG(TAG, "  Dest node: ANY");
   } else {
@@ -20,17 +20,17 @@ void BSHDBusCustomSensor::dump_config() {
     ESP_LOGCONFIG(TAG, "  Command: 0x%04x", this->command_);
   }
   ESP_LOGCONFIG(TAG, "  Sensors:");
-  for (BSHDBusCustomSubSensor *sensor : this->sensors_) {
+  for (BSHDBusSubSensor *sensor : this->sensors_) {
     LOG_SENSOR("  ", "-", sensor);
   }
 }
 
-void BSHDBusCustomSensor::handle_message(std::vector<uint8_t> &message) {
-  for (BSHDBusCustomSubSensor *sensor : this->sensors_)
+void BSHDBusSensor::handle_message(std::vector<uint8_t> &message) {
+  for (BSHDBusSubSensor *sensor : this->sensors_)
     sensor->parse_message(message);
 }
 
-void BSHDBusCustomSubSensor::parse_message(std::vector<uint8_t> &message) {
+void BSHDBusSubSensor::parse_message(std::vector<uint8_t> &message) {
   this->publish_state(this->message_parser_(message));
 }
 

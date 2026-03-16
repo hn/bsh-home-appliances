@@ -8,7 +8,7 @@
    gap even more difficult. This component tries to make the best of it,
    which generally works well.
 
-   (C) 2024-2025 Hajo Noerenberg
+   (C) 2024-2026 Hajo Noerenberg
 
    http://www.noerenberg.de/
    https://github.com/hn/bsh-home-appliances
@@ -50,8 +50,7 @@ static constexpr uint16_t BSHDBUS_RX_TIMEOUT = 20;
 static constexpr size_t BSHDBUS_MAX_LOG_BYTES = 128;
 
 void BSHDBus::dump_config() {
-  ESP_LOGCONFIG(TAG, "BSHDBus:");
-  check_uart_settings(9600);
+  ESP_LOGCONFIG(TAG, "BSH D-Bus:");
 }
 
 void BSHDBus::loop() {
@@ -75,11 +74,6 @@ void BSHDBus::loop() {
   size_t avail = this->available();
   uint8_t buf[64];
   while (avail > 0) {
-    /*
-        if (!this->rx_buffer_.empty()) {
-          ESP_LOGD(TAG, "Appending %zu bytes after %" PRIu32 " ms", avail, delta_rx);
-        }
-    */
     size_t to_read = std::min(avail, sizeof(buf));
     if (!this->read_array(buf, to_read))
       break;

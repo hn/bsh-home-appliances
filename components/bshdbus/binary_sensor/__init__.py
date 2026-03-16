@@ -14,20 +14,20 @@ from .. import (
     CONF_BSHDBUS_ID,
 )
 
-BSHDBusCustom = bshdbus_ns.class_("BSHDBusCustomBSensor", cg.Component)
-BSHDBusCustomSub = bshdbus_ns.class_("BSHDBusCustomSubBSensor", cg.Component)
+BSHDBusBinarySensor = bshdbus_ns.class_("BSHDBusBinarySensor", cg.Component)
+BSHDBusBinarySensorSub = bshdbus_ns.class_("BSHDBusSubBinarySensor", cg.Component)
 
 CONFIG_SCHEMA = (
     cv.Schema(
         {
-            cv.GenerateID(): cv.declare_id(BSHDBusCustom),
+            cv.GenerateID(): cv.declare_id(BSHDBusBinarySensor),
             cv.GenerateID(CONF_BSHDBUS_ID): cv.use_id(BSHDBus),
             cv.Required(CONF_COMMAND): cv.uint16_t,
             cv.Required(CONF_DEST): cv.uint8_t,
             cv.Optional(CONF_BINARY_SENSORS): cv.ensure_list(
                 binary_sensor.binary_sensor_schema().extend(
                     {
-                        cv.GenerateID(): cv.declare_id(BSHDBusCustomSub),
+                        cv.GenerateID(): cv.declare_id(BSHDBusBinarySensorSub),
                         cv.Required(CONF_LAMBDA): cv.lambda_,
                     }
                 )

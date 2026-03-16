@@ -1,0 +1,279 @@
+#
+# bsh-dbus-c47c22n3.yaml -- Interface B/S/H/ steamer C47C22N3 (NEFF)
+#
+# This file has been contributed by
+# (C) 2026 stefanhirt
+# https://github.com/stefanhirt
+#
+# More info:
+# https://github.com/hn/bsh-home-appliances/discussions/89
+#
+# (C) 2024-2025 Hajo Noerenberg
+# https://www.noerenberg.de/
+# https://github.com/hn/bsh-home-appliances
+#
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 3.0 as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program. If not, see <http://www.gnu.org/licenses/gpl-3.0.txt>.
+#
+
+esphome:
+  name: bsh-dbus-c47c22n3
+  friendly_name: BSH steamer C47C22N3
+
+external_components:
+  - source: github://hn/bsh-home-appliances@master
+
+esp32:
+  board: esp32-c6-devkitc-1
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger:
+  level: DEBUG
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "xxx"
+
+ota:
+  - platform: esphome
+    password: "xxx"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  min_auth_mode: WPA3
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "bsh-dbus-C47C22N3"
+    password: "xxx"
+
+captive_portal:
+
+web_server:
+  port: 80
+  version: 2
+  local: true
+
+output:
+  - platform: gpio
+    pin: 
+      number: GPIO07
+      inverted: true
+    id: activity_led
+
+uart:
+  id: dbus_uart
+  rx_pin: GPIO4
+  tx_pin: GPIO5
+  # needed higher baud_rate
+  baud_rate: 19200
+  rx_buffer_size: 1024
+
+bshdbus:
+  uart_id: dbus_uart
+  on_frame:
+    - logger.log:
+        format: "Received frame dest 0x%02x cmd 0x%04x: 0x%s"
+        args: [dest, command, format_hex(message).c_str()]
+    - output.turn_on: activity_led
+    - delay: 20ms
+    - output.turn_off: activity_led
+
+status_led:
+  pin:
+    number: GPIO06
+    inverted: true
+
+binary_sensor:
+  - platform: bshdbus
+    dest: 0x00
+    command: 0x7004
+    binary_sensors:
+      - id: bsh_oven_standby
+        name: An⁄Aus
+        device_class: power
+        lambda: return (x[0]);
+  - platform: bshdbus
+    dest: 0x10
+    command: 0x7225
+    binary_sensors:
+      - id: bsh_oven_signal_beep
+        name: Signal
+        device_class: sound
+        lambda: return (x[1] -39);
+        filters:
+          - timeout: 60s
+  - platform: bshdbus
+    dest: 0x20
+    command: 0x7217
+    binary_sensors:
+      - id: bsh_oven_door
+        name: Tür geschlossen
+        device_class: door
+        lambda: return (x[1]);
+        filters:
+          - invert:
+  - platform: bshdbus
+    dest: 0x20
+    command: 0x7228
+    binary_sensors:
+      - id: bsh_oven_fan
+        name: Gebläse
+        icon: mdi:fan
+        lambda: return (int16_t) (x[4] -7 );
+        # 7.0 -> Heißluftgebläse aus
+        # 8.0 -> Heißluftgebläße an
+  - platform: bshdbus
+    dest: 0x10
+    command: 0x720d
+    binary_sensors:
+      - id: bsh_oven_light
+        name: Licht
+        device_class: light
+        lambda: return (x[1]);
+  # unknown purpose sensor
+  - platform: bshdbus
+    dest: 0x20
+    command: 0x7271
+    binary_sensors:
+      - id: bsh_oven_t1
+        name: T1
+        #device_class: light
+        lambda: return (x[1]);
+
+sensor:
+  - platform: bshdbus
+    dest: 0x20
+    command: 0x7206
+    sensors:
+      - id: bsh_oven_temperature
+        name: Temperatur (Ist)
+        icon: mdi:thermometer
+        device_class: temperature
+        state_class: measurement
+        unit_of_measurement: °C
+        accuracy_decimals: 0
+        lambda: return (int16_t) ((x[1] << 8) | x[2]);
+  - platform: bshdbus
+    dest: 0x10
+    command: 0x7201
+    sensors:
+      - id: bsh_oven_target_temperature
+        name: Temperatur (Soll)
+        icon: mdi:thermometer
+        device_class: temperature
+        state_class: measurement
+        unit_of_measurement: °C
+        accuracy_decimals: 0
+        lambda: return (int16_t) ((x[2] << 8) | x[3]);
+  # unknown purpose sensor
+  - platform: bshdbus
+    dest: 0x20
+    command: 0x7403
+    sensors:
+      - id: bsh_oven_t2
+        name: T2
+        #icon: mdi:thermometer
+        #device_class: temperature
+        state_class: measurement
+        #unit_of_measurement: °C
+        #accuracy_decimals: 0
+        lambda: return (int16_t) ((x[2] << 8) | x[3]);
+
+text_sensor:
+  - platform: bshdbus
+    dest: 0x10
+    command: 0x7201
+    text_sensors:
+      - id: bsh_oven_mode
+        name: Betriebsart
+        icon: mdi:form-select
+        lambda: return std::to_string (x[1]);
+        filters:
+          - map:
+            - 0 -> Aus
+            - 23 -> Heißluft
+            - 32 -> Dampfgarstufe
+            - 33 -> CircoSteam®
+            - 37 -> Regenerieren
+            #- ?? -> EasyClean®
+            - 41 -> Entkalken
+
+  - platform: bshdbus
+    dest: 0x20
+    command: 0x7274
+    text_sensors:
+      - id: bsh_oven_water
+        name: Wassertank
+        icon: mdi:cup-water
+        lambda: return std::to_string ((int16_t) (x[1]));
+        filters:
+          - map:
+            - 0 -> leer
+            - 127 -> niedrig
+            - 250 -> OK
+
+
+
+# unbekannte:
+# 0x20 cmd 0x7403: 0x01020060
+# 0x20 cmd 0x7271: 0x00
+# Verdampferschale leeren?
+# Entkalken nötig?
+# 0x20 cmd 0x7217: 0x0101
+
+# Falls per Sensor abgreifbar sind die hinterlegten Programme:
+  #P1 Blumenkohlröschen dämpfen
+  #P2 Brokkoliröschen dämpfen
+  #P3 Grüne Bohnen dämpfen
+  #P4 Karotten in Scheiben dämpfen
+  #P5 Weißer Spargel dämpfen
+  #P6 Gefrorenes Mischgemüse dämpfen
+  #P7 Salzkartoffeln
+  #P8 Pellkartoffeln
+  #P9 Langkornreis
+  #P10 Basmatireis
+  #P11 Frisches Hähnchen
+  #P12 Frische Hähnchenteile
+  #P13 Frische Hähnchenbrust dämpfen
+  #P14 Frischer Schmorbraten
+  #P15 Frisches Roastbeef sanftgaren (medium)
+  #P16 Frischer, magerer Kalbsbraten
+  #P17 Gefüllte Kalbsbrust
+  #P18 Frischer Schweinebraten (Nacken) ohne Knochen
+  #P19 Frische Lammkeule ohne Knochen sanftgaren (medium)
+  #P20 Hackbraten aus frischem Hackfleisch
+  #P21 Frischer Fisch im Ganzen dämpfen
+  #P22 Frisches Fischfilet dämpfen
+  #P23 Miesmuscheln
+  #P24 Hefezopf
+  #P25 Milchreis
+  #P26 Joghurt in Gläsern
+  #P27 Mischbrot backen
+  #P28 Roggenbrot backen
+  #P29 Frische Brötchen backen
+  #P30 1 Portion regenerieren
+  #P31 Gegarte Beilagen regenerieren
+  #P32 Gegartes Gemüse regenerieren
+  #P33 Gebackene Pizza (dünner Boden) regenerieren
+  #P34 Gebackene Pizza (dicker Boden) regenerieren
+  #P35 Fischfilet auftauen 
+  #P36 Geflügel im Ganzen auftauen
+  #P37 Beerenobst auftauen
+  #P38 Fläschchen desinfizieren
+  #P39 Einkochen
+  #P40 Weichgekochte Eier 

@@ -6,19 +6,19 @@
 namespace esphome {
 namespace bshdbus {
 
-class BSHDBusCustomSubBSensor;
+class BSHDBusSubBinarySensor;
 
-class BSHDBusCustomBSensor : public BSHDBusListener, public Component {
+class BSHDBusBinarySensor : public BSHDBusListener, public Component {
  public:
   void dump_config() override;
-  void set_bsensors(std::vector<BSHDBusCustomSubBSensor *> bsensors) { this->bsensors_ = std::move(bsensors); };
+  void set_bsensors(std::vector<BSHDBusSubBinarySensor *> bsensors) { this->bsensors_ = std::move(bsensors); };
 
  protected:
-  std::vector<BSHDBusCustomSubBSensor *> bsensors_;
+  std::vector<BSHDBusSubBinarySensor *> bsensors_;
   void handle_message(std::vector<uint8_t> &message) override;
 };
 
-class BSHDBusCustomSubBSensor : public binary_sensor::BinarySensor, public Component {
+class BSHDBusSubBinarySensor : public binary_sensor::BinarySensor, public Component {
  public:
   void set_message_parser(message_parser_t parser) { this->message_parser_ = std::move(parser); };
   void parse_message(std::vector<uint8_t> &message);

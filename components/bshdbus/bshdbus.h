@@ -13,7 +13,7 @@ namespace esphome {
 namespace bshdbus {
 
 using message_parser_t = std::function<float(std::vector<uint8_t> &)>;
-using tmessage_parser_t = std::function<std::string(std::vector<uint8_t> &)>;
+using textmessage_parser_t = std::function<std::string(std::vector<uint8_t> &)>;
 
 class BSHDBus;
 
