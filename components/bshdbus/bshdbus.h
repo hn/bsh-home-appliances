@@ -44,7 +44,8 @@ class BSHDBus : public uart::UARTDevice, public Component {
  protected:
   std::vector<uint8_t> rx_buffer_;
   uint32_t last_rx_{0};
-  uint8_t expect_ack_for_{0};
+  uint8_t last_dest_{0};
+  bool expect_ack_{false};
   std::vector<BSHDBusListener *> listeners_{};
   CallbackManager<void(const std::vector<uint8_t> &, uint8_t, uint16_t, const std::vector<uint8_t> &)>
       frame_callbacks_{};
