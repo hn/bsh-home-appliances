@@ -1,9 +1,15 @@
 #
 # bsh-dbus-b36ct80snb.yaml -- Interface B/S/H/ Refrigerator
 #
+# This file has been contributed by
 # (C) 2026 Keith Baker
+# https://github.com/krbaker
 #
 # More info:
+# https://github.com/hn/bsh-home-appliances/issues/99
+#
+# (C) 2024 Hajo Noerenberg
+# https://www.noerenberg.de/
 # https://github.com/hn/bsh-home-appliances
 #
 #
@@ -19,6 +25,7 @@
 # You should have received a copy of the GNU General Public License along
 # with this program. If not, see <http://www.gnu.org/licenses/gpl-3.0.txt>.
 #
+
 # Note: the board config is for https://github.com/Bouni/BSH-Board/ you
 # might need to edit
 
