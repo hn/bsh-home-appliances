@@ -1,11 +1,31 @@
-
-# Contributed by
+#
+# bsh-dbus-sbv43m10eu.yaml -- ESPHome config to interface B/S/H/ dishwasher SBV43M10EU
+#
+# This file has been contributed by
 # (C) 2026 Dominic Spatz
 # https://github.com/3DJupp
+#
 # Input for this adaptation:
 # https://github.com/hn/bsh-home-appliances/issues/10
 # https://github.com/hn/bsh-home-appliances/blob/master/contrib/bsh-dbus-sn66p080eu.yaml
-
+#
+# (C) 2026 Hajo Noerenberg
+# https://www.noerenberg.de/
+# https://github.com/hn/bsh-home-appliances
+#
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 3.0 as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program. If not, see <http://www.gnu.org/licenses/gpl-3.0.txt>.
+#
 
 substitutions:
   manufacturer: Bosch
