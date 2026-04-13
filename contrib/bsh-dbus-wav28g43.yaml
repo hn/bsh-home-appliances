@@ -1,0 +1,380 @@
+#
+# bsh-dbus-wav28g43yaml -- Interface B/S/H/ washing machine WAV28G43 (Bosch)
+#
+# This file has been contributed by
+# (C) 2026 MichaelHeimann
+# https://github.com/MichaelHeimann
+#
+# More info:
+# https://github.com/hn/bsh-home-appliances/discussions/106
+#
+# (C) 2024-2025 Hajo Noerenberg
+# https://www.noerenberg.de/
+# https://github.com/hn/bsh-home-appliances
+#
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 3.0 as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program. If not, see <http://www.gnu.org/licenses/gpl-3.0.txt>.
+#
+
+esphome:
+  name: "bsh-board-waschmaschine"
+  friendly_name: BSH Board Waschmaschine
+  min_version: 2025.11.0
+  name_add_mac_suffix: false
+
+external_components:
+  - source: github://hn/bsh-home-appliances@master
+
+
+esp32:
+  variant: esp32c6
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger:
+
+time:
+  - platform: homeassistant
+    id: ha_time
+
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret bsh-board-waschmaschine_api_key
+
+# Allow Over-The-Air updates
+ota:
+- platform: esphome
+  password: !secret bsh-board-waschmaschine_ota_password
+
+#wifi:
+#  ssid: !secret wifi_ssid
+#  password: !secret wifi_password
+
+openthread:
+  device_type: MTD
+  tlv: !secret openthread_tlv
+
+network:
+  enable_ipv6: true
+
+# BSH Board config here
+
+output:
+  - platform: gpio
+    pin: 
+      number: GPIO07
+      inverted: true
+    id: activity_led
+
+uart:
+  id: dbus_uart
+  rx_pin: GPIO4
+  tx_pin: GPIO5
+  baud_rate: 9600
+
+bshdbus:
+  uart_id: dbus_uart
+#  on_frame:
+#    - if:
+#        condition:
+#          lambda: |-
+#            // Filtering out Spam/Ping-Frames for better visibility
+#            return !(dest == 0x0f && command == 0xe000 && message.size() == 1 && message[0] == 0x05);
+#            return !(dest == 0x75 && command == 0x5000 && message[0] == 0x02);
+#        then:
+#          - logger.log:
+#              format: "Received frame dest 0x%02x cmd 0x%04x: 0x%s"
+#              args: [dest, command, format_hex(message).c_str()]
+#          - output.turn_on: activity_led
+#          - delay: 20ms
+#          - output.turn_off: activity_led
+
+status_led:
+  pin:
+    number: GPIO06
+    inverted: true
+
+# product specific d-bus config from now on
+
+binary_sensor:
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1006
+    binary_sensors:
+      - id: bsh_wm_feat_waterplus
+        name: Extra Spülen
+        icon: mdi:water-plus
+        lambda: return x[5] & 0x02;
+      - id: bsh_wm_feat_prewash
+        name: Vorwäsche
+        icon: mdi:rotate-orbit
+        lambda: return x[5] & 0x80;
+      - id: bsh_wm_feat_speedperfect
+        name: SpeedPerfect
+        icon: mdi:clock-fast
+        lambda: return x[3] == 0;
+  
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1001
+    binary_sensors:
+      - id: bsh_wm_start_button
+        name: Startknopf
+        icon: mdi:button-pointer
+        lambda: return (x[0] == 0x23);
+        on_press:
+          - delay: 1s
+          - lambda: id(bsh_wm_start_button).publish_state(NAN);
+      - id: bsh_wm_program_started
+        name: Waschprogramm gestartet
+        entity_category: diagnostic
+        icon: mdi:ray-start-arrow
+        lambda: return (x[0] == 0x24);
+        on_press:
+          - delay: 1s
+          - lambda: id(bsh_wm_program_started).publish_state(NAN);
+
+sensor:
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1006
+    sensors:
+      - id: bsh_wm_temperature
+        name: Temperatur
+        device_class: temperature
+        state_class: measurement
+        unit_of_measurement: °C
+        accuracy_decimals: 0
+        lambda: return x[2];
+        filters:
+          - calibrate_linear:
+             datapoints:
+              - 0 -> 10.0
+              - 1 -> 20.0
+              - 2 -> 30.0
+              - 3 -> 40.0
+              - 4 -> 50.0
+              - 5 -> 60.0
+              - 6 -> 70.0
+              - 7 -> 80.0 #  weird. setting to 90° seems to be the same as 80.
+
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1006
+    sensors:
+      - id: bsh_wm_rpm
+        name: Umdrehungen
+        device_class: speed
+        state_class: measurement
+        unit_of_measurement: rpm
+        accuracy_decimals: 0
+        lambda: return x[1];
+        filters:
+          - multiply: 10
+
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1002
+    sensors:
+      - id: bsh_wm_remain
+        name: Restzeit
+        device_class: duration
+        state_class: measurement
+        unit_of_measurement: min
+        accuracy_decimals: 0
+        lambda: return (x[0] << 8 | x[1]) / 60;
+
+  - platform: bshdbus
+    dest: 0xa0
+    command: 0x1811
+    sensors:
+      - id: bsh_wm_rpm_current
+        name: aktuelle Umdrehungen
+        device_class: speed
+        state_class: measurement
+        unit_of_measurement: rpm
+        accuracy_decimals: 0
+        lambda: |-
+          if (x[1] != 0x0a) return {};
+          return x[2] << 8 | x[3];
+
+text_sensor:
+  - platform: openthread_info
+    ip_address:
+      name: "Off-mesh routable IP Address"
+    channel:
+      name: "Channel"
+    role:
+      name: "Device Role"
+    rloc16:
+      name: "RLOC16"
+    ext_addr:
+      name: "Extended Address"
+    eui64:
+      name: "EUI64 Interface ID"
+    network_name:
+      name: "Network Name"
+    network_key:
+      name: "Network Key"
+    pan_id:
+      name: "PAN ID"
+    ext_pan_id:
+      name: "Extended PAN ID"
+
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1001
+    text_sensors:
+      - id: bsh_wm_ready
+        name: Bereitschaft
+        icon: mdi:tumble-dryer
+        lambda: |-
+          if (x[0] == 5 || x[0] == 46) {
+            id(bsh_wm_remain).publish_state(0);
+            id(bsh_wm_program_phase).publish_state("");
+          }
+          return std::to_string(x[0]);
+        # Some values unclear
+        filters:
+          - map:
+            - 1 -> In Betrieb
+            - 3 -> Startbereit
+            - 5 -> Beendet
+            - 6 -> Initialisiere
+            - 12 -> Bereit # Nach Tür Schließen nach Beladen vor der Wäsche und auch nach Tür Öffnen nach der Wäsche
+            - 32 -> Gewichtserkennung # Nach dem Einschalten
+            - 35 -> Gestartet
+            - 36 -> verzögerter Start
+            - 37 -> Aus
+            - 46 -> Fertig
+
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1006
+    text_sensors:
+      - id: bsh_wm_program
+        name: Waschprogramm
+        icon: mdi:numeric
+        lambda: return std::to_string(x[0]);
+        filters:
+          - map:
+            - 0 -> Aus
+            - 1 -> Eco 40-60
+            - 2 -> Baumwolle
+            - 3 -> Pflegeleicht
+            - 4 -> Schnell/Mix
+            - 5 -> Fein/Seide
+            - 6 -> Wolle
+            - 7 -> Extra Kurz 15'/30'
+            - 8 -> Sportswear
+            - 9 -> AllergiePlus
+            - 10 -> Hemden/Blusen
+            - 11 -> Schnell/Mix leise
+            - 12 -> Pflegeleicht Plus
+            - 13 -> Handtücher
+            - 14 -> Steppdecken
+            - 15 -> Trommelreinigen
+            - 16 -> Spülen
+            - 17 -> Schleudern
+            - 18 -> Appumpen
+
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1000
+    text_sensors:
+      - id: bsh_wm_door
+        name: Tür
+        icon: mdi:door
+        lambda: |-
+          if (x.size() < 2) return "";
+          if (x[0] != 0x29) return "";
+          return std::to_string(x[1]);
+        filters:
+        - lambda: |-
+            static std::string last_value = "";
+            if (x == "" || x == last_value) {  // Leer oder keine Änderung? -> Nichts melden!
+            return {};
+            }
+            last_value = x;
+            return x;
+        - map:
+          - 0 -> Unbekannt
+          - 3 -> Offen
+          - 5 -> Verriegelt
+          - 6 -> Geschlossen
+ 
+ # Bislang größtenteils unklar 
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1000
+    text_sensors:
+      - id: bsh_wm_state
+        name: Status
+        icon: mdi:state-machine
+        lambda: |-
+          if (x.size() < 2) return "";
+          if (x[0] == 0x29) return "";     
+          if (x[0] == 0x43) return "";     
+          return std::to_string(x[0]);
+        filters:
+        - lambda: |-
+            static std::string last_value = "";
+            if (x == "" || x == last_value) {
+            return {};  // nichts senden
+            }
+            last_value = x;
+            return x;
+        - map:
+          - 2 -> Ende # ca 30sek am Ende
+          - 12 -> Bereit/Pause # auch beim Schleudern
+          - 20 -> Stromspaarmodus # ? unsicher, aber weit nach Ende des Programms...
+          - 23 -> Fertig # am Ende: 23, dann 10, dann 2
+          - 33 -> Läuft (33)
+          - 34 -> Läuft (34)
+          - 35 -> Läuft (35)
+          - 36 -> Läuft (36) # Status Weichspülen: Trommel steht
+          - 37 -> Läuft (37)
+          - 38 -> Läuft (38) # Status Weichspülen: Trommel dreht (abwechselnd links und rechtsrum)
+          - 39 -> Läuft (39)
+
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1003
+    text_sensors:
+      - id: bsh_wm_program_phase
+        name: Programmphase
+        icon: mdi:middleware
+        lambda: |-
+          return std::to_string(x[0]);
+        # Some values unclear
+        filters:
+          - map:
+            - 3 -> Befüllen mit Waschmittel
+            - 4 -> Beladungserkenung # übernommen von https://github.com/hn/bsh-home-appliances/discussions/88, kommt bei mir aber so nicht (stattdessen 53)
+            - 5 -> Waschen
+            - 6 -> Waschen
+            - 7 -> Laugenabkühlung
+            - 9 -> Spülschleudern
+            - 11 -> Spülen
+            - 12 -> Spülschleudern
+            - 13 -> Spülen
+            - 20 -> Spülschleudern
+            - 24 -> TBD # nur sehr kurz (300ms) vor nächster Phase
+            - 26 -> Endschleudern
+            - 28 -> Auflockern
+            - 49 -> Weichspülen
+            - 53 -> Beladungserkenung
+
