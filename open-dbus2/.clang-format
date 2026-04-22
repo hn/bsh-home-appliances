@@ -1,0 +1,16 @@
+Language: Cpp
+BasedOnStyle: LLVM
+
+AlignConsecutiveAssignments: true
+AlignConsecutiveDeclarations: true
+AlignConsecutiveMacros: true
+AllowAllArgumentsOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowShortEnumsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
+AllowShortLambdasOnASingleLine: Inline
+ColumnLimit: 120
+IndentCaseLabels: true
+IndentPPDirectives: BeforeHash
+TabWidth: 2
+UseTab: Never

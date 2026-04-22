@@ -1,0 +1,6 @@
+.pioenvs
+.piolibdeps
+.pio
+helper/MycilaWebSerialPage/node_modules/
+helper/MycilaWebSerialPage/package-lock.json
+helper/MycilaWebSerialPage/pnpm-lock.yaml

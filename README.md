@@ -357,7 +357,7 @@ Using a [D-Bus adapter](#d-bus-adapter), you can connect to the bus and interfac
 
 ### Arduino
 
-[Open-D-Bus](open-d-bus/) is an initial approach for a D-Bus-2 stack implementation.
+[Open-DBus2](open-dbus2/) is an initial approach for a D-Bus-2 stack implementation.
 It parses D-Bus traffic, acknowledges frames for locally registered nodes and
 routes commands to corresponding handler functions.
 
