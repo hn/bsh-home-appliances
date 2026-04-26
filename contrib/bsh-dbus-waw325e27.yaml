@@ -125,14 +125,6 @@ binary_sensor:
         on_press:
           - delay: 1s
           - lambda: id(bsh_wm_start_button).publish_state(NAN);
-      - id: bsh_wm_program_started
-        name: Waschprogramm gestartet
-        entity_category: diagnostic
-        icon: mdi:ray-start-arrow
-        lambda: return (x[0] == 0x24);
-        on_press:
-          - delay: 1s
-          - lambda: id(bsh_wm_program_started).publish_state(NAN);
 
 sensor:
   - platform: bshdbus
@@ -197,7 +189,6 @@ sensor:
         lambda: return (((int16_t) x[3] << 8 | x[4])/16);
 
 text_sensor:
-
   - platform: bshdbus
     dest: 0x11
     command: 0x1001
