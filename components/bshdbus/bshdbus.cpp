@@ -83,7 +83,7 @@ void BSHDBus::loop() {
         this->expect_ack_ = false;
         if (((buf[i] & 0x0F) == 0x0A) &&
             ((this->last_dest_ & 0xF0) ? ((buf[i] & 0xF0) == (this->last_dest_ & 0xF0)) : (buf[i] & 0xF0))) {
-          ESP_LOGV(TAG, "Received valid ACK 0x%02x for dest 0x%02x of preceding frame", buf[i], , this->last_dest_);
+          ESP_LOGV(TAG, "Received valid ACK 0x%02x for dest 0x%02x of preceding frame", buf[i], this->last_dest_);
           i++;
           continue;
         } else {
