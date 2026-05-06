@@ -1,0 +1,242 @@
+#
+# bsh-dbus-wtw83272nl.yaml -- Interface B/S/H/ dryer WTW83272NL (Bosch Series 4)
+#
+# This file has been contributed by
+# (C) 2026 wimb0
+# https://github.com/wimb0
+# 
+# (C) 2025 Hajo Noerenberg
+# http://www.noerenberg.de/
+# https://github.com/hn/bsh-home-appliances
+#
+# Code optimized for BSH-Board by Bouni:
+# https://github.com/Bouni/BSH-Board
+#
+# More info:
+# https://github.com/hn/bsh-home-appliances/discussions/51
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 3.0 as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program. If not, see <http://www.gnu.org/licenses/gpl-3.0.txt>.
+#
+
+substitutions:
+  dev_name: bsh-dbus-wtw83272nl
+
+esphome:
+  name: ${dev_name}
+  friendly_name: BSH dryer WTW83272NL
+  
+external_components:
+  - source: github://hn/bsh-home-appliances@master
+
+esp32:
+  variant: esp32c6
+  framework:
+    type: esp-idf
+
+logger:
+
+time:
+  - platform: homeassistant
+    id: ha_time
+
+api:
+  encryption:
+    key: !secret api_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_pass
+
+web_server:
+  port: 80
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_pass
+  fast_connect: true
+  power_save_mode: none
+  reboot_timeout: 0s
+  ap:
+    ssid: ${dev_name}
+
+output:
+  - platform: gpio
+    pin: 
+      number: GPIO07
+      inverted: true
+    id: activity_led
+
+status_led:
+  pin:
+    number: GPIO06
+    inverted: true
+    
+uart:
+  id: dbus_uart
+  rx_pin: GPIO4
+  tx_pin: GPIO5
+  baud_rate: 9600
+
+bshdbus:
+  uart_id: dbus_uart
+  on_frame:
+          - logger.log:
+              format: "Received frame dest 0x%02x cmd 0x%04x: 0x%s"
+              args: [dest, command, format_hex(message).c_str()]
+          - output.turn_on: activity_led
+          - delay: 20ms
+          - output.turn_off: activity_led
+
+globals:
+  - id: current_display_text
+    type: std::string
+    restore_value: no
+
+binary_sensor:
+  - platform: bshdbus
+    dest: 0x22
+    command: 0x1053
+    binary_sensors:
+      - name: "Deur"
+        id: bsh_door_binary
+        device_class: door
+        lambda: |-
+          if (x.size() < 6) return {};
+          
+          if (x[5] == 0x00) {
+            return true;
+          } else {
+            return false;
+          }
+
+text_sensor:
+  # 1. Programma (met filters map)
+  - platform: bshdbus
+    dest: 0x12
+    command: 0x1050
+    text_sensors:
+      - name: "Programma"
+        icon: mdi:tshirt-crew-outline
+        lambda: |-
+          if (x.size() > 0) return std::to_string(x[0]);
+          return {};
+        filters:
+          - map:
+              - "0 -> Uit"
+              - "1 -> Katoen kastdroog extra"
+              - "2 -> Katoen kastdroog"
+              - "3 -> Katoen strijkdroog"
+              - "4 -> Sport"
+              - "5 -> Handdoeken"
+              - "6 -> Mix"
+              - "7 -> Tijdprogramma warm"
+              - "8 -> Tijdprogramma koud"
+              - "9 -> Wol finish"
+              - "10 -> Dons"
+              - "11 -> Extra Snel 40"
+              - "12 -> Overhemden"
+              - "13 -> Kreukherstellend strijkdroog"
+              - "14 -> Kreukherstellend kastdroog"
+              - "15 -> Kreukherstellend kastdroog extra"
+
+  # 2. Machine Status
+  - platform: bshdbus
+    dest: 0x22
+    command: 0x1053
+    text_sensors:
+      - id: machine_status
+        name: "Machine Status"
+        icon: mdi:play-circle-outline
+        lambda: |-
+          if (x.size() < 6) return {};
+          if (x[1] & 0x01) return std::string("Bezig");
+          if (x[5] & 0x01) return std::string("Klaar");
+          return std::string("Stand-by");
+
+  # 3. Ruwe Display tekst
+  - platform: bshdbus
+    dest: 0x22
+    command: 0x1054
+    text_sensors:
+      - id: display_raw
+        name: "Display Bericht"
+        icon: mdi:card-text-outline
+        lambda: |-
+          std::string txt = "";
+          for (auto v : x) if (v >= 0x20 && v <= 0x7E) txt += (char)v;
+          id(current_display_text) = txt; 
+          return txt;
+
+sensor:
+  - platform: wifi_signal
+    name: "${dev_name}_wifi_signal"
+    update_interval: 120s
+  - platform: uptime
+    name: "${dev_name}_uptime"
+    update_interval: 120s
+    filters:
+      - lambda: return x / 60.0;
+    unit_of_measurement: min
+  # 4. Resterende Minuten
+  - platform: bshdbus
+    dest: 0x22
+    command: 0x1054
+    sensors:
+      - name: "Resterende Minuten"
+        id: resterende_minuten_id
+        unit_of_measurement: "min"
+        accuracy_decimals: 0
+        icon: mdi:timer-sand
+        lambda: |-
+                  if (id(current_display_text).find("End") != std::string::npos) return 0.0f;
+                  if (id(machine_status).state == "Klaar") return 0.0f;
+
+                  int val = 0;
+                  int count = 0;
+                  for (auto v : x) {
+                    if (isdigit(v)) {
+                      val = val * 10 + (v - '0');
+                      count++;
+                    }
+                  }
+
+                  if (count == 0) return NAN;
+
+                  // Als we 3 cijfers hebben (zoals 047 of 254)
+                  if (count == 3) {
+                    int h = val / 100;
+                    int m = val % 100;
+                    if (m < 60) return (float)(h * 60 + m);
+                  }
+                  
+                  // Fallback voor alle andere gevallen (1, 2 of 4 cijfers)
+                  return (float)val;
+  # 5. Verwachte Eindtijd (Timestamp variant)
+  - platform: template
+    name: "Verwachte Eindtijd"
+    id: verwachte_eindtijd
+    device_class: timestamp
+    icon: mdi:clock-check
+    update_interval: 30s
+    lambda: |-
+        float mins = id(resterende_minuten_id).state;
+
+        if (isnan(mins) || mins <= 0) return NAN;
+
+        auto now = id(ha_time).now();
+        if (!now.is_valid()) return NAN;
+
+        return (float)(now.timestamp + ( (time_t)mins * 60 ));      
+switch:
+  - platform: restart
+    name: "${dev_name}_reboot"
