@@ -49,7 +49,7 @@ The dryer boards are labeled "EPT", with "T" for "Trockner" (dryer) and the dish
 However, there is currently no known way of deducing the board version used internally from the external appearance or the model name.
 You have to open the machine and look inside.
 
-The control electronics were likely developed by [BSH PED in Regensburg](https://wiki.bsh-group.com/de/wiki/BSH_Regensburg_%E2%80%93_Produktbereich_Electronic_Systems,_Drives_(PED)).
+The control electronics of all home appliances are developed by [BSH PED in Regensburg](https://wiki.bsh-group.com/de/wiki/BSH_Regensburg_%E2%80%93_Produktbereich_Electronic_Systems,_Drives_(PED)).
 The site has worked for the automotive industry in the past, which explains why some components and approaches share similarities.
 
 ### Washing machine Siemens WM14S750
@@ -101,10 +101,12 @@ The code can not easily be downloaded because the device has the Code Protection
 
 ### D-Bus
 
-According to the [B/S/H/ patent documents](#misc), [this](https://www.mikrocontroller.net/topic/395115#4543950) and [this](https://forums.ni.com/t5/Instrument-Control-GPIB-Serial/Has-anybody-used-D-Bus-to-communicate-with-and-or-control/m-p/4284296#M84901) forum post, the electronics inside the device are interconnected via a proprietary serial bus called D-Bus or D-Bus-2.
-Since there are no public technical specifications available, one can only speculate about what exactly D-Bus and D-Bus-2 are, and what the differences between the two might be.
+According to the [B/S/H/ patent documents](#misc), the electronics inside the appliance are
+interconnected via a proprietary serial bus called D-Bus or D-Bus-2.
+Since there are no public technical specifications available,
+one can only speculate about what exactly D-Bus and D-Bus-2 are, and what the differences between the two might be.
 
-The bus found on the "EP" circuit boards likely is a D-Bus-2 and consists of [three wires](https://www.bosch-home.com/de/de/product/15000685): GND, VBUS and DATA.
+The bus found on the "EP" circuit boards is a D-Bus-2 and consists of [three wires](https://www.bosch-home.com/de/de/product/15000685): GND, VBUS and DATA.
 VBUS is 9V for washing machines, 13.5V for dishwashers and 5V for extractor hoods. DATA is TTL (5V).
 Connections are established using 3 pin 2.5 pitch [RAST connectors](https://de.wikipedia.org/wiki/RAST-Steckverbinder).
 The connectors have coding lugs to ensure that they cannot be plugged into the wrong socket.
