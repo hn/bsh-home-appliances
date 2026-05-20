@@ -1,0 +1,431 @@
+#
+# bsh-dbus-wtw85460.yaml -- Interface B/S/H/ Dryer WTW85460 (Bosch series 6)
+#
+# This file has been contributed by
+# (C) 2026 Kim Marcel Zeuner
+# https://github.com/kimzeuner/bsh-home-appliances
+#
+# (C) 2024 Hajo Noerenberg
+# https://www.noerenberg.de/
+# https://github.com/hn/bsh-home-appliances
+#
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 3.0 as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program. If not, see <http://www.gnu.org/licenses/gpl-3.0.txt>.
+#
+
+esphome:
+  name: bsh-dbus-wtw85460
+  friendly_name: BSH Trockner WTW85460
+  on_boot:
+    priority: -100
+    then:
+      - lambda: |-
+          id(bsh_dryer_low_heat).publish_state(id(dryer_low_heat_last_state));
+          id(bsh_dryer_door).publish_state(id(dryer_door_last_state));
+          id(bsh_dryer_power_on).publish_state(id(dryer_power_on_last_state));
+          id(bsh_dryer_running).publish_state(id(dryer_running_last_state));
+
+          id(bsh_dryer_time_remaining).publish_state(id(dryer_time_remaining_last_state));
+          id(bsh_dryer_anti_crease_time).publish_state(id(dryer_anti_crease_time_last_state));
+
+          id(bsh_dryer_program).publish_state(id(dryer_program_last_state));
+          id(bsh_dryer_fine_adjust).publish_state(id(dryer_fine_adjust_last_state));
+          id(bsh_dryer_status).publish_state(id(dryer_status_last_state));
+          id(bsh_dryer_ready).publish_state(id(dryer_ready_last_state));
+          id(bsh_dryer_process_status).publish_state(id(dryer_process_status_last_state));
+
+          id(bsh_dryer_dbus_online).publish_state(false);
+  
+external_components:
+  - source: github://hn/bsh-home-appliances@master
+
+esp32:
+  board: esp32-c6-devkitc-1
+  variant: esp32c6
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+    - platform: esphome
+      password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  # Dirty workaround if the machine's power supply unit cannot provide enough current:
+  # output_power: 10.5dB
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "D-Bus Fallback Hotspot"
+    password: !secret wifi_ap_password
+
+captive_portal:
+
+web_server:
+  port: 80
+
+status_led:
+  pin:
+    number: GPIO6
+    inverted: true
+
+output:
+  - platform: gpio
+    pin:
+      number: GPIO7
+      inverted: true
+    id: activity_led
+
+uart:
+  id: dbus_uart
+  rx_pin: GPIO4
+  tx_pin: GPIO5
+  baud_rate: 9600
+
+button:
+  - platform: restart
+    name: "ESP Neustart"
+
+interval:
+  - interval: 5s
+    then:
+      - lambda: |-
+          if (id(dryer_dbus_last_seen_ms) == 0) {
+            id(bsh_dryer_dbus_online).publish_state(false);
+          } else if (millis() - id(dryer_dbus_last_seen_ms) > 30000) {
+            id(bsh_dryer_dbus_online).publish_state(false);
+          }
+
+bshdbus:
+  uart_id: dbus_uart
+  on_frame:
+    - lambda: |-
+        if (dest == 0x0f && command == 0xe000) {
+          id(dryer_dbus_last_seen_ms) = millis();
+          id(bsh_dryer_dbus_online).publish_state(true);
+        }
+    - logger.log:
+        format: "Received frame dest 0x%02x cmd 0x%04x: 0x%s"
+        args: [dest, command, format_hex(message).c_str()]
+    - output.turn_on: activity_led
+    - delay: 20ms
+    - output.turn_off: activity_led
+
+globals:
+  - id: dryer_low_heat_last_state
+    type: bool
+    restore_value: yes
+    initial_value: 'false'
+
+  - id: dryer_door_last_state
+    type: bool
+    restore_value: yes
+    initial_value: 'false'
+
+  - id: dryer_power_on_last_state
+    type: bool
+    restore_value: yes
+    initial_value: 'false'
+
+  - id: dryer_running_last_state
+    type: bool
+    restore_value: yes
+    initial_value: 'false'
+
+  - id: dryer_time_remaining_last_state
+    type: float
+    restore_value: yes
+    initial_value: '0'
+
+  - id: dryer_anti_crease_time_last_state
+    type: float
+    restore_value: yes
+    initial_value: '0'
+
+  - id: dryer_program_last_state
+    type: std::string
+    restore_value: yes
+    initial_value: '"0"'
+    max_restore_data_length: 24
+
+  - id: dryer_fine_adjust_last_state
+    type: std::string
+    restore_value: yes
+    initial_value: '"6"'
+    max_restore_data_length: 24
+
+  - id: dryer_status_last_state
+    type: std::string
+    restore_value: yes
+    initial_value: '"20"'
+    max_restore_data_length: 24
+
+  - id: dryer_ready_last_state
+    type: std::string
+    restore_value: yes
+    initial_value: '"37"'
+    max_restore_data_length: 24
+
+  - id: dryer_process_status_last_state
+    type: std::string
+    restore_value: yes
+    initial_value: '"5"'
+    max_restore_data_length: 24
+
+  - id: dryer_dbus_last_seen_ms
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
+
+binary_sensor:
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1006
+    binary_sensors:
+      - id: bsh_dryer_low_heat
+        name: Schontrocknen
+        icon: mdi:feather
+        lambda: |-
+          id(dryer_low_heat_last_state) = (x[6] & 0x04);
+          return id(dryer_low_heat_last_state);
+
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1000
+    binary_sensors:
+      - id: bsh_dryer_door
+        name: Tür
+        device_class: door
+        lambda: |-
+          if (x[1] == 3) {
+            id(dryer_door_last_state) = true;
+          } else if (x[1] == 6) {
+            id(dryer_door_last_state) = false;
+          }
+          return id(dryer_door_last_state);
+      - id: bsh_dryer_running
+        name: Trockner läuft
+        device_class: running
+        lambda: |-
+          if (x[0] == 22) {
+            id(dryer_running_last_state) = true;
+          } else if (x[0] == 2 || x[0] == 20 || x[0] == 41 || x[0] == 77) {
+            id(dryer_running_last_state) = false;
+          }
+          return id(dryer_running_last_state);
+
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1001
+    binary_sensors:
+      - id: bsh_dryer_power_on
+        name: Trockner eingeschaltet
+        device_class: power
+        lambda: |-
+          id(dryer_power_on_last_state) = x[0] != 37;
+          return id(dryer_power_on_last_state);
+
+  - platform: template
+    id: bsh_dryer_dbus_online
+    name: Verbindung D-BUS
+    device_class: connectivity
+    entity_category: diagnostic
+
+sensor:
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1002
+    sensors:
+      - id: bsh_dryer_time_remaining
+        name: Restzeit
+        icon: mdi:clock-outline
+        device_class: duration
+        state_class: measurement
+        unit_of_measurement: min
+        accuracy_decimals: 0
+        lambda: |-
+          float new_time_remaining = (x[0] << 8 | x[1]) / 60;
+
+          if (id(dryer_process_status_last_state) == "5") {
+            id(dryer_running_last_state) = true;
+            id(bsh_dryer_running).publish_state(true);
+
+            id(dryer_status_last_state) = "22";
+            id(bsh_dryer_status).publish_state("22");
+          }
+
+          id(dryer_time_remaining_last_state) = new_time_remaining;
+          return id(dryer_time_remaining_last_state);
+
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1006
+    sensors:
+      - id: bsh_dryer_anti_crease_time
+        name: Knitterschutz
+        icon: mdi:shield-refresh
+        device_class: duration
+        state_class: measurement
+        unit_of_measurement: min
+        accuracy_decimals: 0
+        lambda: |-
+          id(dryer_anti_crease_time_last_state) = ((int16_t)x[1]) - 60;
+          return id(dryer_anti_crease_time_last_state);
+
+text_sensor:
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1006
+    text_sensors:
+      - id: bsh_dryer_program
+        name: Programm
+        icon: mdi:tshirt-crew-outline
+        lambda: |-
+          id(dryer_program_last_state) = std::to_string(x[0]);
+          return id(dryer_program_last_state);
+        filters:
+          - map:
+            - 0 -> Aus
+            - 1 -> Baumwolle schranktrocken extra
+            - 2 -> Baumwolle schranktrocken
+            - 3 -> Baumwolle bügeltrocken
+            - 4 -> Sportswear
+            - 5 -> Handtücher
+            - 6 -> Schnell/Mix
+            - 7 -> Zeitprogramm warm
+            - 8 -> Zeitprogramm kalt
+            - 9 -> Wolle finish
+            - 10 -> Daunen
+            - 11 -> ExtraKurz 40
+            - 12 -> Hemden
+            - 13 -> Pflegeleicht bügeltrocken
+            - 14 -> Pflegeleicht schranktrocken
+            - 15 -> Pflegeleicht schranktrocken extra
+
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1006
+    text_sensors:
+      - id: bsh_dryer_fine_adjust
+        name: Trocknungsgrad
+        icon: mdi:white-balance-sunny
+        lambda: |-
+          id(dryer_fine_adjust_last_state) = std::to_string(x[4]);
+          return id(dryer_fine_adjust_last_state);
+        filters:
+          - map:
+            - 6 -> Aus
+            - 8 -> I
+            - 10 -> II
+            - 12 -> III
+
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1000
+    text_sensors:
+      - id: bsh_dryer_status
+        name: Trockner Status
+        icon: mdi:tumble-dryer
+        lambda: |-
+          if (x[0] == 22) {
+            id(dryer_running_last_state) = true;
+            id(dryer_status_last_state) = "22";
+          } else if (x[0] == 2 || x[0] == 20 || x[0] == 41 || x[0] == 77) {
+            id(dryer_running_last_state) = false;
+            id(dryer_status_last_state) = std::to_string(x[0]);
+          } else if (x[0] == 48 || x[0] == 65 || x[0] == 15 || x[0] == 32) {
+            if (!id(dryer_running_last_state)) {
+              id(dryer_status_last_state) = std::to_string(x[0]);
+            }
+          }
+
+          // x[0] == 12 bewusst ignorieren
+          return id(dryer_status_last_state);
+        filters:
+          - map:
+            - 2 -> Ende
+            - 12 -> Bereit/Pause
+            - 15 -> Initialisierung
+            - 20 -> Aus
+            - 22 -> Läuft
+            - 32 -> Standby/Aufwachen
+            - 41 -> Pausiert
+            - 46 -> verzögerter Start
+            - 48 -> Bereit/Pause
+            - 65 -> Bereit/Pause
+            - 77 -> Standby
+
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1001
+    text_sensors:
+      - id: bsh_dryer_ready
+        name: Trockner Startbereit
+        icon: mdi:tumble-dryer
+        lambda: |-
+          if (x[0] == 1 || x[0] == 35) {
+            id(dryer_running_last_state) = true;
+            id(bsh_dryer_running).publish_state(true);
+            id(dryer_status_last_state) = "22";
+            id(bsh_dryer_status).publish_state("22");
+          } else if (x[0] == 4 || x[0] == 37 || x[0] == 46) {
+            id(dryer_running_last_state) = false;
+            id(bsh_dryer_running).publish_state(false);
+          }
+
+          id(dryer_ready_last_state) = std::to_string(x[0]);
+          return id(dryer_ready_last_state);
+        filters:
+          - map:
+            - 1 -> In Betrieb
+            - 3 -> Startbereit
+            - 4 -> Standby
+            - 35 -> Gestartet
+            - 36 -> verzögerter Start
+            - 37 -> Aus
+            - 46 -> Wechsel zu Standby
+
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1004
+    text_sensors:
+      - id: bsh_dryer_process_status
+        name: Trockner Ablaufstatus
+        icon: mdi:tumble-dryer
+        lambda: |-
+          if (x[0] == 5 || x[0] == 22) {
+            id(dryer_running_last_state) = true;
+            id(bsh_dryer_running).publish_state(true);
+            id(dryer_status_last_state) = "22";
+            id(bsh_dryer_status).publish_state("22");
+          }
+
+          id(dryer_process_status_last_state) = std::to_string(x[0]);
+          return id(dryer_process_status_last_state);
+        filters:
+          - map:
+            - 0 -> Idle
+            - 5 -> Aktiv
+            - 10 -> Restzeit gesetzt
+            - 11 -> Initialisierung
+            - 12 -> Bereit/Pause
+            - 22 -> Läuft
