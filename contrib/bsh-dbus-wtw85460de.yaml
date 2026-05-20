@@ -236,9 +236,6 @@ sensor:
         state_class: measurement
         unit_of_measurement: min
         accuracy_decimals: 0
-#        lambda: |-
-#          id(dryer_time_remaining_last_state) = (x[0] << 8 | x[1]) / 60;
-#          return id(dryer_time_remaining_last_state);
         lambda: |-
           float new_time_remaining = (x[0] << 8 | x[1]) / 60;
 
