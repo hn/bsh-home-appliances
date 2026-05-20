@@ -43,6 +43,8 @@ esphome:
           id(bsh_dryer_status).publish_state(id(dryer_status_last_state));
           id(bsh_dryer_ready).publish_state(id(dryer_ready_last_state));
           id(bsh_dryer_process_status).publish_state(id(dryer_process_status_last_state));
+
+          id(bsh_dryer_dbus_online).publish_state(false);
   
 external_components:
   - source: github://hn/bsh-home-appliances@master
@@ -103,10 +105,24 @@ button:
   - platform: restart
     name: "ESP Neustart"
 
+interval:
+  - interval: 5s
+    then:
+      - lambda: |-
+          if (id(dryer_dbus_last_seen_ms) == 0) {
+            id(bsh_dryer_dbus_online).publish_state(false);
+          } else if (millis() - id(dryer_dbus_last_seen_ms) > 30000) {
+            id(bsh_dryer_dbus_online).publish_state(false);
+          }
 
 bshdbus:
   uart_id: dbus_uart
   on_frame:
+    - lambda: |-
+        if (dest == 0x0f && command == 0xe000) {
+          id(dryer_dbus_last_seen_ms) = millis();
+          id(bsh_dryer_dbus_online).publish_state(true);
+        }
     - logger.log:
         format: "Received frame dest 0x%02x cmd 0x%04x: 0x%s"
         args: [dest, command, format_hex(message).c_str()]
@@ -175,6 +191,11 @@ globals:
     initial_value: '"5"'
     max_restore_data_length: 24
 
+  - id: dryer_dbus_last_seen_ms
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
+
 binary_sensor:
   - platform: bshdbus
     dest: 0x11
@@ -223,6 +244,11 @@ binary_sensor:
           id(dryer_power_on_last_state) = x[0] != 37;
           return id(dryer_power_on_last_state);
 
+  - platform: template
+    id: bsh_dryer_dbus_online
+    name: Verbindung D-BUS
+    device_class: connectivity
+    entity_category: diagnostic
 
 sensor:
   - platform: bshdbus
