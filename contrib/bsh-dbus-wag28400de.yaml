@@ -255,10 +255,19 @@ binary_sensor:
       - id: bsh_washing_machine_running
         name: Läuft
         device_class: running
+        filters:
+          - delayed_off: 10s
         lambda: |-
           if (x[0] == 22 || x[0] == 34 || x[0] == 36 || (x[0] == 67 && x[1] == 22)) {
             id(washing_machine_running_last_state) = true;
-          } else if (x[0] == 2 || x[0] == 20 || x[0] == 41 || x[0] == 57 || x[0] == 73 || x[0] == 77) {
+          } else if (
+            x[0] == 2 ||
+            x[0] == 20 ||
+            x[0] == 57 ||
+            x[0] == 73 ||
+            x[0] == 77 ||
+            (x[0] == 41 && (x[1] == 3 || x[1] == 6))
+          ) {
             id(washing_machine_running_last_state) = false;
           }
           return id(washing_machine_running_last_state);
