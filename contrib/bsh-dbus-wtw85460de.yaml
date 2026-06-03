@@ -496,6 +496,14 @@ text_sensor:
         lambda: |-
           uint16_t t = (x[1] << 8) | x[2];
 
+          // Nach Programmende kommen teils wieder 0x1004-Frames mit x[0] == 5
+          // und Programmdauer. Diese dürfen "Läuft" nicht wieder auf ON setzen.
+          if (id(dryer_status_last_state) == "2" && x[0] == 5) {
+            id(dryer_process_status_last_state) = "0";
+            return id(dryer_process_status_last_state);
+          }
+
+          // Sicheres Programmende: Ablauf aktiv, aber Zeit = 0
           if (x[0] == 5 && t == 0) {
             id(dryer_running_last_state) = false;
             id(bsh_dryer_running).publish_state(false);
@@ -507,9 +515,11 @@ text_sensor:
             return id(dryer_process_status_last_state);
           }
 
-          if (x[0] == 5 || x[0] == 22) {
+          // Nur aktiv setzen, wenn wir nicht bereits sicher im Ende-Zustand sind
+          if ((x[0] == 5 || x[0] == 22) && id(dryer_status_last_state) != "2") {
             id(dryer_running_last_state) = true;
             id(bsh_dryer_running).publish_state(true);
+
             id(dryer_status_last_state) = "22";
             id(bsh_dryer_status).publish_state("22");
           }
@@ -524,3 +534,18 @@ text_sensor:
             - 11 -> Initialisierung
             - 12 -> Bereit/Pause
             - 22 -> Läuft
+
+            
+
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1007
+    text_sensors:
+      - id: bsh_dryer_hint_raw
+        name: Hinweis Raw
+        entity_category: diagnostic
+        icon: mdi:alert-circle-outline
+        lambda: |-
+          char buf[16];
+          sprintf(buf, "%02X%02X%02X%02X", x[0], x[1], x[2], x[3]);
+          return std::string(buf);
