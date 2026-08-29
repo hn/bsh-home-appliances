@@ -1,0 +1,281 @@
+#
+# bsh-dbus-wt47y781.yaml -- Interface B/S/H/ Dryer WT47Y781 (Siemens iQ890)
+#
+# This file has been contributed by
+# (C) 2026 Jonas Brüstel
+# https://github.com/bruestel/bsh-dbus-adapter
+#
+# (C) 2024 Hajo Noerenberg
+# https://www.noerenberg.de/
+# https://github.com/hn/bsh-home-appliances
+#
+# Derived from bsh-dbus-wt47w5w0.yaml by Tristan Bastian and Stefan Hirt.
+# Programme codes, phases, faults, status and door verified against a
+# WT47Y781/09 over several drying cycles in August 2026.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 3.0 as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program. If not, see <http://www.gnu.org/licenses/gpl-3.0.txt>.
+#
+esphome:
+  name: bsh-dbus-wt47y781
+  friendly_name: BSH dryer WT47Y781
+
+external_components:
+  - source: github://hn/bsh-home-appliances@master
+
+esp32:
+  board: esp32-c6-devkitc-1
+  variant: esp32c6
+  framework:
+    type: esp-idf
+
+logger:
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  # Dirty workaround if the machine's power supply unit cannot provide enough current:
+  # output_power: 10.5dB
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "D-Bus-WT47Y781 Fallback Hotspot"
+    password: !secret wifi_ap_password
+
+captive_portal:
+
+status_led:
+  pin:
+    number: GPIO6
+    inverted: true
+
+# Pins as configured on the device this was exported from.
+# Adjust for a different adapter.
+uart:
+  - id: dbus_uart
+    rx_pin: GPIO4
+    tx_pin: GPIO5
+    baud_rate: 9600
+
+output:
+  - platform: gpio
+    pin:
+      number: GPIO7
+      inverted: true
+    id: activity_led
+
+bshdbus:
+  uart_id: dbus_uart
+  on_frame:
+    - output.turn_on: activity_led
+    - delay: 20ms
+    - output.turn_off: activity_led
+
+sensor:
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1002
+    sensors:
+      - id: bsh_time_remaining
+        name: Time remaining
+        icon: mdi:clock-outline
+        unit_of_measurement: "min"
+        device_class: duration
+        state_class: measurement
+        accuracy_decimals: 0
+        lambda: return (x[0] << 8) | x[1];
+        filters:
+          - multiply: 0.0166667
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1006
+    sensors:
+      - id: bsh_anti_crease_time
+        name: Anti-crease
+        icon: mdi:shield-refresh
+        unit_of_measurement: "min"
+        device_class: duration
+        state_class: measurement
+        accuracy_decimals: 0
+        lambda: return (int8_t) x[1];
+      - id: bsh_spin_speed
+        name: Spin speed
+        icon: mdi:rotate-right
+        unit_of_measurement: "rpm"
+        state_class: measurement
+        accuracy_decimals: 0
+        lambda: return x[3];
+        filters:
+          - multiply: 25
+          - offset: 600
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1007
+    sensors:
+      - id: bsh_fault_group
+        name: Fault group
+        icon: mdi:alert-circle-outline
+        entity_category: diagnostic
+        accuracy_decimals: 0
+        lambda: return x[0];
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1004
+    sensors:
+      - id: bsh_residual_moisture
+        name: Residual moisture
+        icon: mdi:water-percent
+        unit_of_measurement: "%"
+        device_class: humidity
+        state_class: measurement
+        accuracy_decimals: 0
+        # NOTE: the "filter_out" step has no ESPHome equivalent and was left out
+        lambda: return x[1];
+
+binary_sensor:
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1006
+    binary_sensors:
+      - id: bsh_low_heat
+        name: Gentle drying
+        icon: mdi:feather
+        lambda: return x[6] & 4;
+
+text_sensor:
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1006
+    text_sensors:
+      - id: bsh_program
+        name: Drying programme
+        icon: mdi:tshirt-crew-outline
+        # NOTE: unmatched values fall back to "Unknown (%d)" here, which a map filter cannot express
+        lambda: return std::to_string(x[0]);
+        filters:
+          - map:
+            - 1 -> Baumwolle
+            - 2 -> Pflegeleicht
+            - 3 -> Schnell/Mix
+            - 4 -> Schuhe im Korb
+            - 5 -> Wolle im Korb
+            - 6 -> Jeans
+            - 7 -> Zeit kalt
+            - 8 -> Zeit warm
+            - 9 -> Handtücher
+            - 10 -> Decken
+            - 11 -> Super 40
+            - 12 -> Kopfkissen
+            - 13 -> Hemden
+            - 14 -> Outdoor
+      - id: bsh_fine_adjust
+        name: Dryness level
+        icon: mdi:white-balance-sunny
+        # NOTE: unmatched values fall back to "Unknown (%d)" here, which a map filter cannot express
+        lambda: return std::to_string(x[4]);
+        filters:
+          - map:
+            - 6 -> 0
+            - 8 -> +1
+            - 10 -> +2
+            - 12 -> +3
+      - id: bsh_drying_goal
+        name: Drying target
+        icon: mdi:target
+        # NOTE: this reading holds its previous value when nothing matches, which a map filter cannot express
+        lambda: return std::to_string(x[2]);
+        filters:
+          - map:
+            - 0 -> Bügeltrocken
+            - 2 -> Schranktrocken
+            - 3 -> Schranktrocken+
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1000
+    text_sensors:
+      - id: bsh_door
+        name: Door
+        icon: mdi:door
+        # NOTE: this reading holds its previous value when nothing matches, which a map filter cannot express
+        lambda: return std::to_string(x[1]);
+        filters:
+          - map:
+            - 3 -> Open
+            - 6 -> Closed
+      - id: bsh_status
+        name: Status
+        icon: mdi:tumble-dryer
+        # NOTE: this reading holds its previous value when nothing matches, which a map filter cannot express
+        lambda: return std::to_string(x[0]);
+        filters:
+          - map:
+            - 20 -> Off
+            - 22 -> Running
+            - 23 -> Final phase
+            - 46 -> Starting
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1001
+    text_sensors:
+      - id: bsh_ready
+        name: Programme control
+        icon: mdi:tumble-dryer
+        # NOTE: this reading holds its previous value when nothing matches, which a map filter cannot express
+        lambda: return std::to_string(x[0]);
+        filters:
+          - map:
+            - 1 -> Running
+            - 3 -> Paused
+            - 5 -> Ended
+            - 35 -> Started
+            - 36 -> Start pending
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1003
+    text_sensors:
+      - id: bsh_phase
+        name: Programme phase
+        icon: mdi:progress-clock
+        # NOTE: unmatched values fall back to "Unknown (%d)" here, which a map filter cannot express
+        lambda: return std::to_string(x[0]);
+        filters:
+          - map:
+            - 5 -> Finished
+            - 7 -> Finished
+            - 9 -> Wärmetauscher wird gespült
+            - 10 -> Starting
+            - 11 -> Drying
+            - 12 -> Bügeltrocken erreicht
+            - 13 -> Schranktrocken erreicht
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1007
+    text_sensors:
+      - id: bsh_fault
+        name: Fault
+        icon: mdi:alert-circle-outline
+        # NOTE: unmatched values fall back to "Error %d" here, which a map filter cannot express
+        lambda: return std::to_string(x[1]);
+        filters:
+          - map:
+            - 0 -> None
+            - 1 -> Lint filter
+            - 3 -> Water tank
+# 1 hidden marker(s) left out: they exist only to fold frames out of this project's monitor and have no ESPHome equivalent.
