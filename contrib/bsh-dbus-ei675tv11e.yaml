@@ -1,0 +1,472 @@
+#
+# bsh-dbus-ei675tv11e.yaml -- ESPHome config to interface Siemens Induction Hob EI675TV11E
+#
+# This file has been contributed by
+# (C) 2026 Maximilian Martin
+# https://github.com/mxxmxn
+#
+# More info:
+# https://github.com/hn/bsh-home-appliances/discussions/136
+#
+# (C) 2024-2025 Hajo Noerenberg
+# https://www.noerenberg.de/
+# https://github.com/hn/bsh-home-appliances
+#
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 3.0 as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program. If not, see <http://www.gnu.org/licenses/gpl-3.0.txt>.
+#
+
+esphome:
+  name: bsh-dbus-ei675tv11e
+  friendly_name: Siemens Induction Hob EI675TV11E
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+logger:
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  - platform: esphome
+    encryption:
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+external_components:
+  - source: github://kipp-ing/ESPCars
+    components: [linbus]
+
+linbus:
+  id: bsh_lin
+  tx_pin: GPIO17
+  rx_pin: GPIO16
+  baud_rate: 19200
+  uart_port: UART_NUM_1
+  mode: listener
+
+  rx_ids:
+    - lin_id: 0x09
+      length: 3
+      checksum: classic
+    - lin_id: 0x03
+      length: 4
+      checksum: classic
+    - lin_id: 0x20
+      length: 4
+      checksum: classic
+    - lin_id: 0x02
+      length: 4
+      checksum: classic
+    - lin_id: 0x2F
+      length: 4
+      checksum: classic
+    - lin_id: 0x00
+      length: 4
+      checksum: classic
+    - lin_id: 0x01
+      length: 4
+      checksum: classic
+    - lin_id: 0x08
+      length: 6
+      checksum: classic
+    - lin_id: 0x32
+      length: 8
+      checksum: classic
+    - lin_id: 0x0A
+      length: 8
+      checksum: classic
+    - lin_id: 0x30
+      length: 8
+      checksum: classic
+
+  on_frame:
+
+    # ---------------------------------------------------------
+    # LIN ID 0x20 - hob set power
+    # Data[0..3] = FL, RL, RR, FR
+    # ---------------------------------------------------------
+    - lin_id: 0x20
+      then:
+        - lambda: |-
+            auto decode_level =
+                [](uint8_t raw, float &level) -> bool {
+              if (raw == 0x00) {
+                level = 0.0f;
+                return true;
+              }
+
+              if (raw >= 0x01 && raw <= 0x11) {
+                level = 0.5f *
+                        (static_cast<float>(raw) + 1.0f);
+                return true;
+              }
+
+              return false;
+            };
+
+            float front_left_level = 0.0f;
+            float rear_left_level = 0.0f;
+            float rear_right_level = 0.0f;
+            float front_right_level = 0.0f;
+
+            if (decode_level(data[0], front_left_level))
+              id(hob_front_left_set_power).publish_state(front_left_level);
+
+            if (decode_level(data[1], rear_left_level))
+              id(hob_rear_left_set_power).publish_state(rear_left_level);
+
+            if (decode_level(data[2], rear_right_level))
+              id(hob_rear_right_set_power).publish_state(rear_right_level);
+
+            if (decode_level(data[3], front_right_level))
+              id(hob_front_right_set_power).publish_state(front_right_level);
+
+    # ---------------------------------------------------------
+    # LIN ID 0x30 - hob actual power
+    # Data[0..3] = FL, RL, RR, FR
+    # Byte 0x40 - automatic switch-off
+    # ---------------------------------------------------------
+    - lin_id: 0x30
+      then:
+        - lambda: |-
+            auto decode_actual_power =
+                [](uint8_t raw, float &power) -> bool {
+
+              if (raw == 0x40) {
+                power = 0.0f;
+                return true;
+              }
+
+              if (raw == 0x00) {
+                power = 0.0f;
+                return true;
+              }
+
+              if (raw >= 0x01 && raw <= 0x11) {
+                power = 0.5f *
+                        (static_cast<float>(raw) + 1.0f);
+                return true;
+              }
+
+              return false;
+            };
+
+            float front_left_power = 0.0f;
+            float rear_left_power = 0.0f;
+            float rear_right_power = 0.0f;
+            float front_right_power = 0.0f;
+
+            id(hob_front_left_auto_off).publish_state(
+                data[0] == 0x40);
+
+            id(hob_rear_left_auto_off).publish_state(
+                data[1] == 0x40);
+
+            id(hob_rear_right_auto_off).publish_state(
+                data[2] == 0x40);
+
+            id(hob_front_right_auto_off).publish_state(
+                data[3] == 0x40);
+
+            if (decode_actual_power(data[0], front_left_power))
+              id(hob_front_left_actual_power).publish_state(
+                  front_left_power);
+
+            if (decode_actual_power(data[1], rear_left_power))
+              id(hob_rear_left_actual_power).publish_state(
+                  rear_left_power);
+
+            if (decode_actual_power(data[2], rear_right_power))
+              id(hob_rear_right_actual_power).publish_state(
+                  rear_right_power);
+
+            if (decode_actual_power(data[3], front_right_power))
+              id(hob_front_right_actual_power).publish_state(
+                  front_right_power);
+
+    # ---------------------------------------------------------
+    # LIN ID 0x00 - Front Left status
+    # Byte 0 Bit 3 - cookware
+    # Byte 1 Bit 0 - boost
+    # Byte 2 Bit 7 - combine
+    # ---------------------------------------------------------
+    - lin_id: 0x00
+      then:
+        - lambda: |-
+            id(hob_front_left_cookware).publish_state(
+                (data[0] & 0x08) == 0);
+
+            id(hob_front_left_boost).publish_state(
+                (data[1] & 0x01) != 0);
+
+            id(hob_front_left_combine).publish_state(
+                (data[2] & 0x80) != 0);
+
+    # ---------------------------------------------------------
+    # LIN ID 0x01 - Rear Left status
+    # Byte 0 Bit 3 - cookware
+    # Byte 1 Bit 0 - boost
+    # Byte 2 Bit 7 - combine
+    # ---------------------------------------------------------
+    - lin_id: 0x01
+      then:
+        - lambda: |-
+            id(hob_rear_left_cookware).publish_state(
+                (data[0] & 0x08) == 0);
+
+            id(hob_rear_left_boost).publish_state(
+                (data[1] & 0x01) != 0);
+
+            id(hob_rear_left_combine).publish_state(
+                (data[2] & 0x80) != 0);
+
+    # ---------------------------------------------------------
+    # LIN ID 0x02 - Rear Right status
+    # Byte 0 Bit 3 - cookware
+    # Byte 1 Bit 0 - boost
+    # Byte 2 Bit 7 - combine
+    # ---------------------------------------------------------
+    - lin_id: 0x02
+      then:
+        - lambda: |-
+            id(hob_rear_right_cookware).publish_state(
+                (data[0] & 0x08) == 0);
+
+            id(hob_rear_right_boost).publish_state(
+                (data[1] & 0x01) != 0);
+
+            id(hob_rear_right_combine).publish_state(
+                (data[2] & 0x80) != 0);
+
+    # ---------------------------------------------------------
+    # LIN ID 0x03 - Front Right status
+    # Byte 0 Bit 3 - cookware
+    # Byte 1 Bit 0 - boost
+    # Byte 2 Bit 7 - combine
+    # ---------------------------------------------------------
+    - lin_id: 0x03
+      then:
+        - lambda: |-
+            id(hob_front_right_cookware).publish_state(
+                (data[0] & 0x08) == 0);
+
+            id(hob_front_right_boost).publish_state(
+                (data[1] & 0x01) != 0);
+
+            id(hob_front_right_combine).publish_state(
+                (data[2] & 0x80) != 0);
+
+    # ---------------------------------------------------------
+    # LIN ID 0x09 - Unknown
+    # ---------------------------------------------------------
+    - lin_id: 0x09
+      then:
+        - lambda: |-
+            ESP_LOGD(
+                "hob",
+                "PID 0x49 data: %02X %02X %02X",
+                data[0], data[1], data[2]);
+
+    # ---------------------------------------------------------
+    # LIN ID 0x2F - Unknown
+    # ---------------------------------------------------------
+    - lin_id: 0x2F
+      then:
+        - lambda: |-
+            ESP_LOGD(
+                "hob",
+                "PID 0x6F data: %02X %02X %02X %02X",
+                data[0], data[1], data[2], data[3]);
+
+    # ---------------------------------------------------------
+    # LIN ID 0x08 - Unknown
+    # ---------------------------------------------------------
+    - lin_id: 0x08
+      then:
+        - lambda: |-
+            ESP_LOGD(
+                "hob",
+                "PID 0x08 data: %02X %02X %02X %02X %02X %02X",
+                data[0], data[1], data[2],
+                data[3], data[4], data[5]);
+
+    # ---------------------------------------------------------
+    # LIN ID 0x32 - Unknown
+    # ---------------------------------------------------------
+    - lin_id: 0x32
+      then:
+        - lambda: |-
+            ESP_LOGD(
+                "hob",
+                "PID 0x32 data: %02X %02X %02X %02X "
+                "%02X %02X %02X %02X",
+                data[0], data[1], data[2], data[3],
+                data[4], data[5], data[6], data[7]);
+
+    # ---------------------------------------------------------
+    # LIN ID 0x0A - Unknown
+    # ---------------------------------------------------------
+    - lin_id: 0x0A
+      then:
+        - lambda: |-
+            ESP_LOGD(
+                "hob",
+                "PID 0xCA data: %02X %02X %02X %02X "
+                "%02X %02X %02X %02X",
+                data[0], data[1], data[2], data[3],
+                data[4], data[5], data[6], data[7]);
+
+sensor:
+  # ---------------------------------------------------------
+  # Set power
+  # ---------------------------------------------------------
+
+  - platform: template
+    id: hob_front_left_set_power
+    name: "Hob front left set power"
+    accuracy_decimals: 1
+    state_class: measurement
+
+  - platform: template
+    id: hob_rear_left_set_power
+    name: "Hob rear left set power"
+    accuracy_decimals: 1
+    state_class: measurement
+
+  - platform: template
+    id: hob_rear_right_set_power
+    name: "Hob rear right set power"
+    accuracy_decimals: 1
+    state_class: measurement
+
+  - platform: template
+    id: hob_front_right_set_power
+    name: "Hob front right set power"
+    accuracy_decimals: 1
+    state_class: measurement
+
+  # ---------------------------------------------------------
+  # Actual power
+  # ---------------------------------------------------------
+
+  - platform: template
+    id: hob_front_left_actual_power
+    name: "Hob front left actual power"
+    accuracy_decimals: 1
+    state_class: measurement
+
+  - platform: template
+    id: hob_rear_left_actual_power
+    name: "Hob rear left actual power"
+    accuracy_decimals: 1
+    state_class: measurement
+
+  - platform: template
+    id: hob_rear_right_actual_power
+    name: "Hob rear right actual power"
+    accuracy_decimals: 1
+    state_class: measurement
+
+  - platform: template
+    id: hob_front_right_actual_power
+    name: "Hob front right actual power"
+    accuracy_decimals: 1
+    state_class: measurement
+
+binary_sensor:
+  # ---------------------------------------------------------
+  # Automatic switch-off
+  # ---------------------------------------------------------
+
+  - platform: template
+    id: hob_front_left_auto_off
+    name: "Hob front left auto off"
+
+  - platform: template
+    id: hob_rear_left_auto_off
+    name: "Hob rear left auto off"
+
+  - platform: template
+    id: hob_rear_right_auto_off
+    name: "Hob rear right auto off"
+
+  - platform: template
+    id: hob_front_right_auto_off
+    name: "Hob front right auto off"
+
+  # ---------------------------------------------------------
+  # Boost
+  # ---------------------------------------------------------
+
+  - platform: template
+    id: hob_front_left_boost
+    name: "Hob front left boost"
+
+  - platform: template
+    id: hob_rear_left_boost
+    name: "Hob rear left boost"
+
+  - platform: template
+    id: hob_rear_right_boost
+    name: "Hob rear right boost"
+
+  - platform: template
+    id: hob_front_right_boost
+    name: "Hob front right boost"
+
+  # ---------------------------------------------------------
+  # Cookware
+  # ---------------------------------------------------------
+
+  - platform: template
+    id: hob_front_left_cookware
+    name: "Hob front left cookware"
+
+  - platform: template
+    id: hob_rear_left_cookware
+    name: "Hob rear left cookware"
+
+  - platform: template
+    id: hob_rear_right_cookware
+    name: "Hob rear right cookware"
+
+  - platform: template
+    id: hob_front_right_cookware
+    name: "Hob front right cookware"
+
+  # ---------------------------------------------------------
+  # Combine
+  # ---------------------------------------------------------
+
+  - platform: template
+    id: hob_front_left_combine
+    name: "Hob front left combine"
+
+  - platform: template
+    id: hob_rear_left_combine
+    name: "Hob rear left combine"
+
+  - platform: template
+    id: hob_rear_right_combine
+    name: "Hob rear right combine"
+
+  - platform: template
+    id: hob_front_right_combine
+    name: "Hob front right combine"
