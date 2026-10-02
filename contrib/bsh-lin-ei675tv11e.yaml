@@ -1,5 +1,5 @@
 #
-# bsh-dbus-ei675tv11e.yaml -- ESPHome config to interface Siemens Induction Hob EI675TV11E
+# bsh-lin-ei675tv11e.yaml -- ESPHome config to interface Siemens Induction Hob EI675TV11E
 #
 # This file has been contributed by
 # (C) 2026 Maximilian Martin
@@ -8,7 +8,7 @@
 # More info:
 # https://github.com/hn/bsh-home-appliances/discussions/136
 #
-# (C) 2024-2025 Hajo Noerenberg
+# (C) 2024-2026 Hajo Noerenberg
 # https://www.noerenberg.de/
 # https://github.com/hn/bsh-home-appliances
 #
@@ -27,7 +27,7 @@
 #
 
 esphome:
-  name: bsh-dbus-ei675tv11e
+  name: bsh-lin-ei675tv11e
   friendly_name: Siemens Induction Hob EI675TV11E
 
 esp32:
@@ -51,7 +51,7 @@ wifi:
 
 external_components:
   - source: github://kipp-ing/ESPCars
-    components: [linbus]
+    components: [ linbus ]
 
 linbus:
   id: bsh_lin
