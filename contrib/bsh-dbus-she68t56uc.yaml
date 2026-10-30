@@ -1,6 +1,6 @@
 # Bosch SHE68T56UC/02 (FD 9405) - cycle phases, normalized time/progress, raw diagnostics
 # Contributed by Dave (BluThunder2k): https://github.com/BluThunder2k
-# Model notes: bsh-dbus-she68t56uc.md
+# Model notes: https://github.com/hn/bsh-home-appliances/discussions/143
 # Adapter: Bouni BSH-Board hardware v1.1 ONLY.
 # Updated 2026-10-30 from complete Auto + Half Load capture and HA activity.
 # Phase labels are observational, not an official Bosch protocol specification.
