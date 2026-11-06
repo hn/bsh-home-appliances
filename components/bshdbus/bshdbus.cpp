@@ -85,8 +85,9 @@ void BSHDBus::loop() {
     for (size_t i = 0; i < to_read;) {
       if (this->expect_ack_) {
         this->expect_ack_ = false;
+        /* Broadcasts are acknowledged with 0x0A or the node id of the sender, depending on the firmware */
         if (((buf[i] & 0x0F) == 0x0A) &&
-            ((this->last_dest_ & 0xF0) ? ((buf[i] & 0xF0) == (this->last_dest_ & 0xF0)) : (buf[i] & 0xF0))) {
+            (((this->last_dest_ & 0xF0) == 0) || ((buf[i] & 0xF0) == (this->last_dest_ & 0xF0)))) {
           ESP_LOGV(TAG, "Received valid ACK 0x%02x for dest 0x%02x of preceding frame", buf[i], this->last_dest_);
           i++;
           continue;
