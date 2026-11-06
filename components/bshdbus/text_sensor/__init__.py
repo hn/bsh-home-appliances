@@ -37,10 +37,8 @@ async def to_code(config: ConfigType) -> None:
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
 
-    if CONF_COMMAND in config:
-        cg.add(var.set_command(config[CONF_COMMAND]))
-    if CONF_DEST in config:
-        cg.add(var.set_dest(config[CONF_DEST]))
+    cg.add(var.set_command(config[CONF_COMMAND]))
+    cg.add(var.set_dest(config[CONF_DEST]))
     tsensors = []
     for conf in config[CONF_TEXT_SENSORS]:
         tsens = await text_sensor.new_text_sensor(conf)

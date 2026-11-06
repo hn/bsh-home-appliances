@@ -32,8 +32,7 @@
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 
-namespace esphome {
-namespace bshdbus {
+namespace esphome::bshdbus {
 
 static const char *const TAG = "bshdbus";
 
@@ -165,5 +164,4 @@ void BSHDBusListener::dump_filter_config(const char *tag) const {
   }
 }
 
-}  // namespace bshdbus
-}  // namespace esphome
+}  // namespace esphome::bshdbus

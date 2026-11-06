@@ -1,9 +1,7 @@
 #include "bshdbus_binary_sensor.h"
-#include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 
-namespace esphome {
-namespace bshdbus {
+namespace esphome::bshdbus {
 
 static const char *const TAG = "bshdbus.binary_sensor";
 
@@ -25,5 +23,4 @@ void BSHDBusSubBinarySensor::parse_message(const std::vector<uint8_t> &message) 
   this->publish_state(this->message_parser_(message));
 }
 
-}  // namespace bshdbus
-}  // namespace esphome
+}  // namespace esphome::bshdbus

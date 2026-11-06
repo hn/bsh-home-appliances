@@ -3,12 +3,11 @@
 #include "../bshdbus.h"
 #include "esphome/components/sensor/sensor.h"
 
-namespace esphome {
-namespace bshdbus {
+namespace esphome::bshdbus {
 
 class BSHDBusSubSensor;
 
-class BSHDBusSensor : public BSHDBusListener, public Component {
+class BSHDBusSensor final : public BSHDBusListener, public Component {
  public:
   void dump_config() override;
   void set_sensors(std::vector<BSHDBusSubSensor *> sensors) { this->sensors_ = std::move(sensors); };
@@ -18,7 +17,7 @@ class BSHDBusSensor : public BSHDBusListener, public Component {
   void handle_message(const std::vector<uint8_t> &message) override;
 };
 
-class BSHDBusSubSensor : public sensor::Sensor {
+class BSHDBusSubSensor final : public sensor::Sensor {
  public:
   void set_message_parser(message_parser_t parser) { this->message_parser_ = std::move(parser); };
   void parse_message(const std::vector<uint8_t> &message);
@@ -27,5 +26,4 @@ class BSHDBusSubSensor : public sensor::Sensor {
   message_parser_t message_parser_;
 };
 
-}  // namespace bshdbus
-}  // namespace esphome
+}  // namespace esphome::bshdbus

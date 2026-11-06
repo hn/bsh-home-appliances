@@ -14,8 +14,7 @@
 #error "BSHDBus component requires ESPHome >= 2026.1.0"
 #endif
 
-namespace esphome {
-namespace bshdbus {
+namespace esphome::bshdbus {
 
 using message_parser_t = std::function<float(const std::vector<uint8_t> &)>;
 using binary_message_parser_t = std::function<bool(const std::vector<uint8_t> &)>;
@@ -38,7 +37,7 @@ class BSHDBusListener {
   virtual void handle_message(const std::vector<uint8_t> &message) = 0;
 };
 
-class BSHDBus : public uart::UARTDevice, public Component {
+class BSHDBus final : public uart::UARTDevice, public Component {
  public:
   void setup() override;
   void dump_config() override;
@@ -56,9 +55,8 @@ class BSHDBus : public uart::UARTDevice, public Component {
   uint8_t last_dest_{0};
   bool expect_ack_{false};
   std::vector<BSHDBusListener *> listeners_{};
-  CallbackManager<void(const std::vector<uint8_t> &, uint8_t, uint16_t, const std::vector<uint8_t> &)>
+  LazyCallbackManager<void(const std::vector<uint8_t> &, uint8_t, uint16_t, const std::vector<uint8_t> &)>
       frame_callbacks_{};
 };
 
-}  // namespace bshdbus
-}  // namespace esphome
+}  // namespace esphome::bshdbus

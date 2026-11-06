@@ -37,6 +37,8 @@ CONFIG_SCHEMA = uart.UART_DEVICE_SCHEMA.extend(
     }
 )
 
+FINAL_VALIDATE_SCHEMA = uart.final_validate_device_schema("bshdbus", require_rx=True)
+
 
 async def to_code(config: ConfigType) -> None:
     var = cg.new_Pvariable(config[CONF_ID])
