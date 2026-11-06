@@ -4,16 +4,16 @@
 
 ## Hardware
 
-### Timelight projector module EPG53533
+### TimeLight projector module EPG53533
 
-The Timelight projector module breaks quite often,
+The TimeLight projector module breaks quite often,
 the super-bright LED apparently burns the LCD over time.
 
 The module ([Enclosure](photos/bsh-EPG53533-enclosure.jpg), [Enclosure open](photos/bsh-EPG53533-enclosure-open.jpg),
 [PCB top](photos/bsh-EPG53533-pcb-top.jpg), [PCB top closeup](photos/bsh-EPG53533-pcb-top-closeup.jpg), [PCB bottom](photos/bsh-EPG53533-pcb-bottom.jpg))
 has a 3-pin D-Bus connector (Attention! VBUS is 13.5V instead of 9V) and
 uses a [RENESAS R5F104BGA MCU](https://www.renesas.com/en/products/microcontrollers-microprocessors/rl78-low-power-8-16-bit-mcus/rl78g14-low-power-high-function-general-purpose-microcontrollers-motor-control-industrial-and-metering)
-(RL78/G14 CISC CPU core, 32pin, 128k flash ROM, 8kb Data flash, 16kb RAM, [datasheet](https://www.renesas.com/en/document/dst/rl78g14-data-sheet?r=1054296)).
+(RL78/G14 CISC CPU core, 32pin, 128kB flash ROM, 8kB Data flash, 16kB RAM, [datasheet](https://www.renesas.com/en/document/dst/rl78g14-data-sheet?r=1054296)).
 The LCD MSGF013733-04 seems to be custom made for B/S/H/ ("04" likely is a hardware revision and
 the second line on the sticker likely is the production date in YYMMDD format).
 
@@ -26,7 +26,7 @@ the script will decompress them as needed.
 The power modules (EPG70002, EPG70003, EPG70012 [PCB top](photos/bsh-EPG70012-pcb-top.jpg) [PCB bottom](photos/bsh-EPG70012-pcb-bottom.jpg) [Enclosure](photos/bsh-EPG70012-enclosure.jpg))
 are equipped with an STM32F301VCT6 (sometimes STM32P301VCT6) ARM Cortex M4 processor (LQFP100).
 The EPG70002 got two relays for heating while the 70003 got three.
-Depending on the board model, there is also an additional motor driver chip FSB50550AB from fairchild semiconductors
+Depending on the board model, there is also an additional motor driver chip FSB50550AB from Fairchild Semiconductor
 to power the fan motor for the Zeolith active drying technology.
 
 The board has three D-Bus connectors (X9, X10, X11), the first at the top left and the latter two on the
@@ -71,7 +71,7 @@ DS.CC-CC MM MM MM
 DESTINATION ("D" of DS-byte) (physical location in brackets)
 0x0 Network management / Broadcast (power module)
 0x1 Washing control unit (power module)
-0x2 User control panel
+0x2 User interface panel
 0x6 TimeLight module
 0xa Internet communication end point (power module)
 0xb Internet WiFi connection module

@@ -8,8 +8,8 @@ They have a [well-maintained wiki](https://wiki.bsh-group.com/de/wiki/Hauptseite
 
 Despite this popularity, little is publicly known about the inner workings of the appliances.
 This project shows some of the things that have been discovered through reverse engineering.
-This project is in no way affilliated with B/S/H/.
-No intelectual property of B/S/H/ was used at any time.
+This project is in no way affiliated with B/S/H/.
+No intellectual property of B/S/H/ was used at any time.
 
 There has been a talk about the findings of this project at the [39C3](https://events.ccc.de/congress/2025/).
 A recording of the talk is available [here](https://media.ccc.de/v/39c3-hacking-washing-machines).
@@ -54,13 +54,13 @@ The site has worked for the automotive industry in the past, which explains why 
 
 ### Washing machine Siemens WM14S750
 
-The washing machine WM14S750 was sold from around 2010, when it was the test winner of the german magazine Stiftung Warentest.
+The washing machine WM14S750 was sold from around 2010, when it was the test winner of the German magazine Stiftung Warentest.
 It was likely produced at the [Nauen factory](https://wiki.bsh-group.com/de/wiki/Die_Fabrik_Nauen/en).
 B/S/H/ has released a very nice [video series](https://www.youtube.com/watch?v=T_dcbVZmExU&list=PL8rSAtdt1rTpldsxcCMCIHwK_7gH2FWEZ) in which many details from the production in Nauen can be seen.
 
 #### Power module EPW66018
 
-The power module ([PCB front](photos/bsh-EPW66018-pcb-front.jpg), [PCB back](photos/bsh-EPW66018-pcb-back.jpg)) is based on an Freescale (now NXP) Semiconductor `MC9S12Q128C-PBE16` MCU (52-pin LQFP package).
+The power module ([PCB front](photos/bsh-EPW66018-pcb-front.jpg), [PCB back](photos/bsh-EPW66018-pcb-back.jpg)) is based on a Freescale (now NXP) Semiconductor `MC9S12Q128C-PBE16` MCU (52-pin LQFP package).
 It also supplies power to all connected electronics.
 The sticker suggests it was produced by [melecs](https://www.melecs.com/en).
 
@@ -81,14 +81,14 @@ It has 11 [RAST connectors](https://de.wikipedia.org/wiki/RAST-Steckverbinder) f
 
 #### User interface panel EPW66027
 
-The user interface panel ([Front view](photos/bsh-EPW66027-front.jpg), [back view](photos/bsh-EPW66027-back.jpg)) lets the user select 15 different washing programs, 8 temperatures, 7 spin speeds and and other options.
+The user interface panel ([Front view](photos/bsh-EPW66027-front.jpg), [back view](photos/bsh-EPW66027-back.jpg)) lets the user select 15 different washing programs, 8 temperatures, 7 spin speeds and other options.
 The (mechanical) rotary switch is not only used to select the program, but also to switch the mains power on and off.
 The user interface panel is connected to the power module via D-Bus.
 
 #### Unbalance sensor SEUFFER 9000444823
 
-This sensors detects unbalanced loads ([PCB front](photos/bsh-9000444823-pcb-front.jpg), [PCB back](photos/bsh-9000444823-pcb-back.jpg), [Enclosure](photos/bsh-9000444823-enclosure.jpg)).
-It uses an [PIC18F24J10](https://www.microchip.com/en-us/product/pic18f24j10) MCU (28 pin QFN package)
+This sensor detects unbalanced loads ([PCB front](photos/bsh-9000444823-pcb-front.jpg), [PCB back](photos/bsh-9000444823-pcb-back.jpg), [Enclosure](photos/bsh-9000444823-enclosure.jpg)).
+It uses a [PIC18F24J10](https://www.microchip.com/en-us/product/pic18f24j10) MCU (28 pin QFN package)
 and an `A007MPL DREMAS` IC (MPL likely refers to a custom-made Mask Programmable Logic),
 which [according to the manufacturer](https://www.ast-international.com/en.products.position-force-sensors.html#product-11) is a specialized 3D hall sensor
 (the [corresponding magnet](https://www.siemens-home.bsh-group.com/uk/shop-productlist/00615666) is attached to the washing drum).
@@ -116,7 +116,7 @@ B/S/H/ sells somewhat pricy pre-assembled cables as well, e.g. the [spare part 0
 > [!IMPORTANT]
 > The assignment of the connector depends on the end point: on the power module the connector is configured as GND-DATA-VBUS and then the cable is crossed and on the other side (e.g. for sensors) the wiring is VBUS-DATA-GND:
 
-![BSH D-Bus 2 pinout, power module bottom, slave top right](bsh-dbus-pinout.jpg)
+![B/S/H/ D-Bus-2 pinout, power module bottom, slave top right](bsh-dbus-pinout.jpg)
 
 #### External access
 
@@ -166,17 +166,17 @@ The hardware of other home appliance types has been examined:
 
 ## Protocol
 
-### D-Bus 2
+### D-Bus-2
 
 Data is transmitted on D-Bus-2 using UART framing with an 8N1 configuration at a baud rate of 9600.
-The `COM1` internet connection module cyclically tries out transfer rates from 9600 up to 38400 baud during startup, so newer devices probably use one of the higer rates.
+The `COM1` internet connection module cyclically tries out transfer rates from 9600 up to 38400 baud during startup, so newer devices probably use one of the higher rates.
 
-The D-Bus 2 is a (1-wire, the DATA wire) bus, not a conventional 2-wire serial link with separate RX and TX signals.
+The D-Bus-2 is a (1-wire, the DATA wire) bus, not a conventional 2-wire serial link with separate RX and TX signals.
 It operates as a [multi-master bus](https://en.wikipedia.org/wiki/Multi-master_bus) in which all participants
 are reading (and possibly writing) the bus simultaneously.
 Bus arbitration appears to follow a [non-persistent CSMA](https://en.wikipedia.org/wiki/Carrier-sense_multiple_access#Non-persistent) scheme.
 
-This is by no means a complete description of the D-Bus 2 protocol, but rather a layman's approach.
+This is by no means a complete description of the D-Bus-2 protocol, but rather a layman's approach.
 If you look at the comparable specification for other serial buses like the [CAN bus](https://en.wikipedia.org/wiki/CAN_bus) or [LIN bus](https://en.wikipedia.org/wiki/Local_Interconnect_Network),
 you will see that there may be many more bits and tricks.
 
@@ -200,7 +200,7 @@ The destination node ("D" of DS-byte) designates the (unique) logical receiver o
 
 The subsystem nibble ("S" of DS-byte) specifies the subsystem within the destination node.
 For lower complexity nodes it is of little importance (e.g. the unbalance sensor ignores the value of the “S” nibble),
-for higher complexity nodes (e.g. the power module) it seperates logical sections within the program code.
+for higher complexity nodes (e.g. the power module) it separates logical sections within the program code.
 
 ##### Command frames
 
@@ -238,6 +238,7 @@ If the CRC is corrupt, it sends 0x7.
 
 For broadcast frames (DS & 0xF0 = 0x00), the frame is auto-acknowledged by the sender itself;
 therefore, the high nibble contains the id of the sender and the low nibble contains the status as described above.
+On certain software versions, the high nibble has been observed to be 0x0 instead (e.g. `0a` in the [boot log](#boot-log) below).
 
 If the sender does not receive an acknowledgement byte indicating success,
 it waits for a random backoff time of 5 to 8 byte times
@@ -305,7 +306,7 @@ DS CC CC MM MM MM
 14.10-09 00 00       ?
 15.11-00 01          Start button pressed on user interface panel
 26.10-20 xx          Wash program module xx
-26.11-01 xx yy       Wash programm status: xx = 0=>Stopped, 1=>Running/end 2=>Running
+26.11-01 xx yy       Wash program status: xx = 0=>Stopped, 1=>Running/end 2=>Running
 26.12-00 xx yy zz    Front door status: xx = 0=>Closed+Unlocked, 1=>Closed+Locked, 2=>Open
 26.17-01 00 ff       Wash program started by the washing control unit
 2a.16-00 xx          Remaining time xx in minutes
@@ -334,8 +335,8 @@ SUBSYSTEM ("S" of DS-byte)
 0x4 Set parameters
 0x5 Start or stop processes
 0x6 User info I
-0xa User info II
 0x7 Unbalance sensor communication
+0xa User info II
 0xf Network management / Broadcast
 ```
 
@@ -379,9 +380,9 @@ can be accessed directly through [this link](https://html-preview.github.io/?url
 
 ### Home Assistant / ESPHome
 
-[bsh-dbus-wm14s750.yaml](bsh-dbus-wm14s750.yaml) is a ESPHome config file to integrate the washing machine in Home Assistant:
+[bsh-dbus-wm14s750.yaml](bsh-dbus-wm14s750.yaml) is an ESPHome config file to integrate the washing machine in Home Assistant:
 
-![BSH washing machine Home Assistant](bsh-wm-home-assistant.png)
+![B/S/H/ washing machine Home Assistant](bsh-wm-home-assistant.png)
 
 It uses an [external component](https://esphome.io/components/external_components.html)
 called [bshdbus](components/bshdbus/). There is no documentation (yet) but
@@ -397,7 +398,7 @@ You are very welcome to add more devices, just open a [pull request](https://doc
 
 ### Basics
 
-Some components are [shipped without readout protection and with debug interface exposed](DISHWASHER.md#control-board-epg700xx),
+Some components are [shipped without readout protection and with debug interface exposed](DISHWASHER.md#power-module-epg700xx),
 making them well suited for static and dynamic firmware analysis.
 
 With your [favourite RE tool](https://reverseengineering.stackexchange.com/questions/1817/is-there-any-disassembler-to-rival-ida-pro) one can find arrays of structs defining
@@ -420,7 +421,7 @@ commands defined for this subsystem:
 ```
 struct dbus_cmdin {
     byte eolist;			/* byte & 0x80 != 0 => end of list */
-    byte unkknown;
+    byte unknown;
     word cccc;
     pointer p_f_cmdin_handle;		/* int f_cmdin_handle(int len, byte* buf) */
 };
@@ -436,7 +437,7 @@ struct dbus_cmdout {
 ```
 
 The best way to initially locate these structures is to search the firmware binary
-for known cmdout DS.CC-CC byte sequences (litte endian).
+for known cmdout DS.CC-CC byte sequences (little endian).
 By iterating through the arrays, one can list all subsystems
 with all corresponding incoming and outgoing CC-CC commands.
 The intended action of the respective commands can be determined by analyzing the linked functions.
@@ -516,7 +517,7 @@ The information in this paragraph was compiled from various forum posts, there i
   - [DE102013205754A1](https://worldwide.espacenet.com/patent/search/family/050343707/publication/DE102013205754A1?q=pn%3DDE102013205754A1)
     describes how to add a cryptography layer to the D-Bus (a kind of DRM to protect e.g. cooking recipes).
 
-- [Trammell Hudson](https://github.com/osresearch) has done a in-depth research on how to
+- [Trammell Hudson](https://github.com/osresearch) has done in-depth research on how to
   [cloudlessly interface appliances](https://github.com/osresearch/hcpy) with python.
 
 - I don't own a WM14S750 washing machine, but only, let's call it, a [lab setup](bsh-wm-lab-setup.jpg).

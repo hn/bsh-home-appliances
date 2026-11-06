@@ -10,12 +10,12 @@ The module ([PCB top](photos/bsh-8001056350-COM1-pcb-top.jpg), [PCB bottom](phot
 is used to connect home appliances to the [Home Connect](https://www.home-connect.com/global) cloud.
 The model `COM1 3/21` with FCC ID `2AHES-COMGEN1` uses an
 ST [STM32F415](https://www.st.com/en/microcontrollers-microprocessors/stm32f415rg.html) MCU (LQFP64 package, 1024kB flash)
-and an external 16MBIT/2024kB SPI MX25L1606EZNI flash.
+and an external 16Mbit/2MB SPI MX25L1606EZNI flash.
 
 There is a 30-pin connector on the board (looks like a Hirose DF12 board-to-board/BTB) that,
 in certain module configurations (e.g. [EPH71082](https://www.siemens-home.bsh-group.com/de/de/product/12016807)),
 is used to connect to the antenna PCB.
-The antenna PCB seems to have an [6-pin connector](https://fccid.io/2AHES-COMGEN1/External-Photos/External-photos-2952945) presumably used for programming or debugging the MCU.
+The antenna PCB seems to have a [6-pin connector](https://fccid.io/2AHES-COMGEN1/External-Photos/External-photos-2952945) presumably used for programming or debugging the MCU.
 
 ### Software
 
@@ -35,7 +35,7 @@ and a ZIP file with update images for the module.
 ## Internet connection module BSH 9001688999 COM2
 
 The module has not been analyzed in detail. Some information can be found [here](https://fcc.report/FCC-ID/2AHES-COM2).
-It is suspected that the STM32F4 and the WLAN/Bluetooth were combined into a (propietary?) single IC for the COM2,
+It is suspected that the STM32F4 and the WLAN/Bluetooth were combined into a (proprietary?) single IC for the COM2,
 which is probably more cost-effective.
 
 ## System Master Module 2AHES-M2 - SystemMaster M2
