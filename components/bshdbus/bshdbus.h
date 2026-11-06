@@ -31,8 +31,8 @@ class BSHDBusListener {
   void dump_filter_config(const char *tag) const;
 
  protected:
-  uint8_t dest_{0xff};
-  uint16_t command_{0xffff};
+  uint8_t dest_{0};
+  uint16_t command_{0};
 
   virtual void handle_message(const std::vector<uint8_t> &message) = 0;
 };

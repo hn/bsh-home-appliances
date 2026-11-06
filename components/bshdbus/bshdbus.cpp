@@ -144,24 +144,16 @@ void BSHDBus::loop() {
 }
 
 void BSHDBusListener::on_message(uint8_t dest, uint16_t command, const std::vector<uint8_t> &message) {
-  if ((this->command_ != 0xffff) && (this->command_ != command))
-    return;
-  if ((this->dest_ != 0xff) && (this->dest_ != dest))
+  if ((this->command_ != command) || (this->dest_ != dest))
     return;
   this->handle_message(message);
 }
 
 void BSHDBusListener::dump_filter_config(const char *tag) const {
-  if (this->dest_ == 0xff) {
-    ESP_LOGCONFIG(tag, "  Dest node: ANY");
-  } else {
-    ESP_LOGCONFIG(tag, "  Dest node: 0x%02x", this->dest_);
-  }
-  if (this->command_ == 0xffff) {
-    ESP_LOGCONFIG(tag, "  Command: ANY");
-  } else {
-    ESP_LOGCONFIG(tag, "  Command: 0x%04x", this->command_);
-  }
+  ESP_LOGCONFIG(tag,
+                "  Dest node: 0x%02x\n"
+                "  Command: 0x%04x",
+                this->dest_, this->command_);
 }
 
 }  // namespace esphome::bshdbus
