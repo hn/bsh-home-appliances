@@ -1,0 +1,536 @@
+#
+# bsh-dbus-wan28275nl.yaml -- ESPHome config to interface B/S/H/ washing machine WAN28275NL
+#
+# Bosch Serie 4 WAN28275NL (no Home Connect), UI board BSH 8001102547 (EPW67004).
+# Adapter: Bouni BSH-Board (ESP32-C6) on the spare 3-pin RAST 2.5 slot of the UI board.
+# Read-only (no transmitting). Entity names are Dutch; decoding notes and
+# hardware details: https://github.com/hn/bsh-home-appliances/discussions/146
+#
+# This file has been contributed by
+# (C) 2026 Carl Megens
+# https://github.com/carlmegens
+#
+# (C) 2024 Hajo Noerenberg
+# https://www.noerenberg.de/
+# https://github.com/hn/bsh-home-appliances
+#
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 3.0 as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program. If not, see <http://www.gnu.org/licenses/gpl-3.0.txt>.
+#
+
+esphome:
+  name: bsh-dbus-wan28275nl
+  friendly_name: Bosch Wasmachine WAN28275NL
+  min_version: 2025.11.0
+  on_boot:
+    priority: -100
+    then:
+      - lambda: |-
+          // 11.1001 is only sent on change, so after an OTA/software restart mid-wash
+          // the status would stay unknown. Re-publish the last one — but not after a
+          // power-on (washer was off; its first message will tell us).
+          if (esp_reset_reason() != ESP_RST_SW || id(wm_status_code) == 0) return;
+          id(wm_restoring) = true;
+          switch (id(wm_status_code)) {
+            case 0x01: id(wm_status).publish_state("Bezig"); break;
+            case 0x03: id(wm_status).publish_state("Klaar voor start"); break;
+            case 0x05: id(wm_status).publish_state("Klaar"); break;
+            case 0x06: id(wm_status).publish_state("Uitgesteld"); break;
+            case 0x23: case 0x24: id(wm_status).publish_state("Starten"); break;
+            case 0x25: id(wm_status).publish_state("Uit"); break;
+            case 0x2E: id(wm_status).publish_state("Standby"); break;
+            case 0x2F: id(wm_status).publish_state("Aan"); break;
+          }
+          id(wm_restoring) = false;
+
+external_components:
+  - source: github://hn/bsh-home-appliances@master
+
+esp32:
+  variant: esp32c6
+  framework:
+    type: esp-idf
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  # Board sits inside the washer (~-80 dBm): max TX power, no power saving
+  power_save_mode: none
+  output_power: 20dB
+
+api:
+
+ota:
+  - platform: esphome
+
+logger:
+  level: DEBUG
+
+# Board LEDs (active low)
+status_led:
+  pin:
+    number: GPIO06
+    inverted: true
+
+output:
+  - platform: gpio
+    pin:
+      number: GPIO07
+      inverted: true
+    id: activity_led
+
+# D-Bus UART. TX stays defined on purpose: an unconfigured TX pin
+# can disturb the bus while the ESP boots (see discussion #78).
+uart:
+  id: dbus_uart
+  rx_pin: GPIO4
+  tx_pin: GPIO5
+  baud_rate: 9600
+  debug:
+    direction: BOTH
+    dummy_receiver: false
+    after:
+      # Bytes arrive ~1 ms apart; a 5 ms gap means the frame is complete
+      timeout: 5ms
+    sequence:
+      - lambda: UARTDebug::log_hex(direction, bytes, ' ');
+      - output.turn_on: activity_led
+      - delay: 20ms
+      - output.turn_off: activity_led
+
+time:
+  - platform: homeassistant
+    id: ha_time
+
+globals:
+  - id: wm_done_at          # epoch when status became "Klaar" (0 = unknown)
+    type: time_t
+    restore_value: yes
+    initial_value: '0'
+  - id: wm_total            # largest remaining time seen this run (min) -> progress base
+    type: float
+    restore_value: yes
+    initial_value: '0'
+  - id: wm_status_code      # last 11.1001 x0, re-published after a software restart
+    type: uint8_t
+    restore_value: yes
+    initial_value: '0'
+  - id: wm_prog_code        # current 11.1006 x0
+    type: uint8_t
+    initial_value: '0'
+  - id: wm_restoring        # true while on_boot re-publishes the status
+    type: bool
+    initial_value: 'false'
+  - id: wm_last_prog        # program of the last finished wash (for "laatste was ...")
+    type: uint8_t
+    restore_value: yes
+    initial_value: '0'
+
+bshdbus:
+  uart_id: dbus_uart
+
+# Message set matches contrib/bsh-dbus-wag28400DE.yaml; byte meanings verified on this
+# machine unless marked (*) = taken from WAG28400DE, not yet verified here.
+
+sensor:
+  # --- diagnostics (no bus access) ---
+  - platform: wifi_signal
+    name: "WiFi signaal"
+    update_interval: 60s
+  - platform: uptime
+    name: "Uptime"
+    update_interval: 60s
+
+  # --- selection (11.1006, verified) ---
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1006
+    sensors:
+      - id: wm_temperature
+        name: "Temperatuur"
+        device_class: temperature
+        unit_of_measurement: "°C"
+        accuracy_decimals: 0
+        lambda: |-
+          if (x[0] == 2) return NAN;  // Eco 40-60: no temperature choice
+          switch (x[2]) {
+            case 0: return 0;     // koud
+            case 1: return 20;
+            case 2: return 30;
+            case 3: return 40;
+            case 5: return 60;
+            case 7: return 90;
+          }
+          return NAN;
+      - id: wm_spin
+        name: "Centrifugeren"
+        icon: mdi:rotate-right
+        unit_of_measurement: "rpm"
+        accuracy_decimals: 0
+        lambda: return x[1] * 10;
+
+  # --- program duration (21.1002, seconds) — sent at selection/start only ---
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1002
+    sensors:
+      - id: wm_duration
+        name: "Programmaduur"
+        icon: mdi:timer-outline
+        device_class: duration
+        unit_of_measurement: min
+        accuracy_decimals: 0
+        lambda: return ((x[0] << 8) | x[1]) / 60.0f;
+
+  # --- remaining time as on the display (75.5000, x0==2 -> x1..x2 minutes) ---
+  # Sent every 60 s (5x, unacked). Confirmed against display 2026-11-05.
+  - platform: bshdbus
+    dest: 0x75
+    command: 0x5000
+    sensors:
+      - id: wm_remaining
+        name: "Resterende tijd"
+        icon: mdi:timer-sand
+        device_class: duration
+        unit_of_measurement: min
+        accuracy_decimals: 0
+        lambda: |-
+          if (x.size() < 3 || x[0] != 0x02) return NAN;
+          return (x[1] << 8) | x[2];
+        filters:
+          - lambda: |-
+              if (std::isnan(x)) return {};   // other 75.5000 content: keep last value
+              return x;
+          - delta: 0.5                        # 5 identical copies -> publish once
+        on_value:
+          - lambda: |-
+              if (x > id(wm_total)) id(wm_total) = x;
+              id(wm_progress).update();
+      # "Klaar in" (delayed start, end time in minutes from now): x0==5.
+      # Sent on each press while selecting and every 60 s while waiting (status 06).
+      # Confirmed 2026-11-06: 14 h on display = 05 03 48 (840 min). A normal
+      # remaining-time frame (x0==2) means no delay -> clear.
+      - id: wm_finish_in
+        name: "Klaar in"
+        icon: mdi:timer-cog-outline
+        device_class: duration
+        unit_of_measurement: min
+        accuracy_decimals: 0
+        lambda: |-
+          if (x.size() < 3) return NAN;
+          if (x[0] == 0x05) return (x[1] << 8) | x[2];
+          if (x[0] == 0x02) return -1;        // remaining time instead -> no delay
+          return NAN;                         // other display content -> ignore
+        filters:
+          - lambda: |-
+              if (std::isnan(x)) return {};
+              if (x < 0) return NAN;
+              return x;
+          - delta: 0.5
+
+  # Progress 0-100 % (base = largest remaining time seen; 21.1002 is re-sent as
+  # a few minutes near the end, so it can't be the base)
+  - platform: template
+    id: wm_progress
+    name: "Voortgang"
+    icon: mdi:progress-helper
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+    update_interval: 60s
+    lambda: |-
+      std::string st = id(wm_status).has_state() ? id(wm_status).state : "";
+      std::string ph = id(wm_phase).has_state() ? id(wm_phase).state : "";
+      if (st == "Klaar") return 100;
+      bool running = st == "Bezig" || st == "Starten" ||
+                     (st.empty() && !ph.empty() && ph != "Niet gestart");
+      if (!running) return NAN;
+      float rem = id(wm_remaining).state;
+      float tot = id(wm_total);
+      if (std::isnan(rem) || tot <= 0) return 0;
+      float p = 100.0f * (tot - rem) / tot;
+      return p < 0 ? 0 : (p > 100 ? 100 : p);
+
+  # --- unbalance (17.4011) (*) ---
+  - platform: bshdbus
+    dest: 0x17
+    command: 0x4011
+    sensors:
+      - id: wm_unbalance_x
+        name: "Onbalans X"
+        entity_category: diagnostic
+        accuracy_decimals: 0
+        lambda: return (int16_t) ((x[1] << 8) | x[2]);
+        filters:
+          - throttle: 30s
+
+binary_sensor:
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1006
+    binary_sensors:
+      # Speed Perfect: x[3] 01 -> 00 when pressed (Katoen test 2026-11-05: 194 -> 89 min).
+      # x[3] is 00 by default on programs without Speed Perfect -> exclude those.
+      - id: wm_speed_perfect
+        name: "Speed Perfect"
+        icon: mdi:run-fast
+        lambda: |-
+          switch (x[0]) {
+            case 0x05: case 0x0B: case 0x0C: case 0x0E: return false;  // Wol, Fijne was, Sport, Overhemden
+          }
+          return x[0] != 0 && x[3] == 0;
+      - id: wm_prewash
+        name: "Voorwas"                  # (*)
+        icon: mdi:feather
+        lambda: return x[5] & 0x80;
+
+text_sensor:
+  - platform: version
+    name: "ESPHome versie"
+
+  # One-line summary for dashboard / iPhone widget, e.g.
+  # "Spoelen · nog 12 min · klaar 18:02" / "Klaar sinds 17:48" / "Katoen · 40° · 1400 rpm"
+  - platform: template
+    id: wm_summary
+    name: "Samenvatting"
+    icon: mdi:washing-machine
+    update_interval: 15s
+    lambda: |-
+      std::string st = id(wm_status).has_state() ? id(wm_status).state : "";
+      std::string ph = id(wm_phase).has_state() ? id(wm_phase).state : "";
+      float rem = id(wm_remaining).state;
+      auto now = id(ha_time).now();
+      bool running = st == "Bezig" || st == "Starten" ||
+                     (st.empty() && !ph.empty() && ph != "Niet gestart");
+      if (running) {
+        std::string s = ph.empty() || ph == "Niet gestart" ? "Bezig" : ph;
+        if (!std::isnan(rem)) {
+          s += " · nog " + std::to_string((int) rem) + " min";
+          if (now.is_valid())
+            s += " · klaar " + ESPTime::from_epoch_local(now.timestamp + (int) rem * 60).strftime("%H:%M");
+        }
+        return s;
+      }
+      if (st == "Klaar") {
+        if (id(wm_done_at) > 0)
+          return "Klaar sinds " + ESPTime::from_epoch_local(id(wm_done_at)).strftime("%H:%M");
+        return {"Klaar"};
+      }
+      if (st == "Klaar voor start" && id(wm_program).has_state()) {
+        std::string s = id(wm_program).state;
+        float temp = id(wm_temperature).state;
+        if (!std::isnan(temp)) s += temp == 0 ? " · koud" : " · " + std::to_string((int) temp) + "°";
+        float spin = id(wm_spin).state;
+        if (!std::isnan(spin)) s += " · " + std::to_string((int) spin) + " rpm";
+        float fin = id(wm_finish_in).state;
+        if (!std::isnan(fin) && now.is_valid())
+          s += " · klaar " + ESPTime::from_epoch_local(now.timestamp + (int) fin * 60).strftime("%H:%M");
+        return s;
+      }
+      if (st == "Uitgesteld") {
+        // e.g. "Katoen · start uitgesteld · klaar 14:49"
+        std::string s = id(wm_program).has_state() ? id(wm_program).state + " · " : "";
+        s += "start uitgesteld";
+        float fin = id(wm_finish_in).state;
+        if (!std::isnan(fin) && now.is_valid()) {
+          auto e = ESPTime::from_epoch_local(now.timestamp + (int) fin * 60);
+          s += " · klaar " + std::string(e.day_of_year != now.day_of_year ? "morgen " : "") + e.strftime("%H:%M");
+        }
+        return s;
+      }
+      // Off: show the last finished wash, e.g. "Uit · laatste was Wol, klaar 17:48"
+      std::string s = st == "Aan" ? "Aan" : "Uit";
+      static const char *const names[] = {"", "Katoen", "Eco 40-60", "Intensief",
+        "Kreukherstellend", "Wol", "SuperKort", "Spoelen", "Centrifugeren", "Snel/Mix",
+        "Mix stil", "Fijne was", "Sport", "Jeans", "Overhemden", "AllergiePlus"};
+      uint8_t lp = id(wm_last_prog);
+      time_t done = id(wm_done_at);
+      if (lp >= 1 && lp <= 15 && done > 0 && now.is_valid()) {
+        auto d = ESPTime::from_epoch_local(done);
+        std::string when;
+        if (d.year == now.year && d.day_of_year == now.day_of_year) when = d.strftime("%H:%M");
+        else if (d.year == now.year && d.day_of_year + 1 == now.day_of_year) when = "gisteren " + d.strftime("%H:%M");
+        else when = d.strftime("%d-%m %H:%M");
+        s += std::string(" · laatste was ") + names[lp] + ", klaar " + when;
+      }
+      return s;
+
+  # Expected end time as timestamp (HA shows "over 12 minuten")
+  - platform: template
+    id: wm_end_time
+    name: "Klaar om"
+    icon: mdi:flag-checkered
+    device_class: timestamp
+    update_interval: 15s          # same cadence as Samenvatting -> both show the same minute
+    lambda: |-
+      std::string st = id(wm_status).has_state() ? id(wm_status).state : "";
+      std::string ph = id(wm_phase).has_state() ? id(wm_phase).state : "";
+      float rem = id(wm_remaining).state;
+      auto now = id(ha_time).now();
+      bool running = st == "Bezig" || st == "Starten" ||
+                     (st.empty() && !ph.empty() && ph != "Niet gestart");
+      if (!now.is_valid()) return {};
+      float fin = id(wm_finish_in).state;
+      if ((st == "Uitgesteld" || st == "Klaar voor start") && !std::isnan(fin))
+        return ESPTime::from_epoch_utc(now.timestamp + (int) fin * 60).strftime("%Y-%m-%dT%H:%M:%SZ");
+      if (!running || std::isnan(rem)) return {};
+      return ESPTime::from_epoch_utc(now.timestamp + (int) rem * 60).strftime("%Y-%m-%dT%H:%M:%SZ");
+
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1006
+    text_sensors:
+      - id: wm_program
+        name: "Programma"
+        icon: mdi:tshirt-crew-outline
+        lambda: |-
+          id(wm_prog_code) = x[0];
+          return std::to_string(x[0]);
+        filters:
+          - map:
+            - 0 -> Uit
+            - 1 -> Katoen
+            - 2 -> Eco 40-60
+            - 3 -> Intensief
+            - 4 -> Kreukherstellend
+            - 5 -> Wol
+            - 6 -> SuperKort 15/30
+            - 7 -> Spoelen
+            - 8 -> Centrifugeren/Afpompen
+            - 9 -> Snel/Mix
+            - 10 -> Mix stil
+            - 11 -> Fijne was/Zijde
+            - 12 -> Sport
+            - 13 -> Jeans/Donkere was
+            - 14 -> Overhemden
+            - 15 -> AllergiePlus
+      - name: "Selectie raw"
+        entity_category: diagnostic
+        lambda: return format_hex_pretty(x);
+
+  # Program phase (21.1003) (*) — map from WAG28400DE, verify during a wash
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1003
+    text_sensors:
+      - id: wm_phase
+        name: "Fase"
+        icon: mdi:progress-clock
+        lambda: return std::to_string(x[0]);
+        filters:
+          - map:
+            - 0 -> Niet gestart
+            - 3 -> Vullen
+            - 4 -> Beladingsdetectie
+            - 5 -> Wassen
+            - 6 -> Wassen
+            - 7 -> Afkoelen sop
+            - 9 -> Tussencentrifuge
+            - 11 -> Spoelen
+            - 12 -> Tussencentrifuge
+            - 13 -> Spoelen
+            - 20 -> Tussencentrifuge
+            - 24 -> Overgang
+            - 26 -> Eindcentrifuge
+            - 28 -> Opschudden
+            - 49 -> Wasverzachter
+            - 53 -> Beladingsdetectie
+      - name: "Fase raw"
+        entity_category: diagnostic
+        lambda: return format_hex_pretty(x);
+
+  # Status / door (21.1000): x0=0x29 -> x1 is door state (*)
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1000
+    text_sensors:
+      - id: wm_door
+        name: "Deur"
+        icon: mdi:door
+        lambda: |-
+          if (x.size() < 2 || x[0] != 0x29) return {};
+          switch (x[1]) {
+            case 3: return {"Open"};
+            case 5: return {"Vergrendeld"};
+            case 6: return {"Ontgrendeld"};   // after End, door still closed
+            case 7: return {"Dicht"};
+          }
+          return {"Onbekend (" + std::to_string(x[1]) + ")"};
+        filters:
+          # other 21.1000 messages return "" -> keep last door state
+          - lambda: |-
+              if (x.empty()) return {};
+              return x;
+      - name: "Status raw"
+        entity_category: diagnostic
+        lambda: return format_hex_pretty(x);
+
+  # Machine status (11.1001 x0), confirmed on wol wash 2026-11-05
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1001
+    text_sensors:
+      - id: wm_status
+        name: "Status"
+        icon: mdi:washing-machine
+        on_value:
+          - lambda: |-
+              // new selection / machine off -> next run starts a fresh progress base
+              if (x == "Klaar voor start" || x == "Uit" || x == "Standby") id(wm_total) = 0;
+              if (x == "Klaar" && !id(wm_restoring)) {   // not on the boot re-publish
+                auto now = id(ha_time).now();
+                id(wm_done_at) = now.is_valid() ? now.timestamp : 0;
+                id(wm_last_prog) = id(wm_prog_code);
+              }
+        lambda: |-
+          id(wm_status_code) = x[0];
+          switch (x[0]) {
+            case 0x01: return {"Bezig"};
+            case 0x03: return {"Klaar voor start"};
+            case 0x05: return {"Klaar"};
+            // 06: waiting for delayed start ("klaar in"); also flashes by for <1 s on a normal start
+            case 0x06: return {"Uitgesteld"};
+            case 0x23: return {"Starten"};
+            case 0x24: return {"Starten"};
+            case 0x25: return {"Uit"};
+            case 0x2E: return {"Standby"};
+            case 0x2F: return {"Aan"};
+          }
+          return {"Onbekend (" + std::to_string(x[0]) + ")"};
+      - name: "Gereed raw"
+        entity_category: diagnostic
+        lambda: return format_hex_pretty(x);
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1004
+    text_sensors:
+      - name: "Verloop raw"
+        entity_category: diagnostic
+        lambda: return format_hex_pretty(x);
+  - platform: bshdbus
+    dest: 0x13
+    command: 0x3015
+    text_sensors:
+      - name: "Module raw"
+        entity_category: diagnostic
+        lambda: return format_hex_pretty(x);
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1007
+    text_sensors:
+      - name: "Melding raw"
+        entity_category: diagnostic
+        lambda: return format_hex_pretty(x);
+
+button:
+  - platform: restart
+    name: "Herstart"
