@@ -16,12 +16,12 @@ void BSHDBusTextSensor::dump_config() {
   }
 }
 
-void BSHDBusTextSensor::handle_message(std::vector<uint8_t> &message) {
+void BSHDBusTextSensor::handle_message(const std::vector<uint8_t> &message) {
   for (BSHDBusSubTextSensor *tsensor : this->tsensors_)
     tsensor->parse_message(message);
 }
 
-void BSHDBusSubTextSensor::parse_message(std::vector<uint8_t> &message) {
+void BSHDBusSubTextSensor::parse_message(const std::vector<uint8_t> &message) {
   this->publish_state(this->message_parser_(message));
 }
 

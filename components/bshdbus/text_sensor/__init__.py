@@ -46,7 +46,7 @@ async def to_code(config: ConfigType) -> None:
         tsens = await text_sensor.new_text_sensor(conf)
         lambda_ = await cg.process_lambda(
             conf[CONF_LAMBDA],
-            [(cg.std_vector.template(cg.uint8), "x")],
+            [(cg.std_vector.template(cg.uint8).operator("ref").operator("const"), "x")],
             return_type=cg.std_string,
         )
         cg.add(tsens.set_message_parser(lambda_))

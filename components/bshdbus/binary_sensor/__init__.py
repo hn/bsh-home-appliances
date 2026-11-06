@@ -48,7 +48,7 @@ async def to_code(config: ConfigType) -> None:
         bsens = await binary_sensor.new_binary_sensor(conf)
         lambda_ = await cg.process_lambda(
             conf[CONF_LAMBDA],
-            [(cg.std_vector.template(cg.uint8), "x")],
+            [(cg.std_vector.template(cg.uint8).operator("ref").operator("const"), "x")],
             return_type=cg.bool_,
         )
         cg.add(bsens.set_message_parser(lambda_))

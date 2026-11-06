@@ -15,13 +15,13 @@ class BSHDBusSensor : public BSHDBusListener, public Component {
 
  protected:
   std::vector<BSHDBusSubSensor *> sensors_;
-  void handle_message(std::vector<uint8_t> &message) override;
+  void handle_message(const std::vector<uint8_t> &message) override;
 };
 
 class BSHDBusSubSensor : public sensor::Sensor {
  public:
   void set_message_parser(message_parser_t parser) { this->message_parser_ = std::move(parser); };
-  void parse_message(std::vector<uint8_t> &message);
+  void parse_message(const std::vector<uint8_t> &message);
 
  protected:
   message_parser_t message_parser_;

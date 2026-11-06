@@ -17,9 +17,9 @@
 namespace esphome {
 namespace bshdbus {
 
-using message_parser_t = std::function<float(std::vector<uint8_t> &)>;
-using binary_message_parser_t = std::function<bool(std::vector<uint8_t> &)>;
-using textmessage_parser_t = std::function<std::string(std::vector<uint8_t> &)>;
+using message_parser_t = std::function<float(const std::vector<uint8_t> &)>;
+using binary_message_parser_t = std::function<bool(const std::vector<uint8_t> &)>;
+using textmessage_parser_t = std::function<std::string(const std::vector<uint8_t> &)>;
 
 class BSHDBus;
 
@@ -28,14 +28,14 @@ class BSHDBusListener {
   void set_dest(uint8_t dest) { this->dest_ = dest; }
   void set_command(uint16_t command) { this->command_ = command; }
 
-  void on_message(uint8_t dest, uint16_t command, std::vector<uint8_t> &message);
+  void on_message(uint8_t dest, uint16_t command, const std::vector<uint8_t> &message);
   void dump_filter_config(const char *tag) const;
 
  protected:
   uint8_t dest_{0xff};
   uint16_t command_{0xffff};
 
-  virtual void handle_message(std::vector<uint8_t> &message) = 0;
+  virtual void handle_message(const std::vector<uint8_t> &message) = 0;
 };
 
 class BSHDBus : public uart::UARTDevice, public Component {
@@ -51,6 +51,7 @@ class BSHDBus : public uart::UARTDevice, public Component {
 
  protected:
   std::vector<uint8_t> rx_buffer_;
+  std::vector<uint8_t> message_;
   uint32_t last_rx_{0};
   uint8_t last_dest_{0};
   bool expect_ack_{false};

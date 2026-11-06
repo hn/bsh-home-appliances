@@ -49,7 +49,10 @@ static constexpr uint16_t BSHDBUS_RX_TIMEOUT = 20;
 /* Sufficient for most cases, some larger frames may be truncated */
 static constexpr size_t BSHDBUS_MAX_LOG_BYTES = 128;
 
-void BSHDBus::setup() { this->rx_buffer_.reserve(BSHDBUS_MAX_CMDFRAME_LENGTH); }
+void BSHDBus::setup() {
+  this->rx_buffer_.reserve(BSHDBUS_MAX_CMDFRAME_LENGTH);
+  this->message_.reserve(BSHDBUS_MAX_CMDFRAME_LENGTH);
+}
 
 void BSHDBus::dump_config() { ESP_LOGCONFIG(TAG, "BSH D-Bus:"); }
 
@@ -129,19 +132,19 @@ void BSHDBus::loop() {
       this->expect_ack_ = true;
       const uint16_t command = encode_uint16(this->rx_buffer_[2], this->rx_buffer_[3]);
       /* Skip bytes for LL + DS + CCCC at beginning, CRC at end */
-      std::vector<uint8_t> message(this->rx_buffer_.begin() + 1 + 1 + 2, this->rx_buffer_.end() - 2);
+      this->message_.assign(this->rx_buffer_.begin() + 1 + 1 + 2, this->rx_buffer_.end() - 2);
 
-      ESP_LOGV(TAG, "Valid frame dest 0x%02x cmd 0x%04x: 0x%s", dest, command, format_hex_to(hex_buf, message));
-      this->frame_callbacks_.call(this->rx_buffer_, dest, command, message);
+      ESP_LOGV(TAG, "Valid frame dest 0x%02x cmd 0x%04x: 0x%s", dest, command, format_hex_to(hex_buf, this->message_));
+      this->frame_callbacks_.call(this->rx_buffer_, dest, command, this->message_);
       for (auto &listener : this->listeners_)
-        listener->on_message(dest, command, message);
+        listener->on_message(dest, command, this->message_);
 
       this->rx_buffer_.clear();
     }
   }
 }
 
-void BSHDBusListener::on_message(uint8_t dest, uint16_t command, std::vector<uint8_t> &message) {
+void BSHDBusListener::on_message(uint8_t dest, uint16_t command, const std::vector<uint8_t> &message) {
   if ((this->command_ != 0xffff) && (this->command_ != command))
     return;
   if ((this->dest_ != 0xff) && (this->dest_ != dest))
