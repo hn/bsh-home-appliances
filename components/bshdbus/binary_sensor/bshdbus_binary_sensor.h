@@ -18,13 +18,13 @@ class BSHDBusBinarySensor : public BSHDBusListener, public Component {
   void handle_message(std::vector<uint8_t> &message) override;
 };
 
-class BSHDBusSubBinarySensor : public binary_sensor::BinarySensor, public Component {
+class BSHDBusSubBinarySensor : public binary_sensor::BinarySensor {
  public:
-  void set_message_parser(message_parser_t parser) { this->message_parser_ = std::move(parser); };
+  void set_message_parser(binary_message_parser_t parser) { this->message_parser_ = std::move(parser); };
   void parse_message(std::vector<uint8_t> &message);
 
  protected:
-  message_parser_t message_parser_;
+  binary_message_parser_t message_parser_;
 };
 
 }  // namespace bshdbus

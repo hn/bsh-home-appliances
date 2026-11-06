@@ -5,6 +5,11 @@
 #include "esphome/components/uart/uart.h"
 #include "esphome/core/version.h"
 
+#include <functional>
+#include <string>
+#include <utility>
+#include <vector>
+
 #if ESPHOME_VERSION_CODE < VERSION_CODE(2026, 1, 0)
 #error "BSHDBus component requires ESPHome >= 2026.1.0"
 #endif
@@ -13,6 +18,7 @@ namespace esphome {
 namespace bshdbus {
 
 using message_parser_t = std::function<float(std::vector<uint8_t> &)>;
+using binary_message_parser_t = std::function<bool(std::vector<uint8_t> &)>;
 using textmessage_parser_t = std::function<std::string(std::vector<uint8_t> &)>;
 
 class BSHDBus;
@@ -23,6 +29,7 @@ class BSHDBusListener {
   void set_command(uint16_t command) { this->command_ = command; }
 
   void on_message(uint8_t dest, uint16_t command, std::vector<uint8_t> &message);
+  void dump_filter_config(const char *tag) const;
 
  protected:
   uint8_t dest_{0xff};
@@ -33,13 +40,14 @@ class BSHDBusListener {
 
 class BSHDBus : public uart::UARTDevice, public Component {
  public:
+  void setup() override;
   void dump_config() override;
   void loop() override;
-  float get_setup_priority() const override { return setup_priority::DATA; }
 
   void register_listener(BSHDBusListener *listener) { this->listeners_.push_back(listener); }
-  void add_on_frame_callback(
-      std::function<void(std::vector<uint8_t>, uint8_t, uint16_t, std::vector<uint8_t>)> &&frame_callback);
+  template<typename F> void add_on_frame_callback(F &&frame_callback) {
+    this->frame_callbacks_.add(std::forward<F>(frame_callback));
+  }
 
  protected:
   std::vector<uint8_t> rx_buffer_;

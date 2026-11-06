@@ -9,16 +9,7 @@ static const char *const TAG = "bshdbus.sensor";
 
 void BSHDBusSensor::dump_config() {
   ESP_LOGCONFIG(TAG, "BSH D-Bus Sensor:");
-  if (this->dest_ == 0xff) {
-    ESP_LOGCONFIG(TAG, "  Dest node: ANY");
-  } else {
-    ESP_LOGCONFIG(TAG, "  Dest node: 0x%02x", this->dest_);
-  }
-  if (this->command_ == 0xffff) {
-    ESP_LOGCONFIG(TAG, "  Command: ANY");
-  } else {
-    ESP_LOGCONFIG(TAG, "  Command: 0x%04x", this->command_);
-  }
+  this->dump_filter_config(TAG);
   ESP_LOGCONFIG(TAG, "  Sensors:");
   for (BSHDBusSubSensor *sensor : this->sensors_) {
     LOG_SENSOR("  ", "-", sensor);

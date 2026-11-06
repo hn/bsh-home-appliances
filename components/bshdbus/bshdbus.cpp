@@ -49,6 +49,8 @@ static constexpr uint16_t BSHDBUS_RX_TIMEOUT = 20;
 /* Sufficient for most cases, some larger frames may be truncated */
 static constexpr size_t BSHDBUS_MAX_LOG_BYTES = 128;
 
+void BSHDBus::setup() { this->rx_buffer_.reserve(BSHDBUS_MAX_CMDFRAME_LENGTH); }
+
 void BSHDBus::dump_config() { ESP_LOGCONFIG(TAG, "BSH D-Bus:"); }
 
 void BSHDBus::loop() {
@@ -63,7 +65,7 @@ void BSHDBus::loop() {
       this->rx_buffer_.clear();
     }
     if (this->expect_ack_) {
-      ESP_LOGD(TAG, "Timed out ACK for dest 0x%02x of preceeding frame after %" PRIu32 " ms", this->last_dest_,
+      ESP_LOGD(TAG, "Timed out ACK for dest 0x%02x of preceding frame after %" PRIu32 " ms", this->last_dest_,
                delta_rx);
       this->expect_ack_ = false;
     }
@@ -139,17 +141,25 @@ void BSHDBus::loop() {
   }
 }
 
-void BSHDBus::add_on_frame_callback(
-    std::function<void(std::vector<uint8_t>, uint8_t, uint16_t, std::vector<uint8_t>)> &&frame_callback) {
-  this->frame_callbacks_.add(std::move(frame_callback));
-}
-
 void BSHDBusListener::on_message(uint8_t dest, uint16_t command, std::vector<uint8_t> &message) {
   if ((this->command_ != 0xffff) && (this->command_ != command))
     return;
   if ((this->dest_ != 0xff) && (this->dest_ != dest))
     return;
   this->handle_message(message);
+}
+
+void BSHDBusListener::dump_filter_config(const char *tag) const {
+  if (this->dest_ == 0xff) {
+    ESP_LOGCONFIG(tag, "  Dest node: ANY");
+  } else {
+    ESP_LOGCONFIG(tag, "  Dest node: 0x%02x", this->dest_);
+  }
+  if (this->command_ == 0xffff) {
+    ESP_LOGCONFIG(tag, "  Command: ANY");
+  } else {
+    ESP_LOGCONFIG(tag, "  Command: 0x%04x", this->command_);
+  }
 }
 
 }  // namespace bshdbus

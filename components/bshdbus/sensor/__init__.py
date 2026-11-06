@@ -2,11 +2,12 @@ import esphome.codegen as cg
 from esphome.components import sensor
 import esphome.config_validation as cv
 from esphome.const import CONF_COMMAND, CONF_DEST, CONF_ID, CONF_LAMBDA, CONF_SENSORS
+from esphome.types import ConfigType
 
 from .. import CONF_BSHDBUS_ID, BSHDBus, bshdbus_ns
 
 BSHDBusSensor = bshdbus_ns.class_("BSHDBusSensor", cg.Component)
-BSHDBusSensorSub = bshdbus_ns.class_("BSHDBusSubSensor", cg.Component)
+BSHDBusSensorSub = bshdbus_ns.class_("BSHDBusSubSensor", sensor.Sensor)
 
 CONFIG_SCHEMA = cv.Schema(
     {
@@ -14,7 +15,7 @@ CONFIG_SCHEMA = cv.Schema(
         cv.GenerateID(CONF_BSHDBUS_ID): cv.use_id(BSHDBus),
         cv.Required(CONF_COMMAND): cv.uint16_t,
         cv.Required(CONF_DEST): cv.uint8_t,
-        cv.Optional(CONF_SENSORS): cv.ensure_list(
+        cv.Required(CONF_SENSORS): cv.ensure_list(
             sensor.sensor_schema().extend(
                 {
                     cv.GenerateID(): cv.declare_id(BSHDBusSensorSub),
@@ -26,7 +27,7 @@ CONFIG_SCHEMA = cv.Schema(
 ).extend(cv.COMPONENT_SCHEMA)
 
 
-async def to_code(config):
+async def to_code(config: ConfigType) -> None:
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
 

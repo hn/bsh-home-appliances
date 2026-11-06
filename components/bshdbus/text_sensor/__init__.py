@@ -8,11 +8,12 @@ from esphome.const import (
     CONF_LAMBDA,
     CONF_TEXT_SENSORS,
 )
+from esphome.types import ConfigType
 
 from .. import CONF_BSHDBUS_ID, BSHDBus, bshdbus_ns
 
 BSHDBusTextSensor = bshdbus_ns.class_("BSHDBusTextSensor", cg.Component)
-BSHDBusTextSensorSub = bshdbus_ns.class_("BSHDBusSubTextSensor", cg.Component)
+BSHDBusTextSensorSub = bshdbus_ns.class_("BSHDBusSubTextSensor", text_sensor.TextSensor)
 
 CONFIG_SCHEMA = cv.Schema(
     {
@@ -20,7 +21,7 @@ CONFIG_SCHEMA = cv.Schema(
         cv.GenerateID(CONF_BSHDBUS_ID): cv.use_id(BSHDBus),
         cv.Required(CONF_COMMAND): cv.uint16_t,
         cv.Required(CONF_DEST): cv.uint8_t,
-        cv.Optional(CONF_TEXT_SENSORS): cv.ensure_list(
+        cv.Required(CONF_TEXT_SENSORS): cv.ensure_list(
             text_sensor.text_sensor_schema().extend(
                 {
                     cv.GenerateID(): cv.declare_id(BSHDBusTextSensorSub),
@@ -32,7 +33,7 @@ CONFIG_SCHEMA = cv.Schema(
 ).extend(cv.COMPONENT_SCHEMA)
 
 
-async def to_code(config):
+async def to_code(config: ConfigType) -> None:
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
 

@@ -18,7 +18,7 @@ class BSHDBusTextSensor : public BSHDBusListener, public Component {
   void handle_message(std::vector<uint8_t> &message) override;
 };
 
-class BSHDBusSubTextSensor : public text_sensor::TextSensor, public Component {
+class BSHDBusSubTextSensor : public text_sensor::TextSensor {
  public:
   void set_message_parser(textmessage_parser_t parser) { this->message_parser_ = std::move(parser); };
   void parse_message(std::vector<uint8_t> &message);
