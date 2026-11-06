@@ -1,7 +1,7 @@
 from esphome import automation
 import esphome.codegen as cg
-import esphome.config_validation as cv
 from esphome.components import uart
+import esphome.config_validation as cv
 from esphome.const import CONF_ID, CONF_TRIGGER_ID
 
 # ESPHome component based on VBus component by @ssieb - thanks!
@@ -34,6 +34,7 @@ CONFIG_SCHEMA = uart.UART_DEVICE_SCHEMA.extend(
     }
 )
 
+
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
@@ -43,10 +44,16 @@ async def to_code(config):
         await automation.build_automation(
             trigger,
             [
-                (cg.std_vector.template(cg.uint8).operator("ref").operator("const"), "x"),
+                (
+                    cg.std_vector.template(cg.uint8).operator("ref").operator("const"),
+                    "x",
+                ),
                 (cg.uint8, "dest"),
                 (cg.uint16, "command"),
-                (cg.std_vector.template(cg.uint8).operator("ref").operator("const"), "message"),
+                (
+                    cg.std_vector.template(cg.uint8).operator("ref").operator("const"),
+                    "message",
+                ),
             ],
             conf,
         )

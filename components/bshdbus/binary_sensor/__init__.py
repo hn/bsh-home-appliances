@@ -1,41 +1,36 @@
 import esphome.codegen as cg
-import esphome.config_validation as cv
 from esphome.components import binary_sensor
+import esphome.config_validation as cv
 from esphome.const import (
-    CONF_ID,
     CONF_BINARY_SENSORS,
     CONF_COMMAND,
     CONF_DEST,
+    CONF_ID,
     CONF_LAMBDA,
 )
-from .. import (
-    bshdbus_ns,
-    BSHDBus,
-    CONF_BSHDBUS_ID,
-)
+
+from .. import CONF_BSHDBUS_ID, BSHDBus, bshdbus_ns
 
 BSHDBusBinarySensor = bshdbus_ns.class_("BSHDBusBinarySensor", cg.Component)
 BSHDBusBinarySensorSub = bshdbus_ns.class_("BSHDBusSubBinarySensor", cg.Component)
 
-CONFIG_SCHEMA = (
-    cv.Schema(
-        {
-            cv.GenerateID(): cv.declare_id(BSHDBusBinarySensor),
-            cv.GenerateID(CONF_BSHDBUS_ID): cv.use_id(BSHDBus),
-            cv.Required(CONF_COMMAND): cv.uint16_t,
-            cv.Required(CONF_DEST): cv.uint8_t,
-            cv.Optional(CONF_BINARY_SENSORS): cv.ensure_list(
-                binary_sensor.binary_sensor_schema().extend(
-                    {
-                        cv.GenerateID(): cv.declare_id(BSHDBusBinarySensorSub),
-                        cv.Required(CONF_LAMBDA): cv.lambda_,
-                    }
-                )
-            ),
-        }
-    )
-    .extend(cv.COMPONENT_SCHEMA)
-)
+CONFIG_SCHEMA = cv.Schema(
+    {
+        cv.GenerateID(): cv.declare_id(BSHDBusBinarySensor),
+        cv.GenerateID(CONF_BSHDBUS_ID): cv.use_id(BSHDBus),
+        cv.Required(CONF_COMMAND): cv.uint16_t,
+        cv.Required(CONF_DEST): cv.uint8_t,
+        cv.Optional(CONF_BINARY_SENSORS): cv.ensure_list(
+            binary_sensor.binary_sensor_schema().extend(
+                {
+                    cv.GenerateID(): cv.declare_id(BSHDBusBinarySensorSub),
+                    cv.Required(CONF_LAMBDA): cv.lambda_,
+                }
+            )
+        ),
+    }
+).extend(cv.COMPONENT_SCHEMA)
+
 
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
