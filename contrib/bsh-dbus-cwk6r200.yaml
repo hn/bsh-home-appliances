@@ -1,0 +1,485 @@
+#
+# bsh-dbus-cwk6r200.yaml -- Interface B/S/H/ heat pump dryer Constructa CWK6R200/05
+#
+# This file has been contributed by
+# (C) 2026 malcolm-netizen
+# https://github.com/malcolm-netizen
+#
+# More info:
+# https://github.com/hn/bsh-home-appliances/discussions/148
+#
+# Derived from bsh-dbus-wt47y781.yaml by Jonas Bruestel.
+# Power module EPT58131 (see DRYER.md), D-Bus taken from the unused 3-pin
+# RAST 2.5 header on the user interface module, adapter: Bouni BSH-Board 1.1.
+#
+# Verified on a CWK6R200/05 in November 2026: all 15 programme positions,
+# dryness level / anti-crease / gentle drying keys, start, pause, door,
+# end of a timed and of a sensor-controlled programme.
+# Fault frame 0x1007 = class, code, service word (hi, lo); the panel shows
+# "E:" + code in decimal, class 1 is stored only (not displayed).
+# The power module also has a status block (motor, compressor, temperature)
+# that needs a subscription frame; not part of this read-only file, see the
+# discussion.
+#
+# Read-only by default. Optional Start/Pause buttons that transmit on the bus
+# are included at the end of this file, commented out.
+#
+# WARNING: on this dryer the D-Bus is NOT isolated from mains.
+#
+# (C) 2024 Hajo Noerenberg
+# https://www.noerenberg.de/
+# https://github.com/hn/bsh-home-appliances
+#
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 3.0 as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program. If not, see <http://www.gnu.org/licenses/gpl-3.0.txt>.
+#
+esphome:
+  name: bsh-dbus-cwk6r200
+  friendly_name: BSH dryer CWK6R200
+
+external_components:
+  - source: github://hn/bsh-home-appliances@master
+    components: [bshdbus]
+
+esp32:
+  board: esp32-c6-devkitc-1
+  variant: esp32c6
+  flash_size: 4MB
+  framework:
+    type: esp-idf
+
+logger:
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  # Lower TX power if the bus supply sags during WLAN bursts (WT47R440 needed this):
+  # output_power: 10.5dB
+  ap:
+    ssid: "D-Bus-CWK6R200 Fallback Hotspot"
+    password: !secret wifi_ap_password
+
+captive_portal:
+
+status_led:
+  pin:
+    number: GPIO6
+    inverted: true
+
+uart:
+  - id: dbus_uart
+    rx_pin: GPIO4
+    tx_pin: GPIO5
+    baud_rate: 9600
+
+output:
+  - platform: gpio
+    pin:
+      number: GPIO7
+      inverted: true
+    id: activity_led
+
+bshdbus:
+  uart_id: dbus_uart
+  on_frame:
+    # Uncomment to log every raw frame:
+    # - logger.log:
+    #     format: "frame dest 0x%02x cmd 0x%04x: %s"
+    #     args: [dest, command, format_hex_pretty(message).c_str()]
+    # [TX] For the optional Start/Pause buttons insert the lambda from the
+    # section at the end of this file here.
+    - output.turn_on: activity_led
+    - delay: 20ms
+    - output.turn_off: activity_led
+
+sensor:
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1002
+    sensors:
+      - id: bsh_time_remaining
+        name: Time remaining
+        icon: mdi:clock-outline
+        unit_of_measurement: "min"
+        device_class: duration
+        state_class: measurement
+        accuracy_decimals: 0
+        # seconds, counts down once per minute while running
+        lambda: return (x[0] << 8) | x[1];
+        filters:
+          - multiply: 0.0166667
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1006
+    sensors:
+      - id: bsh_anti_crease_time
+        name: Anti-crease
+        icon: mdi:shield-refresh
+        unit_of_measurement: "min"
+        device_class: duration
+        accuracy_decimals: 0
+        # unsigned on this model: 0x3C = 60 min, 0xB4 = 180 min, 0 = off
+        lambda: return x[1];
+      - id: bsh_program_raw
+        name: Programme code
+        entity_category: diagnostic
+        accuracy_decimals: 0
+        lambda: return x[0];
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1004
+    sensors:
+      # 0x1004 has sub-types: 0x05 = remaining seconds, 0x0A = per-programme value (meaning open),
+      # 0x0D = sent on start. Only the 0x0A byte is exposed, as a raw diagnostic.
+      - id: bsh_1004_0a_raw
+        name: Unknown 0x1004 0A
+        entity_category: diagnostic
+        accuracy_decimals: 0
+        lambda: |-
+          if (x[0] != 0x0A) return NAN;
+          return x[1];
+        filters:
+          - lambda: |-
+              if (std::isnan(x)) return {};
+              return x;
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1007
+    sensors:
+      # class, code, service word hi, lo
+      - id: bsh_fault_group
+        name: Fault class
+        icon: mdi:alert-circle-outline
+        entity_category: diagnostic
+        accuracy_decimals: 0
+        lambda: return x[0];
+      - id: bsh_fault_code
+        name: Fault code
+        icon: mdi:alert-circle-outline
+        entity_category: diagnostic
+        accuracy_decimals: 0
+        lambda: return x[1];
+
+binary_sensor:
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1006
+    binary_sensors:
+      - id: bsh_low_heat
+        name: Gentle drying
+        icon: mdi:feather
+        lambda: return x[6] & 4;
+
+text_sensor:
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1007
+    text_sensors:
+      # as shown on the panel: "E:" + code in decimal (code 0x1E -> E:30)
+      - id: bsh_fault
+        name: Fault
+        icon: mdi:alert-circle-outline
+        lambda: |-
+          if (x.size() < 2 || x[1] == 0) return std::string("No fault");
+          char b[8];
+          snprintf(b, sizeof(b), "E:%02d", x[1] % 100);
+          return std::string(b);
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1006
+    text_sensors:
+      - id: bsh_program
+        name: Drying programme
+        icon: mdi:tshirt-crew-outline
+        lambda: return std::to_string(x[0]);
+        filters:
+          - map:
+            - 1 -> Baumwolle Schranktrocken Plus
+            - 2 -> Baumwolle Schranktrocken
+            - 3 -> Baumwolle Bügeltrocken
+            - 4 -> Outdoor
+            - 5 -> Handtücher
+            - 6 -> Mix
+            - 7 -> Zeitprogramm warm
+            - 8 -> Zeitprogramm kalt
+            - 10 -> Wolle finish
+            - 11 -> 40 min. Schnell
+            - 12 -> Hemden
+            - 13 -> Pflegeleicht Bügeltrocken
+            - 14 -> Pflegeleicht Schranktrocken
+            - 15 -> Pflegeleicht Schranktrocken Plus
+            - 17 -> Dessous
+      - id: bsh_drying_goal
+        name: Drying target
+        icon: mdi:target
+        lambda: return std::to_string(x[2]);
+        filters:
+          - map:
+            - 0 -> Bügeltrocken
+            - 2 -> Schranktrocken
+            - 3 -> Schranktrocken Plus
+            - 5 -> None
+      - id: bsh_fine_adjust
+        name: Dryness level
+        icon: mdi:white-balance-sunny
+        lambda: return std::to_string(x[4]);
+        filters:
+          - map:
+            - 6 -> 0
+            - 8 -> +1
+            - 10 -> +2
+            - 12 -> +3
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1000
+    text_sensors:
+      # byte 0 = 0x29: door event, byte 1 = 0x06 closed / 0x03 open (sent on change only)
+      - id: bsh_door
+        name: Door
+        icon: mdi:door
+        lambda: |-
+          if (x[0] != 0x29) return std::string();
+          return std::to_string(x[1]);
+        filters:
+          - lambda: |-
+              if (x.empty()) return {};
+              return x;
+          - map:
+            - 3 -> Open
+            - 6 -> Closed
+      # other byte-0 values are machine states; 0x0C is repeated every 30 s in every state and ignored
+      - id: bsh_status
+        name: Status
+        icon: mdi:tumble-dryer
+        lambda: |-
+          // only the known programme states; door (29), periodic (0C) and other
+          // codes (power-on handshake, switch-off, ...) keep the last state
+          switch (x[0]) {
+            case 0x02: case 0x16: case 0x17: case 0x2E: case 0x31: break;
+            default: return std::string();
+          }
+          return std::to_string(x[0]);
+        filters:
+          - lambda: |-
+              if (x.empty()) return {};
+              return x;
+          - map:
+            - 46 -> Starting
+            - 22 -> Running
+            - 23 -> Finished
+            - 2 -> Ended
+            - 49 -> Start not confirmed
+  - platform: bshdbus
+    dest: 0x11
+    command: 0x1001
+    text_sensors:
+      - id: bsh_ready
+        name: Programme control
+        icon: mdi:tumble-dryer
+        lambda: return std::to_string(x[0]);
+        filters:
+          - map:
+            - 1 -> Running
+            - 3 -> Ready
+            # 04 = power-on hello of the UI module
+            - 4 -> Power on
+            - 35 -> Start requested
+            - 36 -> Starting
+  - platform: bshdbus
+    dest: 0x21
+    command: 0x1003
+    text_sensors:
+      - id: bsh_phase
+        name: Programme phase
+        icon: mdi:progress-clock
+        lambda: return std::to_string(x[0]);
+        filters:
+          - map:
+            - 5 -> Finished
+            - 7 -> Finished
+            - 11 -> Drying
+            # second drying stage after the moisture estimate (new remaining time)
+            - 12 -> Drying
+            - 13 -> Finishing
+
+# =============================================================================
+# OPTIONAL: Start / Pause over the bus -- DISABLED
+#
+# Transmitting on the D-Bus is not recommended by this project; use at your own
+# risk. Verified on a CWK6R200/05 (see the discussion): Pause sends 0x11/0x1001
+# 03 00; Start replays the UI module's sequence 23 00, 24 00, waits for the
+# power module's 0x21/0x1000 2E 00 and sends 01 00. Frames go out ~150 ms after
+# the 0x0F/0xE000 heartbeat, when the bus is quiet. The programme is still
+# selected with the knob; settings (0x1006) are not sent because the UI module
+# owns the panel symbols and overwrites them.
+#
+# To enable:
+#   1. insert the lambda below into bshdbus: on_frame: (see [TX] above)
+#   2. uncomment globals:, script: and button: below
+#   3. optionally add "Last sent frame" to text_sensor:
+# =============================================================================
+#
+# --- 1. on_frame lambda -------------------------------------------------------
+#     - lambda: |-
+#           if (dest == 0x21 && command == 0x1000 && message.size() >= 2 && message[0] == 0x29)
+#             id(door_state) = (message[1] == 0x06) ? 1 : (message[1] == 0x03 ? 0 : -1);
+#           if (dest == 0x11 && command == 0x1001 && !message.empty()) {
+#             id(control_state) = message[0];
+#             if (message[0] == 0x01) id(seen_running_echo) = true;
+#           }
+#           // power module accepted the start request
+#           if (dest == 0x21 && command == 0x1000 && !message.empty() && message[0] == 0x2E)
+#             id(seen_starting) = true;
+#           // heartbeat: the bus is quiet for ~2.5 s afterwards -> send a pending frame
+#           if (dest == 0x0F && command == 0xE000 && !id(tx_pending).empty())
+#             id(tx_send).execute();
+#           if (dest == 0x0F && command == 0xE000 && id(start_pending)) {
+#             id(start_pending) = false;
+#             id(start_delay).execute();
+#           }
+#
+# --- 2. globals / script / button -----------------------------------------
+# globals:
+#   - id: door_state          # -1 unknown, 0 open, 1 closed (only known after a door event)
+#     type: int
+#     initial_value: '-1'
+#   - id: control_state       # last 0x11/0x1001 byte 0, -1 unknown
+#     type: int
+#     initial_value: '-1'
+#   - id: tx_pending          # complete frame waiting for the next quiet gap
+#     type: std::vector<uint8_t>
+#   - id: start_pending       # start sequence waiting for the next quiet gap
+#     type: bool
+#     initial_value: 'false'
+#   - id: seen_starting       # power module answered 0x1000 2E during our start sequence
+#     type: bool
+#     initial_value: 'false'
+#   - id: seen_running_echo   # 0x11/0x1001 01 00 seen on the bus (our echo or the UI module)
+#     type: bool
+#     initial_value: 'false'
+#
+# script:
+#   - id: tx_send
+#     mode: single
+#     then:
+#       - delay: 150ms
+#       - lambda: |-
+#           auto &f = id(tx_pending);
+#           if (f.empty()) return;
+#           id(dbus_uart).write_array(f.data(), f.size());
+#           ESP_LOGI("dryer_tx", "sent: %s", format_hex_pretty(f).c_str());
+#           id(last_tx).publish_state(format_hex_pretty(f));
+#           f.clear();
+#
+#   - id: start_delay
+#     mode: single
+#     then:
+#       - delay: 150ms
+#       - script.execute: start_seq
+#
+#   # Same sequence the UI module sends on the start key:
+#   # 0x1001 23 00, ~450 ms later 24 00, power module answers 0x1000 2E 00, then 0x1001 01 00 and 0x1005 00 00 00
+#   - id: start_seq
+#     mode: single
+#     then:
+#       - lambda: |-
+#           id(seen_starting) = false;
+#           id(tx_frame)->execute(std::vector<int>{0x11, 0x10, 0x01, 0x23, 0x00});
+#       - delay: 450ms
+#       - lambda: id(tx_frame)->execute(std::vector<int>{0x11, 0x10, 0x01, 0x24, 0x00});
+#       - wait_until:
+#           condition:
+#             lambda: return id(seen_starting);
+#           timeout: 1s
+#       - if:
+#           condition:
+#             lambda: return id(seen_starting);
+#           then:
+#             # the UI module answers 2E with its own 0x1005 00 00 00; let it finish first
+#             - delay: 150ms
+#             - lambda: |-
+#                 id(seen_running_echo) = false;
+#                 id(tx_frame)->execute(std::vector<int>{0x11, 0x10, 0x01, 0x01, 0x00});
+#             - delay: 100ms
+#             # echo check: our 01 00 must come back intact, otherwise send it once more
+#             - if:
+#                 condition:
+#                   lambda: return !id(seen_running_echo);
+#                 then:
+#                   - logger.log:
+#                       level: WARN
+#                       tag: dryer_tx
+#                       format: "01 00 not echoed, retrying once"
+#                   - delay: 60ms
+#                   - lambda: id(tx_frame)->execute(std::vector<int>{0x11, 0x10, 0x01, 0x01, 0x00});
+#           else:
+#             - logger.log:
+#                 level: WARN
+#                 tag: dryer_tx
+#                 format: "start sequence aborted: no 0x1000 2E from power module"
+#
+#   # Build LL DS CC CC data CRC CRC and write it immediately
+#   - id: tx_frame
+#     mode: queued
+#     parameters:
+#       body: int[]
+#     then:
+#       - lambda: |-
+#           std::vector<uint8_t> f;
+#           f.push_back((uint8_t)(body.size() - 1));
+#           for (auto b : body) f.push_back((uint8_t) b);
+#           uint16_t crc = crc16be(f.data(), f.size(), 0x0, 0x1021, false, false);
+#           f.push_back(crc >> 8); f.push_back(crc & 0xFF);
+#           id(dbus_uart).write_array(f.data(), f.size());
+#           ESP_LOGI("dryer_tx", "sent: %s", format_hex_pretty(f).c_str());
+#           id(last_tx).publish_state(format_hex_pretty(f));
+#
+# button:
+#   - platform: template
+#     name: Start (test)
+#     icon: mdi:play
+#     on_press:
+#       - lambda: |-
+#           // door state is only sent on change; block only if known open. With the door actually open the
+#           // power module does not answer 2E and the sequence aborts after 1 s.
+#           if (id(door_state) == 0) { ESP_LOGW("dryer_tx", "start blocked: door open"); return; }
+#           if (id(control_state) != 3) { ESP_LOGW("dryer_tx", "start blocked: not ready (0x1001=%d)", id(control_state)); return; }
+#           id(start_pending) = true;
+#           ESP_LOGI("dryer_tx", "start sequence queued");
+#   - platform: template
+#     name: Pause (test)
+#     icon: mdi:pause
+#     on_press:
+#       - lambda: |-
+#           if (id(control_state) != 1) { ESP_LOGW("dryer_tx", "pause blocked: not running (0x1001=%d)", id(control_state)); return; }
+#           // 0x11/0x1001 03 00, as sent by the UI module on start-pause while running
+#           std::vector<uint8_t> f = {0x04, 0x11, 0x10, 0x01, 0x03, 0x00};
+#           uint16_t crc = crc16be(f.data(), f.size(), 0x0, 0x1021, false, false);
+#           f.push_back(crc >> 8); f.push_back(crc & 0xFF);
+#           id(tx_pending) = f;
+#           ESP_LOGI("dryer_tx", "pause queued: %s", format_hex_pretty(f).c_str());
+#
+# --- 3. optional -----------------------------------------------------------
+# text_sensor:
+#   - platform: template
+#     id: last_tx
+#     name: Last sent frame
+#     entity_category: diagnostic
