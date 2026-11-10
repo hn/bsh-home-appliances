@@ -37,8 +37,18 @@ static constexpr uint16_t CMD_ID_RESPONSE = 0xFE00;
 
 static constexpr uint16_t CMD_SET_MODULE = 0xF300;
 
+static constexpr uint16_t CMD_STREAM_START = 0xF301;
+static constexpr uint16_t CMD_STREAM_END   = 0xF302;
+
+static constexpr uint16_t CMD_UPDATESTATUS_REQUEST  = 0xF303;
+static constexpr uint16_t CMD_UPDATESTATUS_RESPONSE = 0xF304;
+static constexpr uint16_t CMD_UPDATESTATUS_RESET    = 0xF305;
+
 static constexpr uint16_t CMD_FLASHPAGESIZE_REQUEST  = 0xF400;
 static constexpr uint16_t CMD_FLASHPAGESIZE_RESPONSE = 0xF500;
+
+static constexpr uint16_t CMD_ERASEBLOCK_REQUEST  = 0xF600;
+static constexpr uint16_t CMD_ERASEBLOCK_RESPONSE = 0xF700;
 
 static constexpr uint16_t CMD_NODE_RESTART    = 0xFD00;
 static constexpr uint16_t CMD_NODE_BOOTLOADER = 0xFDFF;
