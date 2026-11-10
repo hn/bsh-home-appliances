@@ -17,10 +17,9 @@ Manager::Manager(uart_port_t uartNr) : _uart(uartNr) {
 
 bool Manager::setBaud(uint32_t baud, bool evenParity) {
   _baud                 = baud;
-  _byteTimeUs           = 10 * 1000000 / baud;
-  _parserResetTimeoutUs = _byteTimeUs * 5 / 2;
-  _txBusSilenceMinUs    = _byteTimeUs * 5;
-  _txBusSilenceMaxUs    = _byteTimeUs * 8;
+  _bitTimeUs            = 1000000 / baud;
+  _parserResetTimeoutUs = _bitTimeUs * 19;
+  _txIdleBaseUs         = _bitTimeUs * 10;
 
   uart_config_t cfg = {.baud_rate  = (int)baud,
                        .data_bits  = UART_DATA_8_BITS,
@@ -189,13 +188,15 @@ void Manager::task(void *pv) {
     bool    hasRxByte = uart_read_bytes(m->_uart, &b, 1, pdMS_TO_TICKS(1)) > 0;
     int64_t now       = esp_timer_get_time();
 
-    // 2. If the bus has been silent long enough to exceed the inter-frame gap,
-    //    reset the parser to WAIT_FOR_LEN. If a TX job was in flight, it missed
-    //    its ACK window — fail the attempt so retries or final failure can proceed.
+    // 2. If the bus has been silent longer than the inter-byte timeout (19 bit
+    //    times), reset the parser to WAIT_FOR_LEN. If a TX job was in flight, it
+    //    missed its echo or ACK window — fail the attempt so retries or final
+    //    failure can proceed. The manufacturer's firmware uses about the same
+    //    limit, depending on the version.
     if ((now - m->_lastActivity) > m->_parserResetTimeoutUs) {
       if (m->_activeTxJob && m->_txInFlight) {
         DBUS2_LOGV("Parser reset with active TX job (dest 0x%02X), failing", m->_activeTxJob->frame.dest);
-        m->completeTxAttempt(false);
+        m->completeTxAttempt(TxResult::NO_ACK);
       }
       if (m->_state != BusState::WAIT_FOR_LEN) {
         DBUS2_LOGV("Parser reset from state %d after bus silence", (int)m->_state);
@@ -208,7 +209,8 @@ void Manager::task(void *pv) {
     //    whenever the echo of the previous one matches — driving the byte-by-byte
     //    TX interleaved with RX.
     if (hasRxByte) {
-      m->_lastActivity = now;
+      m->_lastActivity    = now;
+      m->_txSilenceTarget = 0; // draw a new back-off for the next idle period
       m->processRxByte(b);
     }
 
@@ -228,12 +230,15 @@ void Manager::task(void *pv) {
       }
     }
 
-    // 5. Attempt to send the active job once the bus has been idle long enough.
-    //    A random silence window [min, max] is chosen on first entry to implement
-    //    CSMA — multiple nodes back off for different durations to avoid
-    //    collisions. Only the first byte (length) is written here; subsequent
-    //    bytes are sent one-by-one as their echoes are confirmed in
+    // 5. Attempt to send the active job once the bus has been idle long enough:
+    //    10 bit times plus a random back-off of 0..7 bit times, widened after
+    //    collisions (see _backoffLevel), as some versions of the manufacturer's firmware do. The
+    //    back-off is drawn anew after every bus activity, so competing nodes
+    //    start at different times. Only the first byte (length) is written here;
+    //    subsequent bytes are sent one-by-one as their echoes are confirmed in
     //    processRxByte().
+    //    The check runs once per loop iteration; with a 1 ms FreeRTOS tick the
+    //    actual silence is rounded up to the next tick when the bus is idle.
     if ((m->_state == BusState::WAIT_FOR_LEN) && m->_activeTxJob && !m->_txInFlight) {
       if ((now - m->_activeTxJob->timestamp) > TXJOB_QUEUE_MAX_AGE_US) {
         DBUS2_LOGV("Stale active TX job discarded (dest 0x%02X, age %lld us)", m->_activeTxJob->frame.dest,
@@ -241,8 +246,8 @@ void Manager::task(void *pv) {
         m->finishActiveTxJob(false);
       } else {
         if (m->_txSilenceTarget == 0) {
-          m->_txSilenceTarget =
-              m->_txBusSilenceMinUs + (esp_random() % (m->_txBusSilenceMaxUs - m->_txBusSilenceMinUs + 1));
+          uint32_t mask       = (8u << m->_backoffLevel) - 1; // 7, 15, 31, 63, 127
+          m->_txSilenceTarget = m->_txIdleBaseUs + m->_bitTimeUs * (esp_random() & mask);
         }
         if ((now - m->_lastActivity) > m->_txSilenceTarget) {
           m->_txSilenceTarget = 0;
@@ -278,7 +283,7 @@ void Manager::processRxByte(uint8_t b) {
           uart_write_bytes(_uart, (const char *)&_activeTxJob->frame.dest, 1);
         } else {
           DBUS2_LOGV("TX collision at length byte: sent 0x%02X, echo 0x%02X", _activeTxJob->frame.length, b);
-          completeTxAttempt(false);
+          completeTxAttempt(TxResult::COLLISION);
           _state = BusState::SKIP_EXCESS_DATA;
           return;
         }
@@ -301,7 +306,7 @@ void Manager::processRxByte(uint8_t b) {
           uart_write_bytes(_uart, (const char *)_activeTxJob->frame.data.data(), 1);
         } else {
           DBUS2_LOGV("TX collision at dest byte: sent 0x%02X, echo 0x%02X", _activeTxJob->frame.dest, b);
-          completeTxAttempt(false);
+          completeTxAttempt(TxResult::COLLISION);
           _state = BusState::SKIP_EXCESS_DATA;
           return;
         }
@@ -336,7 +341,7 @@ void Manager::processRxByte(uint8_t b) {
         } else {
           DBUS2_LOGV("TX collision at data[%d]: sent 0x%02X, echo 0x%02X", (int)(currPos - 1),
                      _activeTxJob->frame.data[currPos - 1], b);
-          completeTxAttempt(false);
+          completeTxAttempt(TxResult::COLLISION);
           _state = BusState::SKIP_EXCESS_DATA;
           return;
         }
@@ -348,6 +353,8 @@ void Manager::processRxByte(uint8_t b) {
       if (!_crcHighByteRead) {
         if (b != (_calcCrc >> 8)) {
           DBUS2_LOGV("CRC high byte mismatch: received 0x%02X, calculated 0x%02X", b, _calcCrc >> 8);
+          if (expectTxEcho)
+            completeTxAttempt(TxResult::COLLISION);
           _state = BusState::SKIP_EXCESS_DATA;
           return;
         }
@@ -361,6 +368,8 @@ void Manager::processRxByte(uint8_t b) {
 
       if (b != (_calcCrc & 0xFF)) {
         DBUS2_LOGV("CRC low byte mismatch: received 0x%02X, calculated 0x%02X", b, _calcCrc & 0xFF);
+        if (expectTxEcho)
+          completeTxAttempt(TxResult::COLLISION);
         _state = BusState::SKIP_EXCESS_DATA;
         return;
       }
@@ -370,7 +379,8 @@ void Manager::processRxByte(uint8_t b) {
       if (expectTxEcho) {
         // TX loopback echo — frame we just sent came back valid.
         if (_currentFrame.isBroadcast()) {
-          // Broadcast: always self-ACK (protocol requirement)
+          // Broadcast: always self-ACK (protocol requirement). Depending on the firmware, the high
+          // nibble is the sender's node id or 0x0; receivers accept both
           uint8_t selfAck = (_activeTxJob->senderNodeId << 4) | 0x0A;
           uart_write_bytes(_uart, (const char *)&selfAck, 1);
           DBUS2_LOGV("ACK with 0x%02X for frame to 0x%02X: broadcast self-ACK", selfAck, _currentFrame.dest);
@@ -385,7 +395,11 @@ void Manager::processRxByte(uint8_t b) {
           }
         }
       } else if (_isLocal) {
-        // Unicast to us (not our own TX echo): ACK if queued, silent drop if queue full
+        // Unicast to us (not our own TX echo): ACK if queued, silent drop if queue full. No NACK:
+        // 0x?7 means CRC error, and 0x?3 means frame too long or busy depending on the firmware.
+        // The ACK goes out right away; the manufacturer's firmware sends it within about 8.5 bit times
+        // after the last CRC byte (some versions drop it if they are later), senders wait about 19 bit times.
+        _backoffLevel = 0;
         if (queued) {
           uint8_t ack = (_currentFrame.dest & 0xF0) | 0x0A;
           uart_write_bytes(_uart, (const char *)&ack, 1);
@@ -396,7 +410,8 @@ void Manager::processRxByte(uint8_t b) {
       }
       // Broadcast without expectTxEcho or unicast to non-local node: no ACK from us
 
-      // After every valid frame, consume the trailing ACK byte
+      // After every valid frame, consume the trailing ACK byte. A broadcast is always followed
+      // by the sender's self-ACK (0x0A or node id << 4 | 0x0A); any byte is taken as the ACK.
       _state = BusState::WAIT_FOR_ACK;
       break;
     }
@@ -407,12 +422,17 @@ void Manager::processRxByte(uint8_t b) {
         uint8_t expectedAck = _activeTxJob->frame.isBroadcast() ? (_activeTxJob->senderNodeId << 4) | 0x0A
                                                                 : (_activeTxJob->frame.dest & 0xF0) | 0x0A;
         if (b == expectedAck) {
-          completeTxAttempt(true);
+          completeTxAttempt(TxResult::OK);
         } else {
+          // A NACK (0x?7 CRC error, 0x?3 frame too long or busy, depending on the firmware) or a
+          // wrong ACK fails the attempt like a missing ACK, and it is retried
           DBUS2_LOGV("Unexpected ACK 0x%02X (expected 0x%02X)", b, expectedAck);
+          completeTxAttempt(TxResult::NO_ACK);
         }
       }
-      _state = BusState::SKIP_EXCESS_DATA;
+      // The frame ends with the ACK: the next byte is the length byte of the next frame. Nodes may
+      // start sending after 10..17 bit times of silence, earlier than the 19 bit parser reset.
+      _state = BusState::WAIT_FOR_LEN;
       break;
     }
 
@@ -433,7 +453,18 @@ void Manager::finishActiveTxJob(bool success) {
   _activeTxJob = nullptr;
 }
 
-void Manager::completeTxAttempt(bool success) {
+// Retries are counted per job regardless of the cause. The manufacturer's firmware counts per cause
+// instead, with limits depending on the version (typically 2 to 5, more on collisions).
+// Counting per cause would need NACKs to be told apart from other bytes, which is deliberately not
+// done (see WAIT_FOR_ACK).
+// A collision widens the random back-off before the retry, as some versions of the manufacturer's
+// firmware do (others keep 0..7 bit times); success resets it.
+void Manager::completeTxAttempt(TxResult result) {
+  bool success = (result == TxResult::OK);
+  if (success)
+    _backoffLevel = 0;
+  else if ((result == TxResult::COLLISION) && (_backoffLevel < BACKOFF_LEVEL_MAX))
+    _backoffLevel++;
   if ((_activeTxJob->retries > 0) && !success) {
     DBUS2_LOGV("TX frame to 0x%02X: failed, %d retries left", _activeTxJob->frame.dest, _activeTxJob->retries);
     _activeTxJob->retries--;

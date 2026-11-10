@@ -14,6 +14,13 @@ enum class BusState {
   SKIP_EXCESS_DATA
 };
 
+// Outcome of one transmission attempt
+enum class TxResult {
+  OK,        // ACK received (or broadcast self-ACK echoed)
+  COLLISION, // echo differed from the sent byte: another node sent at the same time
+  NO_ACK     // no echo or ACK in time, or a wrong or negative ACK
+};
+
 class Manager {
 public:
   Manager(uart_port_t uartNr);
@@ -66,14 +73,20 @@ private:
   // Baud-dependent timeouts (calculated in begin())
   // Configured baud rate
   uint32_t _baud = 0;
-  // Duration of one byte at configured baud rate (10 bits for 8N1), in µs
-  int64_t _byteTimeUs;
-  // Max bus silence before parser reset, in µs (2.5 byte times)
+  // Duration of one bit at configured baud rate, in µs. The manufacturer's firmware derives its bus
+  // timing from the bit time, so the values below scale with the baud rate the same way.
+  int64_t _bitTimeUs;
+  // Max gap between two bytes of a frame before the parser resets, in µs (19 bit times, ~2 ms at
+  // 9600 baud). Also bounds the wait for the ACK after the last CRC byte.
   int64_t _parserResetTimeoutUs;
-  // Min bus silence before transmitting, in µs (5 byte times)
-  int64_t _txBusSilenceMinUs;
-  // Max bus silence before transmitting, in µs (8 byte times)
-  int64_t _txBusSilenceMaxUs;
+  // Fixed part of the bus silence required before transmitting, in µs (10 bit times = one byte)
+  int64_t _txIdleBaseUs;
+
+  // Random back-off on top of _txIdleBaseUs, in bit times: 0..7 initially, widened to 0..15,
+  // 0..31, 0..63, 0..127 after each collision and reset to 0..7 after a successful transmission
+  // or a valid frame addressed to us (as some versions of the manufacturer's firmware do; others keep 0..7)
+  static constexpr uint8_t BACKOFF_LEVEL_MAX = 4;
+  uint8_t _backoffLevel = 0;
 
   uart_port_t         _uart;
   QueueHandle_t       _txQueue;
@@ -98,7 +111,7 @@ private:
   void        processRxByte(uint8_t b);
   void        processRxJobs();
   void        finishActiveTxJob(bool success);
-  void        completeTxAttempt(bool success);
+  void        completeTxAttempt(TxResult result);
   bool        enqueueRxJob(int64_t timestamp, bool isTxEcho = false);
   uint16_t    updateCrc(uint16_t crc, uint8_t data);
 };
