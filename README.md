@@ -228,34 +228,43 @@ However, these have not yet been observed in normal operation.
 
 #### Acknowledgement byte
 
-When the destination node receives a frame, it immediately sends an acknowledgement byte.
-The sender reads this byte to determine the delivery status.
+When the destination node receives a unicast frame, it answers with an
+acknowledgement byte right after the CRC, usually within less than 1 ms.
+The high nibble is that of the destination (DS & 0xF0), the low nibble the status:
+`0xA` for OK (can it be that it is "A" for "Acknowledgement", really?), `0x7` for a CRC error and `0x3` for a frame that is too long or a full receive buffer
+(only some firmware variants).
+In practice almost every acknowledgement ends in `0xA`: some firmware variants
+never send `0x3`, and some can switch negative acknowledgements off entirely.
 
-The high nibble of the acknowledgement byte corresponds to that of the receiving target (DS & 0xF0).
-For successful deliveries, the low nibble is set to 0xA (can it be that it is "A" for "Acknowledgement", really?).
-If the frame size exceeds the destination node's receive buffer, it sends 0x3 as the low nibble.
-If the CRC is corrupt, it sends 0x7.
+Broadcast frames (DS & 0xF0 = 0x00) are not acknowledged by the receivers;
+the sender acknowledges its own frame. Depending on the firmware variant, the
+high nibble is the sender's node id (e.g. `1a`) or `0x0` (e.g. `0a` in the
+[boot log](#boot-log) below).
 
-For broadcast frames (DS & 0xF0 = 0x00), the frame is auto-acknowledged by the sender itself;
-therefore, the high nibble contains the id of the sender and the low nibble contains the status as described above.
-On certain software versions, the high nibble has been observed to be 0x0 instead (e.g. `0a` in the [boot log](#boot-log) below).
-
-If the sender does not receive an acknowledgement byte indicating success,
-it waits for a random backoff time of 5 to 8 byte times
-(at 9600 baud with 8N1 framing, one byte time is 1.042 ms = 10 × 104.167 µs)
-and then retransmits the frame.
-After three retransmission attempts without an acknowledgement,
-the transmission is considered to have failed.
+On a collision, a missing or a negative acknowledgement, the sender retransmits
+the frame after a new random back-off. How often depends on the firmware
+variant and the kind of error (typically 2 to 5 retransmissions, more on collisions).
 
 #### Timing
 
-The D-Bus protocol is highly dependent on precise timing, as it utilizes inter-frame gaps to
-establish synchronization. The state machine resets its status whenever no character is received
-for a duration equivalent to 2 bytes (which corresponds to 2.083ms at 9600 baud).
+Timing depends on the firmware variant. Typical values at 9600 baud
+(one bit time is 104 µs, one byte with 8N1 framing 1.04 ms); variants that
+support other baud rates scale them with the bit time:
 
-Implementations that lack access to exact timing information (such as the [ESPHome component](components/bshdbus/))
-can therefore only approximate the protocol. However, in practice, these approximations
-generally function quite reliably.
+- A gap of more than about 19 bit times (~2 ms) inside a frame discards it;
+  the next byte is taken as the length byte of a new frame.
+- Before sending, a node waits until the bus has been idle for 10 bit times
+  plus a random 0 to 7 bit times (1.0 to 1.8 ms). Some variants widen the
+  random part after each collision (up to 127 bit times).
+- The acknowledgement follows the CRC within about 0.9 ms; the sender waits
+  about 2 ms for it.
+
+Because nodes may start sending before the 2 ms gap has passed, frames are
+delimited by the length byte and the acknowledgement, not by gaps alone.
+
+Implementations that lack access to exact timing information (such as the
+[ESPHome component](components/bshdbus/)) can therefore only approximate the
+protocol. However, in practice, these approximations generally function quite reliably.
 
 #### Boot log
 
