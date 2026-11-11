@@ -1,0 +1,770 @@
+#
+# bsh-dbus-sx56p592eu.yaml -- Interface B/S/H/ dishwasher SX56P592EU/A7 (Siemens)
+#
+# This file has been contributed by
+# (C) 2026 MichaelHeimann
+# https://github.com/MichaelHeimann
+#
+#
+# (C) 2026 Hajo Noerenberg
+# https://www.noerenberg.de/
+# https://github.com/hn/bsh-home-appliances
+#
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 3.0 as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program. If not, see <http://www.gnu.org/licenses/gpl-3.0.txt>.
+#
+
+esphome:
+  name: bsh-board-spuelmaschine
+  friendly_name: BSH Board Spülmaschine
+  min_version: 2025.11.0
+  name_add_mac_suffix: false
+
+external_components:
+  - source: github://hn/bsh-home-appliances@master
+
+
+esp32:
+  variant: esp32c6
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger:
+  level: DEBUG
+
+time:
+  - platform: homeassistant
+    id: ha_time
+
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret bsh_board_spuelmaschine__encryption_key
+
+# Allow Over-The-Air updates
+ota:
+- platform: esphome
+  encryption:
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+
+# d-bus config from now on
+
+output:
+  - platform: gpio
+    pin: 
+      number: GPIO07
+      inverted: true
+    id: activity_led
+
+uart:
+  id: dbus_uart
+  rx_pin: GPIO4
+  tx_pin: GPIO5
+  baud_rate: 9600
+  debug:
+    direction: BOTH
+    dummy_receiver: false
+    after:
+      # Trigger after 1 byte to ensure the LED blinks immediately
+      bytes: 1
+    sequence:
+      - output.turn_on: activity_led
+      - delay: 20ms
+      - output.turn_off: activity_led
+
+bshdbus:
+  uart_id: dbus_uart
+  on_frame:
+#    - logger.log:
+#        format: "Received frame dest 0x%02x cmd 0x%04x: 0x%s"
+#        args: [dest, command, format_hex(message).c_str()]
+    - output.turn_on: activity_led
+    - delay: 20ms
+    - output.turn_off: activity_led
+
+status_led:
+  pin:
+    number: GPIO06
+    inverted: true
+
+    
+binary_sensor:
+  # Door and consumable warnings: 0x24/0x2006
+  - platform: bshdbus
+    dest: 0x24
+    command: 0x2006
+    binary_sensors:
+      - id: bsh_dw_salt
+        name: "Salz"
+        device_class: problem
+        icon: mdi:shaker-outline
+        lambda: return !x.empty() && ((x[0] >> 0) & 0x01);
+
+      - id: bsh_dw_rinse_aid_ready
+        name: "Klarspüler"
+        device_class: problem
+        icon: mdi:glass-cocktail
+        lambda: return !x.empty() && ((x[0] >> 1) & 0x01);
+
+      # The D-Bus bit means "door closed"; invert it so the HA door entity is
+      # ON when the door is open.
+      - id: bsh_dw_door
+        name: "Tür"
+        device_class: door
+        lambda: return !x.empty() && !((x[0] >> 3) & 0x01);
+
+  # Exact dishwasher state: 0x27/0x2007
+  - platform: bshdbus
+    dest: 0x27
+    command: 0x2007
+    binary_sensors:
+      - id: bsh_dw_running
+        name: "Status"
+        device_class: running
+        trigger_on_initial_state: true
+        lambda: return !x.empty() && x[0] == 0x01;
+        on_press:
+          - binary_sensor.template.publish:
+              id: bsh_dw_active_or_delayed
+              state: true
+          - sensor.template.publish:
+              id: bsh_dw_delay
+              state: 0
+
+      - id: bsh_dw_delayed_start_armed
+        name: "Verzögerter Start aktiv"
+        icon: mdi:timer-play-outline
+        trigger_on_initial_state: true
+        lambda: return !x.empty() && x[0] == 0x04;
+        on_press:
+          - binary_sensor.template.publish:
+              id: bsh_dw_active_or_delayed
+              state: true
+
+      - id: helper_status_inactive
+        internal: true
+        trigger_on_initial_state: true
+        lambda: |-
+          if (x.empty()) return false;
+          return x[0] == 0x02 ||
+                 x[0] == 0x03 ||
+                 x[0] == 0x06;
+        on_press:
+          - binary_sensor.template.publish:
+              id: bsh_dw_active_or_delayed
+              state: false
+          - sensor.template.publish:
+              id: bsh_dw_delay
+              state: 0
+
+  # Latches ON while running or waiting for a delayed start.
+  - platform: template
+    name: "Active oder Verzögert"
+    id: bsh_dw_active_or_delayed
+    device_class: running
+    lambda: |-
+      if (id(bsh_dw_active_or_delayed).has_state()) {
+        return id(bsh_dw_active_or_delayed).state;
+      }
+      return false;
+
+  # Power state: 0x25/0x2012
+  - platform: bshdbus
+    dest: 0x25
+    command: 0x2012
+    binary_sensors:
+      - id: bsh_dw_powered
+        name: "Eingeschaltet"
+        device_class: power
+        trigger_on_initial_state: true
+        lambda: return !x.empty() && x[0] == 0x01;
+        on_release:
+          - binary_sensor.template.publish:
+              id: bsh_dw_active_or_delayed
+              state: false
+          - sensor.template.publish:
+              id: bsh_dw_delay
+              state: 0
+
+  # Appliance fault flag: 0x26/0x2002
+  - platform: bshdbus
+    dest: 0x26
+    command: 0x2002
+    binary_sensors:
+      - id: bsh_dw_error_present
+        name: "Gerätefehler"
+        device_class: problem
+        icon: mdi:alert-circle
+        lambda: |-
+          if (x.size() < 4) return false;
+
+          for (auto value : x) {
+            if (value != 0x00) return true;
+          }
+
+          return false;
+
+  # Public option-state entities. The internal frame readers below update
+  # these from both live panel messages and the initial status snapshot.
+  - platform: template
+    name: "Option VarioSpeed"
+    id: bsh_opt_variospeed
+    icon: mdi:speedometer
+
+  - platform: template
+    name: "Option IntensivZone"
+    id: bsh_opt_intensivzone
+    icon: mdi:pot-steam
+
+  - platform: template
+    name: "Option Hygiene"
+    id: bsh_opt_hygiene
+    icon: mdi:bacteria-outline
+
+  - platform: template
+    name: "Option Glanztrocknen"
+    id: bsh_opt_glanz
+    icon: mdi:shimmer
+
+  # Option state from the control panel: 0x17/0x1000, byte 1
+  - platform: bshdbus
+    dest: 0x17
+    command: 0x1000
+    binary_sensors:
+      - id: helper_panel_variospeed
+        internal: true
+        trigger_on_initial_state: true
+        lambda: return x.size() > 1 && (x[1] & 0x80) != 0;
+        on_state:
+          then:
+            - binary_sensor.template.publish:
+                id: bsh_opt_variospeed
+                state: !lambda "return x;"
+
+      - id: helper_panel_intensivzone
+        internal: true
+        trigger_on_initial_state: true
+        lambda: return x.size() > 1 && (x[1] & 0x40) != 0;
+        on_state:
+          then:
+            - binary_sensor.template.publish:
+                id: bsh_opt_intensivzone
+                state: !lambda "return x;"
+
+      - id: helper_panel_hygiene
+        internal: true
+        trigger_on_initial_state: true
+        lambda: return x.size() > 1 && (x[1] & 0x08) != 0;
+        on_state:
+          then:
+            - binary_sensor.template.publish:
+                id: bsh_opt_hygiene
+                state: !lambda "return x;"
+
+      - id: helper_panel_glanz
+        internal: true
+        trigger_on_initial_state: true
+        lambda: return x.size() > 1 && (x[0] & 0x01) != 0;
+        on_state:
+          then:
+            - binary_sensor.template.publish:
+                id: bsh_opt_glanz
+                state: !lambda "return x;"
+
+  # Option state from the initial/status packet: 0x25/0x2010, byte 8
+  - platform: bshdbus
+    dest: 0x25
+    command: 0x2010
+    binary_sensors:
+      - id: helper_init_variospeed
+        internal: true
+        trigger_on_initial_state: true
+        lambda: return x.size() > 8 && (x[8] & 0x80) != 0;
+        on_state:
+          then:
+            - binary_sensor.template.publish:
+                id: bsh_opt_variospeed
+                state: !lambda "return x;"
+
+      - id: helper_init_intensivzone
+        internal: true
+        trigger_on_initial_state: true
+        lambda: return x.size() > 8 && (x[8] & 0x40) != 0;
+        on_state:
+          then:
+            - binary_sensor.template.publish:
+                id: bsh_opt_intensivzone
+                state: !lambda "return x;"
+
+      - id: helper_init_hygiene
+        internal: true
+        trigger_on_initial_state: true
+        lambda: return x.size() > 8 && (x[8] & 0x08) != 0;
+        on_state:
+          then:
+            - binary_sensor.template.publish:
+                id: bsh_opt_hygiene
+                state: !lambda "return x;"
+
+      - id: helper_init_glanz
+        internal: true
+        trigger_on_initial_state: true
+        lambda: return x.size() > 8 && (x[8] & 0x02) != 0;
+        on_state:
+          then:
+            - binary_sensor.template.publish:
+                id: bsh_opt_glanz
+                state: !lambda "return x;"
+
+sensor:
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 60s
+
+  - platform: uptime
+    name: "Uptime"
+
+  # Direct program progress from 0 to 100 percent: 0x25/0x2000
+  - platform: bshdbus
+    dest: 0x25
+    command: 0x2000
+    sensors:
+      - id: bsh_dw_progress
+        name: "Program Fortschritt"
+        icon: mdi:progress-clock
+        unit_of_measurement: "%"
+        state_class: measurement
+        accuracy_decimals: 0
+        lambda: |-
+          if (x.empty() || x[0] > 100) return NAN;
+          return float(x[0]);
+
+#  # Remaining time: bytes 6 and 7 are hours and minutes. Byte 0 is retained
+#  # only as a compatibility fallback for shorter variants of this frame.
+#  - platform: bshdbus
+#    dest: 0x25
+#    command: 0x2008
+#    sensors:
+#      - id: bsh_dw_remain
+#        name: "Verbleibende Zeit"
+#        device_class: duration
+#        state_class: measurement
+#        unit_of_measurement: min
+#        icon: mdi:timer-outline
+#        accuracy_decimals: 0
+#        lambda: |-
+#          if (x.size() >= 8) {
+#            return float(uint16_t(x[6]) * 60U + uint16_t(x[7]));
+#          }
+#
+#          if (!x.empty()) {
+#            return float(x[0]);
+#          }
+#
+#          return NAN;
+
+  # Public delayed-start value. Both the panel frame and the subsequent
+  # appliance countdown frame publish to this template sensor.
+  - platform: template
+    id: bsh_dw_delay
+    name: "Verzögerte Zeit"
+    icon: mdi:timer-sand
+    device_class: duration
+    state_class: measurement
+    unit_of_measurement: min
+    accuracy_decimals: 0
+    update_interval: never
+
+  - platform: bshdbus
+    dest: 0x17
+    command: 0x1012
+    sensors:
+      - id: helper_delay_panel
+        internal: true
+        lambda: |-
+          if (x.size() < 3) return NAN;
+          return float(uint16_t(x[1]) * 60U + uint16_t(x[2]));
+        on_value:
+          then:
+            - lambda: |-
+                id(bsh_dw_delay).publish_state(x);
+                if (x > 0.5f) {
+                  id(bsh_dw_active_or_delayed).publish_state(true);
+                }
+
+  - platform: bshdbus
+    dest: 0x25
+    command: 0x1012
+    sensors:
+      - id: helper_delay_countdown
+        internal: true
+        lambda: |-
+          if (x.size() < 3) return NAN;
+          return float(uint16_t(x[1]) * 60U + uint16_t(x[2]));
+        on_value:
+          then:
+            - lambda: |-
+                id(bsh_dw_delay).publish_state(x);
+                if (x > 0.5f) {
+                  id(bsh_dw_active_or_delayed).publish_state(true);
+                }
+
+  # Raw numeric diagnostics retained for checking model-specific mappings.
+  - platform: bshdbus
+    dest: 0x25
+    command: 0x2005
+    sensors:
+      - id: bsh_dw_phase_code
+        name: "Programmphase"
+        icon: mdi:numeric
+        entity_category: diagnostic
+        disabled_by_default: true
+        accuracy_decimals: 0
+        lambda: |-
+          return !x.empty() ? float(x[0]) : NAN;
+
+  - platform: bshdbus
+    dest: 0x27
+    command: 0x2007
+    sensors:
+      - id: bsh_dw_operation_state_code
+        name: "Betriebsstatus"
+        icon: mdi:numeric
+        entity_category: diagnostic
+        disabled_by_default: true
+        accuracy_decimals: 0
+        lambda: |-
+          return !x.empty() ? float(x[0]) : NAN;
+
+text_sensor:
+  # Public selected-program entity.
+  - platform: template
+    name: "Gewähltes Programm"
+    id: bsh_dw_program
+    icon: mdi:dishwasher
+    update_interval: never
+
+  # Program selection from the control panel: 0x17/0x1011
+  - platform: bshdbus
+    dest: 0x17
+    command: 0x1011
+    text_sensors:
+      - id: bsh_helper_panel
+        internal: true
+        lambda: |-
+          if (x.empty()) return {};
+
+          switch (x[0]) {
+            case 0x0A: return std::string("Intensiv 70°");
+            case 0x0D: return std::string("Auto 45° - 65°");
+            case 0x0E: return std::string("Eco 50°");
+            case 0x0F: return std::string("Glas 40°");
+            case 0x11: return std::string("Schnell 45°");
+            case 0x12: return std::string("Vorspülen");
+            case 0x14: return std::string("Leise 50°");
+            case 0x15: return std::string("1h 65°");
+            case 0x21: return std::string("Maschinenreiniging");
+            default: return std::string("Unbekannt");
+          }
+        on_value:
+          then:
+            - text_sensor.template.publish:
+                id: bsh_dw_program
+                state: !lambda "return x;"
+
+  # Program selection from the startup/status packet: 0x25/0x2010
+  - platform: bshdbus
+    dest: 0x25
+    command: 0x2010
+    text_sensors:
+      - id: bsh_helper_init
+        internal: true
+        lambda: |-
+          if (x.empty()) return {};
+
+          switch (x[0]) {
+            case 0x0A: return std::string("Intensiv 70°");
+            case 0x0D: return std::string("Auto 45° - 65°");
+            case 0x0E: return std::string("Eco 50°");
+            case 0x0F: return std::string("Glas 40°");
+            case 0x11: return std::string("Schnell 45°");
+            case 0x12: return std::string("Vorspülen");
+            case 0x14: return std::string("Leise 50°");
+            case 0x15: return std::string("1h 65°");
+            case 0x21: return std::string("Maschinenreiniging");
+            default: return std::string("Bereit");
+          }
+        on_value:
+          then:
+            - text_sensor.template.publish:
+                id: bsh_dw_program
+                state: !lambda "return x;"
+
+  # Detailed operation state: 0x27/0x2007
+  - platform: bshdbus
+    dest: 0x27
+    command: 0x2007
+    text_sensors:
+      - id: bsh_dw_operation_state
+        name: "Betriebsstatus"
+        icon: mdi:state-machine
+        lambda: |-
+          if (x.empty()) return std::string("Unknown");
+
+          switch (x[0]) {
+            case 0x01: return std::string("Läuft");
+            case 0x02: return std::string("Bereit");
+            case 0x03: return std::string("Fertig");
+            case 0x04: return std::string("verzögerter Start");
+            case 0x05: return std::string("Door/start interlock");
+            case 0x06: return std::string("Zurückgesetzt");
+            case 0x20: return std::string("Diagnostik");
+            default: {
+              char value[24];
+              snprintf(
+                value,
+                sizeof(value),
+                "Unknown (0x%02X)",
+                unsigned(x[0])
+              );
+              return std::string(value);
+            }
+          }
+
+  # Current wash phase: 0x25/0x2005
+  - platform: bshdbus
+    dest: 0x25
+    command: 0x2005
+    text_sensors:
+      - id: bsh_dw_program_phase
+        name: "Programmphase"
+        icon: mdi:dishwasher
+        lambda: |-
+          if (x.empty()) return std::string("Unknown");
+
+          const uint8_t phase_bits = x[0] & 0x0F;
+          const uint8_t mode_bits = x[0] & 0xF0;
+          std::string phase;
+
+          switch (phase_bits) {
+            case 0x00: phase = "Starte / Phasenwechsel"; break;
+            case 0x01: phase = "Vorspülen"; break;
+            case 0x02: phase = "Säubern"; break;
+            case 0x04: phase = "Spülen"; break;
+            case 0x08: phase = "Trocknen"; break;
+            default: {
+              char value[24];
+              snprintf(
+                value,
+                sizeof(value),
+                "Unknown (0x%02X)",
+                unsigned(x[0])
+              );
+              return std::string(value);
+            }
+          }
+
+          if (mode_bits == 0x10) {
+            phase += " - angepasste Zeit";
+          } else if (mode_bits != 0x00 && mode_bits != 0x20) {
+            char mode[20];
+            snprintf(
+              mode,
+              sizeof(mode),
+              " - mode 0x%02X",
+              unsigned(mode_bits)
+            );
+            phase += mode;
+          }
+
+          return phase;
+
+  # Numeric and formatted remaining time plus the estimated finish clock:
+  # 0x25/0x2008, bytes 6-7 and 3-4 respectively.
+  - platform: bshdbus
+    dest: 0x25
+    command: 0x2008
+    text_sensors:
+      - id: bsh_dw_remaining_formatted
+        name: "Verbleibende Laufzeit"
+        icon: mdi:timer-outline
+        lambda: |-
+          uint16_t minutes;
+
+          if (x.size() >= 8) {
+            minutes = uint16_t(x[6]) * 60U + uint16_t(x[7]);
+          } else if (!x.empty()) {
+            minutes = uint16_t(x[0]);
+          } else {
+            return std::string("Unbekannt");
+          }
+
+          char value[6];
+          snprintf(
+            value,
+            sizeof(value),
+            "%02u:%02u",
+            unsigned(minutes / 60U),
+            unsigned(minutes % 60U)
+          );
+          return std::string(value);
+
+      - id: bsh_dw_estimated_finish
+        name: "Fertig um"
+        icon: mdi:clock-end
+        lambda: |-
+          if (x.size() < 5 || x[3] > 23 || x[4] > 59) {
+            return std::string("Unbekannt");
+          }
+
+          char value[6];
+          snprintf(
+            value,
+            sizeof(value),
+            "%02u:%02u",
+            unsigned(x[3]),
+            unsigned(x[4])
+          );
+          return std::string(value);
+
+  # Appliance error bitmask: 0x26/0x2002
+  - platform: bshdbus
+    dest: 0x26
+    command: 0x2002
+    text_sensors:
+      - id: bsh_dw_error_status
+        name: "Fehlerstatus"
+        icon: mdi:alert-circle-outline
+        lambda: |-
+          if (x.size() < 4) return std::string("Unbekannt");
+
+          const uint32_t code =
+              (uint32_t(x[0]) << 24) |
+              (uint32_t(x[1]) << 16) |
+              (uint32_t(x[2]) << 8) |
+               uint32_t(x[3]);
+
+          switch (code) {
+            case 0x00000000:
+              return std::string("Kein Fehler");
+            case 0x00000200:
+              return std::string("E18 - Wassereinlauf blockiert");
+            case 0x00002000:
+              return std::string("E22 - Siebe blockiert");
+            default: {
+              char value[32];
+              snprintf(
+                value,
+                sizeof(value),
+                "Unbekannt (0x%08lX)",
+                static_cast<unsigned long>(code)
+              );
+              return std::string(value);
+            }
+          }
+
+  # Power state: 0x25/0x2012
+  - platform: bshdbus
+    dest: 0x25
+    command: 0x2012
+    text_sensors:
+      - id: bsh_dw_power_state
+        name: "Power Status"
+        icon: mdi:power
+        lambda: |-
+          if (x.empty()) return std::string("Unbekannt");
+
+          switch (x[0]) {
+            case 0x00: return std::string("Aus");
+            case 0x01: return std::string("An");
+            default: {
+              char value[24];
+              snprintf(
+                value,
+                sizeof(value),
+                "Unbekannt (0x%02X)",
+                unsigned(x[0])
+              );
+              return std::string(value);
+            }
+          }
+
+  # Optional diagnostics. These are disabled in Home Assistant by default.
+  - platform: bshdbus
+    dest: 0x25
+    command: 0x1020
+    text_sensors:
+      - id: bsh_dw_internal_clock
+        name: "Interne Uhr"
+        icon: mdi:clock-digital
+        entity_category: diagnostic
+        disabled_by_default: true
+        lambda: |-
+          if (x.size() < 2 || x[0] > 23 || x[1] > 59) {
+            return std::string("Unbekannt");
+          }
+
+          char value[6];
+          snprintf(
+            value,
+            sizeof(value),
+            "%02u:%02u",
+            unsigned(x[0]),
+            unsigned(x[1])
+          );
+          return std::string(value);
+
+  - platform: bshdbus
+    dest: 0x25
+    command: 0x2015
+    text_sensors:
+      - id: bsh_dw_capability_mask
+        name: "Program Capability Mask"
+        icon: mdi:code-tags
+        entity_category: diagnostic
+        disabled_by_default: true
+        lambda: |-
+          if (x.empty()) return std::string("Unbekannt");
+          return std::string("0x") + format_hex(x);
+
+  - platform: bshdbus
+    dest: 0x25
+    command: 0x2004
+    text_sensors:
+      - id: bsh_dw_status_bitfield
+        name: "Status Bitfield"
+        icon: mdi:code-braces
+        entity_category: diagnostic
+        disabled_by_default: true
+        lambda: |-
+          if (x.empty()) return std::string("Unbekannt");
+          return std::string("0x") + format_hex(x);
+
+  - platform: bshdbus
+    dest: 0x17
+    command: 0x1000
+    text_sensors:
+      - id: bsh_dw_option_mask
+        name: "Option Mask"
+        icon: mdi:checkbox-multiple-marked-outline
+        entity_category: diagnostic
+        disabled_by_default: true
+        lambda: |-
+          if (x.empty()) return std::string("Unbekannt");
+          return std::string("0x") + format_hex(x);
