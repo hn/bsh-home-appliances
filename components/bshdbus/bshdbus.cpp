@@ -87,6 +87,7 @@ static constexpr uint32_t BSHDBUS_TX_QUIET_RANDOM_BYTES = 4;
 
 void BSHDBus::setup() {
   this->rx_buffer_.reserve(BSHDBUS_MAX_CMDFRAME_LENGTH);
+  this->frame_.reserve(BSHDBUS_MAX_CMDFRAME_LENGTH);
   this->message_.reserve(BSHDBUS_MAX_CMDFRAME_LENGTH);
 #ifdef USE_BSHDBUS_SEND
   if (this->tx_enabled_) {
@@ -125,24 +126,20 @@ void BSHDBus::dump_config() {
 void BSHDBus::loop() {
   const uint32_t now = App.get_loop_component_start_time();
   const uint32_t delta_rx = now - this->last_rx_;
-  char hex_buf[format_hex_size(BSHDBUS_MAX_LOG_BYTES)];
   bool received = false;
   bool timed_out = delta_rx > BSHDBUS_RX_TIMEOUT;
-#ifdef USE_BSHDBUS_SEND
-  /* While our own frame is on the bus, bytes already waiting are its echo or ACK, even if
-     another component held up loop() for longer than the timeout */
-  if (timed_out && (this->tx_state_ != TxState::TX_STATE_IDLE) && (this->available() > 0))
+  /* loop() only sees when it ran itself, not when a byte arrived. Bytes already waiting continue what is
+     pending (a frame, its ACK, our own echo), even if another component held up loop() for longer than the
+     timeout. A real pause shows in a loop() that finds nothing to read. */
+  if (timed_out && (this->available() > 0))
     timed_out = false;
-#endif
 
   if (timed_out) {
     if (!this->rx_buffer_.empty()) {
-      ESP_LOGD(TAG, "Discarding %zu bytes of unparsed data after timeout of %" PRIu32 " ms: 0x%s",
-               this->rx_buffer_.size(), delta_rx, format_hex_to(hex_buf, this->rx_buffer_));
-      this->rx_buffer_.clear();
-#ifdef USE_BSHDBUS_SEND
-      this->on_tx_collision_(LOG_STR("incomplete echo"));
-#endif
+      /* The rest of a frame that has begun will not arrive any more. It may have begun at a wrong byte,
+         so the bytes are searched for frames once more before they are dropped. */
+      ESP_LOGV(TAG, "Bus quiet for %" PRIu32 " ms with %zu unparsed bytes", delta_rx, this->rx_buffer_.size());
+      this->parse_rx_(true);
     }
     /* The manufacturer's firmware acknowledges within about 8.5 bit times after the CRC, and senders give up
        after about 19 bit times (~2 ms at 9600 baud). Without byte timestamps, the ACK is awaited until the RX
@@ -157,85 +154,17 @@ void BSHDBus::loop() {
     }
   }
 
-  this->read_available_chunks([this, now, &hex_buf, &received](const uint8_t *buf, size_t to_read) {
+  this->read_available_chunks([this, now, &received](const uint8_t *buf, size_t to_read) {
     this->last_rx_ = now;
     received = true;
-
-    for (size_t i = 0; i < to_read;) {
-      if (this->expect_ack_) {
-        this->expect_ack_ = false;
-        /* Broadcasts are acknowledged with 0x0A or the node id of the sender, depending on the firmware.
-           Receivers may also answer 0x?7 (CRC error) or 0x?3 (frame too long or busy, depending on the
-           firmware). Without byte timing, such a byte looks like the length byte of a frame that follows
-           without ACK, so it is read as one, and only 0x?A counts as ACK. */
-        if (((buf[i] & 0x0F) == 0x0A) &&
-            (((this->last_dest_ & 0xF0) == 0) || ((buf[i] & 0xF0) == (this->last_dest_ & 0xF0)))) {
-          ESP_LOGV(TAG, "Received valid ACK 0x%02x for dest 0x%02x of preceding frame", buf[i], this->last_dest_);
-#ifdef USE_BSHDBUS_SEND
-          this->on_tx_ack_(true);
-#endif
-          i++;
-          continue;
-        } else {
-          ESP_LOGD(TAG, "Missed ACK for dest 0x%02x of preceding frame", this->last_dest_);
-#ifdef USE_BSHDBUS_SEND
-          this->on_tx_ack_(false);
-#endif
-        }
-      }
-
-      /* framelen = bytes for LL + DS + CRC, and message len byte MM added */
-      size_t framelen = 1 + 1 + 2;
-      if (this->rx_buffer_.empty()) {
-        framelen += static_cast<size_t>(buf[i]);
-        if ((framelen < BSHDBUS_MIN_CMDFRAME_LENGTH) || (framelen > BSHDBUS_MAX_CMDFRAME_LENGTH)) {
-          ESP_LOGD(TAG, "Invalid command frame length %zu, discarding byte", framelen);
-#ifdef USE_BSHDBUS_SEND
-          this->on_tx_collision_(LOG_STR("invalid length"));
-#endif
-          i++;
-          continue;
-        }
-      } else {
-        framelen += static_cast<size_t>(this->rx_buffer_[0]);
-      }
-
-      const size_t need_bytes = (framelen > this->rx_buffer_.size()) ? framelen - this->rx_buffer_.size() : 0;
-      const size_t have_bytes = to_read - i;
-      const size_t copy_bytes = std::min(need_bytes, have_bytes);
-
-      this->rx_buffer_.insert(this->rx_buffer_.end(), buf + i, buf + i + copy_bytes);
-      i += copy_bytes;
-
-      if (need_bytes > copy_bytes)
-        /* Wait for more bytes */
-        continue;
-
-      if (crc16be(this->rx_buffer_.data(), this->rx_buffer_.size(), 0x0, 0x1021, false, false)) {
-        ESP_LOGD(TAG, "Invalid CRC, discarding %zu bytes of data: 0x%s", this->rx_buffer_.size(),
-                 format_hex_to(hex_buf, this->rx_buffer_));
-        this->rx_buffer_.clear();
-#ifdef USE_BSHDBUS_SEND
-        this->on_tx_collision_(LOG_STR("invalid CRC"));
-#endif
-        continue;
-      }
-
-      const uint8_t dest = this->rx_buffer_[1];
-      this->last_dest_ = dest;
-      this->expect_ack_ = true;
-      const uint16_t command = encode_uint16(this->rx_buffer_[2], this->rx_buffer_[3]);
-      /* Skip bytes for LL + DS + CCCC at beginning, CRC at end */
-      this->message_.assign(this->rx_buffer_.begin() + 1 + 1 + 2, this->rx_buffer_.end() - 2);
-
-      ESP_LOGV(TAG, "Valid frame dest 0x%02x cmd 0x%04x: 0x%s", dest, command, format_hex_to(hex_buf, this->message_));
-#ifdef USE_BSHDBUS_SEND
-      this->on_tx_frame_();
-#endif
-      this->frame_callbacks_.call(this->rx_buffer_, dest, command, this->message_);
-      this->dispatch_message_(dest, command, this->message_);
-
-      this->rx_buffer_.clear();
+    /* The buffer never holds more than one frame of maximum length. A full buffer always starts with a
+       complete candidate, so parsing frees at least one byte. */
+    while (to_read > 0) {
+      const size_t copy_bytes = std::min(BSHDBUS_MAX_CMDFRAME_LENGTH - this->rx_buffer_.size(), to_read);
+      this->rx_buffer_.insert(this->rx_buffer_.end(), buf, buf + copy_bytes);
+      buf += copy_bytes;
+      to_read -= copy_bytes;
+      this->parse_rx_(false);
     }
   });
 
@@ -243,6 +172,158 @@ void BSHDBus::loop() {
   if (this->tx_enabled_)
     this->process_tx_(now, received);
 #endif
+}
+
+/* Takes all complete frames out of rx_buffer_. A byte that does not start a valid frame (wrong length,
+   wrong CRC) is skipped and the search goes on at the next byte, so a wrong length byte costs only itself
+   and not the frames that follow within the length it claims. With flush, no more bytes are expected:
+   a frame that is not complete is skipped the same way, and the buffer is empty afterwards.
+
+   In sync (after a frame or a pause), there is one candidate, the next byte, and a frame that is not
+   complete is waited for. After a skipped byte, it is unknown where the next frame starts: every byte
+   is a candidate then, and the first one that is complete and valid wins. */
+void BSHDBus::parse_rx_(bool flush) {
+  char hex_buf[format_hex_size(BSHDBUS_MAX_LOG_BYTES)];
+  const uint8_t *data = this->rx_buffer_.data();
+  const size_t size = this->rx_buffer_.size();
+  size_t pos = 0;
+  size_t skip_start = 0;
+  const LogString *skip_reason = nullptr;
+
+  /* Consecutive skipped bytes are logged as one run, with the reason for its first byte */
+  auto skip_byte = [&](const LogString *reason) {
+    if (!this->rx_searching_) {
+      this->rx_searching_ = true;
+      this->rx_searched_ = 0;
+    }
+    if (skip_reason == nullptr) {
+      skip_reason = reason;
+      skip_start = pos;
+#ifdef USE_BSHDBUS_SEND
+      this->on_tx_collision_(reason);
+#endif
+    }
+    pos++;
+  };
+  auto log_skipped = [&]() {
+    if (skip_reason == nullptr)
+      return;
+    ESP_LOGD(TAG, "Skipped %zu bytes of invalid data (%s): 0x%s", pos - skip_start, LOG_STR_ARG(skip_reason),
+             format_hex_to(hex_buf, sizeof(hex_buf), data + skip_start, pos - skip_start));
+    skip_reason = nullptr;
+  };
+
+  while (pos < size) {
+    if (this->expect_ack_) {
+      const uint8_t reply = data[pos];
+      const bool broadcast = (this->last_dest_ & 0xF0) == 0;
+      const bool from_dest = (reply & 0xF0) == (this->last_dest_ & 0xF0);
+      /* Broadcasts are acknowledged with 0x0A or the node id of the sender, depending on the firmware */
+      if (((reply & 0x0F) == 0x0A) && (broadcast || from_dest)) {
+        ESP_LOGV(TAG, "Received valid ACK 0x%02x for dest 0x%02x of preceding frame", reply, this->last_dest_);
+        this->expect_ack_ = false;
+#ifdef USE_BSHDBUS_SEND
+        this->on_tx_ack_(true);
+#endif
+        pos++;
+        continue;
+      }
+      /* Receivers may also answer 0x?7 (CRC error) or 0x?3 (frame too long or busy, depending on the
+         firmware). Without byte timing, such a byte looks like the length byte of a frame that follows
+         without ACK. It is taken as that frame if a valid one starts here, and as a negative reply
+         otherwise; any such byte is a length within the allowed range. */
+      if (!broadcast && from_dest && (((reply & 0x0F) == 0x03) || ((reply & 0x0F) == 0x07))) {
+        const size_t framelen = 1 + 1 + 2 + static_cast<size_t>(reply);
+        const bool complete = framelen <= size - pos;
+        if (!complete && !flush)
+          /* Wait for more bytes */
+          break;
+        if (!complete || crc16be(data + pos, framelen, 0x0, 0x1021, false, false)) {
+          ESP_LOGD(TAG, "Received negative reply 0x%02x for dest 0x%02x of preceding frame", reply, this->last_dest_);
+          this->expect_ack_ = false;
+#ifdef USE_BSHDBUS_SEND
+          this->on_tx_ack_(false);
+#endif
+          pos++;
+          continue;
+        }
+      }
+      ESP_LOGD(TAG, "Missed ACK for dest 0x%02x of preceding frame", this->last_dest_);
+      this->expect_ack_ = false;
+#ifdef USE_BSHDBUS_SEND
+      this->on_tx_ack_(false);
+#endif
+    }
+
+    /* framelen = bytes for LL + DS + CRC, and message len byte MM added */
+    const size_t framelen = 1 + 1 + 2 + static_cast<size_t>(data[pos]);
+    if ((framelen < BSHDBUS_MIN_CMDFRAME_LENGTH) || (framelen > BSHDBUS_MAX_CMDFRAME_LENGTH)) {
+      skip_byte(LOG_STR("invalid length"));
+      continue;
+    }
+    if (framelen > size - pos) {
+      if (flush) {
+        skip_byte(LOG_STR("incomplete frame"));
+        continue;
+      }
+      /* While searching, look for a frame behind this candidate. Each candidate is checked once, when
+         the length it claims has arrived: rx_searched_ is the buffer length checked so far. */
+      size_t found = size;
+      if (this->rx_searching_) {
+        for (size_t next = pos + 1; next < size; next++) {
+          const size_t nextlen = 1 + 1 + 2 + static_cast<size_t>(data[next]);
+          const size_t end = next + nextlen;
+          if ((end <= this->rx_searched_) || (end > size) || (nextlen < BSHDBUS_MIN_CMDFRAME_LENGTH) ||
+              (nextlen > BSHDBUS_MAX_CMDFRAME_LENGTH))
+            continue;
+          if (!crc16be(data + next, nextlen, 0x0, 0x1021, false, false)) {
+            found = next;
+            break;
+          }
+        }
+        this->rx_searched_ = static_cast<uint8_t>(size);
+      }
+      if (found == size)
+        /* Wait for more bytes */
+        break;
+      while (pos < found)
+        skip_byte(LOG_STR("frame found behind"));
+      continue;
+    }
+    if (crc16be(data + pos, framelen, 0x0, 0x1021, false, false)) {
+      skip_byte(LOG_STR("invalid CRC"));
+      continue;
+    }
+
+    log_skipped();
+    this->rx_searching_ = false;
+    /* More bytes may follow the frame in the buffer, so on_frame gets a copy of the frame alone */
+    this->frame_.assign(data + pos, data + pos + framelen);
+    pos += framelen;
+
+    const uint8_t dest = this->frame_[1];
+    this->last_dest_ = dest;
+    this->expect_ack_ = true;
+    const uint16_t command = encode_uint16(this->frame_[2], this->frame_[3]);
+    /* Skip bytes for LL + DS + CCCC at beginning, CRC at end */
+    this->message_.assign(this->frame_.begin() + 1 + 1 + 2, this->frame_.end() - 2);
+
+    ESP_LOGV(TAG, "Valid frame dest 0x%02x cmd 0x%04x: 0x%s", dest, command, format_hex_to(hex_buf, this->message_));
+#ifdef USE_BSHDBUS_SEND
+    this->on_tx_frame_();
+#endif
+    this->frame_callbacks_.call(this->frame_, dest, command, this->message_);
+    this->dispatch_message_(dest, command, this->message_);
+  }
+
+  log_skipped();
+  this->rx_buffer_.erase(this->rx_buffer_.begin(), this->rx_buffer_.begin() + pos);
+  if (this->rx_buffer_.empty()) {
+    /* Nothing pending: a frame that starts now is in sync again, be it after a frame or after a pause */
+    this->rx_searching_ = false;
+  } else {
+    this->rx_searched_ = (this->rx_searched_ > pos) ? static_cast<uint8_t>(this->rx_searched_ - pos) : 0;
+  }
 }
 
 SendResult BSHDBus::send(uint8_t dest, uint16_t command, const uint8_t *data, size_t len, uint8_t max_retries,
@@ -394,7 +475,7 @@ void BSHDBus::on_tx_frame_() {
     return;
   const uint8_t *frame = this->tx_buf_.get();
   const uint8_t frame_len = this->tx_head_entry_().frame_len;
-  if ((this->rx_buffer_.size() != frame_len) || (std::memcmp(this->rx_buffer_.data(), frame, frame_len) != 0)) {
+  if ((this->frame_.size() != frame_len) || (std::memcmp(this->frame_.data(), frame, frame_len) != 0)) {
     this->on_tx_collision_(LOG_STR("other frame"));
     return;
   }

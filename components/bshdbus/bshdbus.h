@@ -91,15 +91,19 @@ class BSHDBus final : public uart::UARTDevice, public Component {
 #endif
 
  protected:
-  std::vector<uint8_t> rx_buffer_;
+  std::vector<uint8_t> rx_buffer_;  // received bytes not parsed yet
+  std::vector<uint8_t> frame_;      // the frame being delivered
   std::vector<uint8_t> message_;
   uint32_t last_rx_{0};
   uint8_t last_dest_{0};
+  uint8_t rx_searched_{0};  // while searching: length of rx_buffer_ already checked for frames
   bool expect_ack_{false};
+  bool rx_searching_{false};  // a byte was skipped, the start of the next frame is unknown
   std::vector<BSHDBusListener *> listeners_{};
   LazyCallbackManager<void(const std::vector<uint8_t> &, uint8_t, uint16_t, const std::vector<uint8_t> &)>
       frame_callbacks_{};
 
+  void parse_rx_(bool flush);
   void dispatch_message_(uint8_t dest, uint16_t command, const std::vector<uint8_t> &message);
 
 #ifdef USE_BSHDBUS_SEND
