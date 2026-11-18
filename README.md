@@ -394,8 +394,7 @@ can be accessed directly through [this link](https://html-preview.github.io/?url
 ![B/S/H/ washing machine Home Assistant](bsh-wm-home-assistant.png)
 
 It uses an [external component](https://esphome.io/components/external_components.html)
-called [bshdbus](components/bshdbus/). There is no documentation (yet) but
-you'll quickly get the idea on how to add your own sensors.
+called [bshdbus](components/bshdbus/), see the [documentation](ESPHOME.md).
 
 #### Other home appliance models
 
