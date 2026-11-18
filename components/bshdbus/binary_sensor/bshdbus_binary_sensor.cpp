@@ -3,7 +3,7 @@
 
 namespace esphome::bshdbus {
 
-static const char *const TAG = "bshdbus.binary_sensor";
+ESPHOME_LOG_TAG(TAG, "bshdbus.binary_sensor");
 
 void BSHDBusBinarySensor::dump_config() {
   ESP_LOGCONFIG(TAG, "BSH D-Bus Binary Sensor:");

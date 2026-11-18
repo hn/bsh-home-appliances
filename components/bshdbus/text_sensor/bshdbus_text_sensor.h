@@ -3,6 +3,10 @@
 #include "../bshdbus.h"
 #include "esphome/components/text_sensor/text_sensor.h"
 
+#include <cstdint>
+#include <utility>
+#include <vector>
+
 namespace esphome::bshdbus {
 
 class BSHDBusSubTextSensor;

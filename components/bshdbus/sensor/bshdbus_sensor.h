@@ -3,6 +3,10 @@
 #include "../bshdbus.h"
 #include "esphome/components/sensor/sensor.h"
 
+#include <cstdint>
+#include <utility>
+#include <vector>
+
 namespace esphome::bshdbus {
 
 class BSHDBusSubSensor;

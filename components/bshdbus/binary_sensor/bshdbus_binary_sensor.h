@@ -3,6 +3,10 @@
 #include "../bshdbus.h"
 #include "esphome/components/binary_sensor/binary_sensor.h"
 
+#include <cstdint>
+#include <utility>
+#include <vector>
+
 namespace esphome::bshdbus {
 
 class BSHDBusSubBinarySensor;
