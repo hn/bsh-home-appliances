@@ -32,8 +32,7 @@
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 
-namespace esphome {
-namespace bshdbus {
+namespace esphome::bshdbus {
 
 static const char *const TAG = "bshdbus";
 
@@ -49,9 +48,12 @@ static constexpr uint16_t BSHDBUS_RX_TIMEOUT = 20;
 /* Sufficient for most cases, some larger frames may be truncated */
 static constexpr size_t BSHDBUS_MAX_LOG_BYTES = 128;
 
-void BSHDBus::dump_config() {
-  ESP_LOGCONFIG(TAG, "BSH D-Bus:");
+void BSHDBus::setup() {
+  this->rx_buffer_.reserve(BSHDBUS_MAX_CMDFRAME_LENGTH);
+  this->message_.reserve(BSHDBUS_MAX_CMDFRAME_LENGTH);
 }
+
+void BSHDBus::dump_config() { ESP_LOGCONFIG(TAG, "BSH D-Bus:"); }
 
 void BSHDBus::loop() {
   const uint32_t now = App.get_loop_component_start_time();
@@ -64,10 +66,10 @@ void BSHDBus::loop() {
                this->rx_buffer_.size(), delta_rx, format_hex_to(hex_buf, this->rx_buffer_));
       this->rx_buffer_.clear();
     }
-    if (this->expect_ack_for_) {
-      ESP_LOGD(TAG, "Timed out ACK for dest 0x%02x of preceeding frame after %" PRIu32 " ms", this->expect_ack_for_,
+    if (this->expect_ack_) {
+      ESP_LOGD(TAG, "Timed out ACK for dest 0x%02x of preceding frame after %" PRIu32 " ms", this->last_dest_,
                delta_rx);
-      this->expect_ack_for_ = 0;
+      this->expect_ack_ = false;
     }
   }
 
@@ -81,16 +83,16 @@ void BSHDBus::loop() {
     this->last_rx_ = now;
 
     for (size_t i = 0; i < to_read;) {
-      if (this->expect_ack_for_) {
-        if ((buf[i] == ((this->expect_ack_for_ & 0xF0) | 0x0A)) ||
-            ((buf[i] == 0x1A) && (this->expect_ack_for_ == 0x0F))) {
-          ESP_LOGV(TAG, "Received valid ACK 0x%02x for preceding frame", buf[i]);
-          this->expect_ack_for_ = 0;
+      if (this->expect_ack_) {
+        this->expect_ack_ = false;
+        /* Broadcasts are acknowledged with 0x0A or the node id of the sender, depending on the firmware */
+        if (((buf[i] & 0x0F) == 0x0A) &&
+            (((this->last_dest_ & 0xF0) == 0) || ((buf[i] & 0xF0) == (this->last_dest_ & 0xF0)))) {
+          ESP_LOGV(TAG, "Received valid ACK 0x%02x for dest 0x%02x of preceding frame", buf[i], this->last_dest_);
           i++;
           continue;
         } else {
-          ESP_LOGD(TAG, "Missed ACK for dest 0x%02x of preceding frame", this->expect_ack_for_);
-          this->expect_ack_for_ = 0;
+          ESP_LOGD(TAG, "Missed ACK for dest 0x%02x of preceding frame", this->last_dest_);
         }
       }
 
@@ -126,33 +128,33 @@ void BSHDBus::loop() {
       }
 
       const uint8_t dest = this->rx_buffer_[1];
-      this->expect_ack_for_ = dest;
+      this->last_dest_ = dest;
+      this->expect_ack_ = true;
       const uint16_t command = encode_uint16(this->rx_buffer_[2], this->rx_buffer_[3]);
       /* Skip bytes for LL + DS + CCCC at beginning, CRC at end */
-      std::vector<uint8_t> message(this->rx_buffer_.begin() + 1 + 1 + 2, this->rx_buffer_.end() - 2);
+      this->message_.assign(this->rx_buffer_.begin() + 1 + 1 + 2, this->rx_buffer_.end() - 2);
 
-      ESP_LOGV(TAG, "Valid frame dest 0x%02x cmd 0x%04x: 0x%s", dest, command, format_hex_to(hex_buf, message));
-      this->frame_callbacks_.call(this->rx_buffer_, dest, command, message);
+      ESP_LOGV(TAG, "Valid frame dest 0x%02x cmd 0x%04x: 0x%s", dest, command, format_hex_to(hex_buf, this->message_));
+      this->frame_callbacks_.call(this->rx_buffer_, dest, command, this->message_);
       for (auto &listener : this->listeners_)
-        listener->on_message(dest, command, message);
+        listener->on_message(dest, command, this->message_);
 
       this->rx_buffer_.clear();
     }
   }
 }
 
-void BSHDBus::add_on_frame_callback(
-    std::function<void(std::vector<uint8_t>, uint8_t, uint16_t, std::vector<uint8_t>)> &&frame_callback) {
-  this->frame_callbacks_.add(std::move(frame_callback));
-}
-
-void BSHDBusListener::on_message(uint8_t dest, uint16_t command, std::vector<uint8_t> &message) {
-  if ((this->command_ != 0xffff) && (this->command_ != command))
-    return;
-  if ((this->dest_ != 0xff) && (this->dest_ != dest))
+void BSHDBusListener::on_message(uint8_t dest, uint16_t command, const std::vector<uint8_t> &message) {
+  if ((this->command_ != command) || (this->dest_ != dest))
     return;
   this->handle_message(message);
 }
 
-}  // namespace bshdbus
-}  // namespace esphome
+void BSHDBusListener::dump_filter_config(const char *tag) const {
+  ESP_LOGCONFIG(tag,
+                "  Dest node: 0x%02x\n"
+                "  Command: 0x%04x",
+                this->dest_, this->command_);
+}
+
+}  // namespace esphome::bshdbus

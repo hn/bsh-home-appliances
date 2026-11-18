@@ -1,12 +1,12 @@
 #!/usr/bin/perl
 #
-# timelight-extract-icons.pl -- Extract and decompress icons from B/S/H/ Timelight firmware
+# bsh-timelight-extract-icons.pl -- Extract and decompress icons from B/S/H/ TimeLight firmware
 #
 # just a quick'n'dirty hack, no error checking, no nothing
 #
 # (C) 2025 Hajo Noerenberg
 #
-# Usage: timelight-extract-icon.pl timelight-9001366847.bin
+# Usage: bsh-timelight-extract-icons.pl timelight-9001366847.bin
 #
 # sudo apt-get install netpbm
 #

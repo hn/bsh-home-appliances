@@ -8,8 +8,8 @@ They have a [well-maintained wiki](https://wiki.bsh-group.com/de/wiki/Hauptseite
 
 Despite this popularity, little is publicly known about the inner workings of the appliances.
 This project shows some of the things that have been discovered through reverse engineering.
-This project is in no way affilliated with B/S/H/.
-No intelectual property of B/S/H/ was used at any time.
+This project is in no way affiliated with B/S/H/.
+No intellectual property of B/S/H/ was used at any time.
 
 There has been a talk about the findings of this project at the [39C3](https://events.ccc.de/congress/2025/).
 A recording of the talk is available [here](https://media.ccc.de/v/39c3-hacking-washing-machines).
@@ -49,18 +49,18 @@ The dryer boards are labeled "EPT", with "T" for "Trockner" (dryer) and the dish
 However, there is currently no known way of deducing the board version used internally from the external appearance or the model name.
 You have to open the machine and look inside.
 
-The control electronics were likely developed by [BSH PED in Regensburg](https://wiki.bsh-group.com/de/wiki/BSH_Regensburg_%E2%80%93_Produktbereich_Electronic_Systems,_Drives_(PED)).
+The control electronics of all home appliances are developed by [BSH PED in Regensburg](https://wiki.bsh-group.com/de/wiki/BSH_Regensburg_%E2%80%93_Produktbereich_Electronic_Systems,_Drives_(PED)).
 The site has worked for the automotive industry in the past, which explains why some components and approaches share similarities.
 
 ### Washing machine Siemens WM14S750
 
-The washing machine WM14S750 was sold from around 2010, when it was the test winner of the german magazine Stiftung Warentest.
+The washing machine WM14S750 was sold from around 2010, when it was the test winner of the German magazine Stiftung Warentest.
 It was likely produced at the [Nauen factory](https://wiki.bsh-group.com/de/wiki/Die_Fabrik_Nauen/en).
 B/S/H/ has released a very nice [video series](https://www.youtube.com/watch?v=T_dcbVZmExU&list=PL8rSAtdt1rTpldsxcCMCIHwK_7gH2FWEZ) in which many details from the production in Nauen can be seen.
 
 #### Power module EPW66018
 
-The power module ([PCB front](photos/bsh-EPW66018-pcb-front.jpg), [PCB back](photos/bsh-EPW66018-pcb-back.jpg)) is based on an Freescale (now NXP) Semiconductor `MC9S12Q128C-PBE16` MCU (52-pin LQFP package).
+The power module ([PCB front](photos/bsh-EPW66018-pcb-front.jpg), [PCB back](photos/bsh-EPW66018-pcb-back.jpg)) is based on a Freescale (now NXP) Semiconductor `MC9S12Q128C-PBE16` MCU (52-pin LQFP package).
 It also supplies power to all connected electronics.
 The sticker suggests it was produced by [melecs](https://www.melecs.com/en).
 
@@ -81,14 +81,14 @@ It has 11 [RAST connectors](https://de.wikipedia.org/wiki/RAST-Steckverbinder) f
 
 #### User interface panel EPW66027
 
-The user interface panel ([Front view](photos/bsh-EPW66027-front.jpg), [back view](photos/bsh-EPW66027-back.jpg)) lets the user select 15 different washing programs, 8 temperatures, 7 spin speeds and and other options.
+The user interface panel ([Front view](photos/bsh-EPW66027-front.jpg), [back view](photos/bsh-EPW66027-back.jpg)) lets the user select 15 different washing programs, 8 temperatures, 7 spin speeds and other options.
 The (mechanical) rotary switch is not only used to select the program, but also to switch the mains power on and off.
 The user interface panel is connected to the power module via D-Bus.
 
 #### Unbalance sensor SEUFFER 9000444823
 
-This sensors detects unbalanced loads ([PCB front](photos/bsh-9000444823-pcb-front.jpg), [PCB back](photos/bsh-9000444823-pcb-back.jpg), [Enclosure](photos/bsh-9000444823-enclosure.jpg)).
-It uses an [PIC18F24J10](https://www.microchip.com/en-us/product/pic18f24j10) MCU (28 pin QFN package)
+This sensor detects unbalanced loads ([PCB front](photos/bsh-9000444823-pcb-front.jpg), [PCB back](photos/bsh-9000444823-pcb-back.jpg), [Enclosure](photos/bsh-9000444823-enclosure.jpg)).
+It uses a [PIC18F24J10](https://www.microchip.com/en-us/product/pic18f24j10) MCU (28 pin QFN package)
 and an `A007MPL DREMAS` IC (MPL likely refers to a custom-made Mask Programmable Logic),
 which [according to the manufacturer](https://www.ast-international.com/en.products.position-force-sensors.html#product-11) is a specialized 3D hall sensor
 (the [corresponding magnet](https://www.siemens-home.bsh-group.com/uk/shop-productlist/00615666) is attached to the washing drum).
@@ -101,10 +101,12 @@ The code can not easily be downloaded because the device has the Code Protection
 
 ### D-Bus
 
-According to the [B/S/H/ patent documents](#misc), [this](https://www.mikrocontroller.net/topic/395115#4543950) and [this](https://forums.ni.com/t5/Instrument-Control-GPIB-Serial/Has-anybody-used-D-Bus-to-communicate-with-and-or-control/m-p/4284296#M84901) forum post, the electronics inside the device are interconnected via a proprietary serial bus called D-Bus or D-Bus-2.
-Since there are no public technical specifications available, one can only speculate about what exactly D-Bus-1 and D-Bus-2 are, and what the differences between the two might be.
+According to the [B/S/H/ patent documents](#misc), the electronics inside the appliance are
+interconnected via a proprietary serial bus called D-Bus or D-Bus-2.
+Since there are no public technical specifications available,
+one can only speculate about what exactly D-Bus and D-Bus-2 are, and what the differences between the two might be.
 
-The bus found on the "EP" circuit boards likely is a D-Bus-2 and consists of [three wires](https://www.bosch-home.com/de/de/product/15000685): GND, VBUS and DATA.
+The bus found on the "EP" circuit boards is a D-Bus-2 and consists of [three wires](https://www.bosch-home.com/de/de/product/15000685): GND, VBUS and DATA.
 VBUS is 9V for washing machines, 13.5V for dishwashers and 5V for extractor hoods. DATA is TTL (5V).
 Connections are established using 3 pin 2.5 pitch [RAST connectors](https://de.wikipedia.org/wiki/RAST-Steckverbinder).
 The connectors have coding lugs to ensure that they cannot be plugged into the wrong socket.
@@ -114,7 +116,7 @@ B/S/H/ sells somewhat pricy pre-assembled cables as well, e.g. the [spare part 0
 > [!IMPORTANT]
 > The assignment of the connector depends on the end point: on the power module the connector is configured as GND-DATA-VBUS and then the cable is crossed and on the other side (e.g. for sensors) the wiring is VBUS-DATA-GND:
 
-![BSH D-Bus 2 pinout, power module bottom, slave top right](bsh-dbus-pinout.jpg)
+![B/S/H/ D-Bus-2 pinout, power module bottom, slave top right](bsh-dbus-pinout.jpg)
 
 #### External access
 
@@ -164,17 +166,17 @@ The hardware of other home appliance types has been examined:
 
 ## Protocol
 
-### D-Bus 2
+### D-Bus-2
 
 Data is transmitted on D-Bus-2 using UART framing with an 8N1 configuration at a baud rate of 9600.
-The `COM1` internet connection module cyclically tries out transfer rates from 9600 up to 38400 baud during startup, so newer devices probably use one of the higer rates.
+The `COM1` internet connection module cyclically tries out transfer rates from 9600 up to 38400 baud during startup, so newer devices probably use one of the higher rates.
 
-The D-Bus 2 is a (1-wire, the DATA wire) bus, not a conventional 2-wire serial link with separate RX and TX signals.
+The D-Bus-2 is a (1-wire, the DATA wire) bus, not a conventional 2-wire serial link with separate RX and TX signals.
 It operates as a [multi-master bus](https://en.wikipedia.org/wiki/Multi-master_bus) in which all participants
 are reading (and possibly writing) the bus simultaneously.
 Bus arbitration appears to follow a [non-persistent CSMA](https://en.wikipedia.org/wiki/Carrier-sense_multiple_access#Non-persistent) scheme.
 
-This is by no means a complete description of the D-Bus 2 protocol, but rather a layman's approach.
+This is by no means a complete description of the D-Bus-2 protocol, but rather a layman's approach.
 If you look at the comparable specification for other serial buses like the [CAN bus](https://en.wikipedia.org/wiki/CAN_bus) or [LIN bus](https://en.wikipedia.org/wiki/Local_Interconnect_Network),
 you will see that there may be many more bits and tricks.
 
@@ -198,7 +200,7 @@ The destination node ("D" of DS-byte) designates the (unique) logical receiver o
 
 The subsystem nibble ("S" of DS-byte) specifies the subsystem within the destination node.
 For lower complexity nodes it is of little importance (e.g. the unbalance sensor ignores the value of the “S” nibble),
-for higher complexity nodes (e.g. the power module) it seperates logical sections within the program code.
+for higher complexity nodes (e.g. the power module) it separates logical sections within the program code.
 
 ##### Command frames
 
@@ -226,31 +228,43 @@ However, these have not yet been observed in normal operation.
 
 #### Acknowledgement byte
 
-When the destination node of a frame receives it correctly,
-it immediately sends an acknowledgement byte right after the frame.
-The sender reads this byte and thus knows that the frame has been delivered successfully.
+When the destination node receives a unicast frame, it answers with an
+acknowledgement byte right after the CRC, usually within less than 1 ms.
+The high nibble is that of the destination (DS & 0xF0), the low nibble the status:
+`0xA` for OK (can it be that it is "A" for "Acknowledgement", really?), `0x7` for a CRC error and `0x3` for a frame that is too long or a full receive buffer
+(only some firmware variants).
+In practice almost every acknowledgement ends in `0xA`: some firmware variants
+never send `0x3`, and some can switch negative acknowledgements off entirely.
 
-The lower bits of the acknowledgement byte are always set to 0xA (can it be that it is "A" for "Acknowledgement", really?)
-and the upper bits correspond to those of the receiving target: `ACK = 0x0A | (DS & 0xF0)`.
-This needs further investigation: on certain models or software versions, the acknowledgement byte
-contains the identifier of the control unit (`ACK = 0x1A`) if DS was a network broadcast (`DS=0x0F`).
+Broadcast frames (DS & 0xF0 = 0x00) are not acknowledged by the receivers;
+the sender acknowledges its own frame. Depending on the firmware variant, the
+high nibble is the sender's node id (e.g. `1a`) or `0x0` (e.g. `0a` in the
+[boot log](#boot-log) below).
 
-If the sender does not receive an acknowledgement byte,
-it waits for a random backoff time of 5 to 8 byte times
-(at 9600 baud with 8N1 framing, one byte time is 1.042 ms = 10 × 104.167 µs)
-and then retransmits the frame.
-After three retransmission attempts without an acknowledgement,
-the transmission is considered to have failed.
+On a collision, a missing or a negative acknowledgement, the sender retransmits
+the frame after a new random back-off. How often depends on the firmware
+variant and the kind of error (typically 2 to 5 retransmissions, more on collisions).
 
 #### Timing
 
-The D-Bus protocol is highly dependent on precise timing, as it utilizes inter-frame gaps to
-establish synchronization. The state machine resets its status whenever no character is received
-for a duration equivalent to 2 bytes (which corresponds to 2.083ms at 9600 baud).
+Timing depends on the firmware variant. Typical values at 9600 baud
+(one bit time is 104 µs, one byte with 8N1 framing 1.04 ms); variants that
+support other baud rates scale them with the bit time:
 
-Implementations that lack access to exact timing information (such as the [ESPHome component](components/bshdbus/))
-can therefore only approximate the protocol. However, in practice, these approximations
-generally function quite reliably.
+- A gap of more than about 19 bit times (~2 ms) inside a frame discards it;
+  the next byte is taken as the length byte of a new frame.
+- Before sending, a node waits until the bus has been idle for 10 bit times
+  plus a random 0 to 7 bit times (1.0 to 1.8 ms). Some variants widen the
+  random part after each collision (up to 127 bit times).
+- The acknowledgement follows the CRC within about 0.9 ms; the sender waits
+  about 2 ms for it.
+
+Because nodes may start sending before the 2 ms gap has passed, frames are
+delimited by the length byte and the acknowledgement, not by gaps alone.
+
+Implementations that lack access to exact timing information (such as the
+[ESPHome component](components/bshdbus/)) can therefore only approximate the
+protocol. However, in practice, these approximations generally function quite reliably.
 
 #### Boot log
 
@@ -301,7 +315,7 @@ DS CC CC MM MM MM
 14.10-09 00 00       ?
 15.11-00 01          Start button pressed on user interface panel
 26.10-20 xx          Wash program module xx
-26.11-01 xx yy       Wash programm status: xx = 0=>Stopped, 1=>Running/end 2=>Running
+26.11-01 xx yy       Wash program status: xx = 0=>Stopped, 1=>Running/end 2=>Running
 26.12-00 xx yy zz    Front door status: xx = 0=>Closed+Unlocked, 1=>Closed+Locked, 2=>Open
 26.17-01 00 ff       Wash program started by the washing control unit
 2a.16-00 xx          Remaining time xx in minutes
@@ -318,7 +332,7 @@ FEATUREBITS2 = Logical OR of
 0x80 = Anti-crease protection / Knitterschutz
 
 DESTINATION ("D" of DS-byte) (physical location in brackets)
-0x0 Network management / Broadcast (power module)
+0x0 Broadcast
 0x1 Washing control unit (power module)
 0x2 User interface panel
 0x3 Motor controller
@@ -330,8 +344,8 @@ SUBSYSTEM ("S" of DS-byte)
 0x4 Set parameters
 0x5 Start or stop processes
 0x6 User info I
-0xa User info II
 0x7 Unbalance sensor communication
+0xa User info II
 0xf Network management / Broadcast
 ```
 
@@ -355,7 +369,7 @@ Using a [D-Bus adapter](#d-bus-adapter), you can connect to the bus and interfac
 
 ### Arduino
 
-[Open-D-Bus](open-d-bus/) is an initial approach for a D-Bus-2 stack implementation.
+[Open-DBus2](open-dbus2/) is an initial approach for a D-Bus-2 stack implementation.
 It parses D-Bus traffic, acknowledges frames for locally registered nodes and
 routes commands to corresponding handler functions.
 
@@ -375,9 +389,9 @@ can be accessed directly through [this link](https://html-preview.github.io/?url
 
 ### Home Assistant / ESPHome
 
-[bsh-dbus-wm14s750.yaml](bsh-dbus-wm14s750.yaml) is a ESPHome config file to integrate the washing machine in Home Assistant:
+[bsh-dbus-wm14s750.yaml](bsh-dbus-wm14s750.yaml) is an ESPHome config file to integrate the washing machine in Home Assistant:
 
-![BSH washing machine Home Assistant](bsh-wm-home-assistant.png)
+![B/S/H/ washing machine Home Assistant](bsh-wm-home-assistant.png)
 
 It uses an [external component](https://esphome.io/components/external_components.html)
 called [bshdbus](components/bshdbus/). There is no documentation (yet) but
@@ -393,7 +407,7 @@ You are very welcome to add more devices, just open a [pull request](https://doc
 
 ### Basics
 
-Some components are [shipped without readout protection and with debug interface exposed](DISHWASHER.md#control-board-epg700xx),
+Some components are [shipped without readout protection and with debug interface exposed](DISHWASHER.md#power-module-epg700xx),
 making them well suited for static and dynamic firmware analysis.
 
 With your [favourite RE tool](https://reverseengineering.stackexchange.com/questions/1817/is-there-any-disassembler-to-rival-ida-pro) one can find arrays of structs defining
@@ -416,7 +430,7 @@ commands defined for this subsystem:
 ```
 struct dbus_cmdin {
     byte eolist;			/* byte & 0x80 != 0 => end of list */
-    byte unkknown;
+    byte unknown;
     word cccc;
     pointer p_f_cmdin_handle;		/* int f_cmdin_handle(int len, byte* buf) */
 };
@@ -432,7 +446,7 @@ struct dbus_cmdout {
 ```
 
 The best way to initially locate these structures is to search the firmware binary
-for known cmdout DS.CC-CC byte sequences (litte endian).
+for known cmdout DS.CC-CC byte sequences (little endian).
 By iterating through the arrays, one can list all subsystems
 with all corresponding incoming and outgoing CC-CC commands.
 The intended action of the respective commands can be determined by analyzing the linked functions.
@@ -512,7 +526,7 @@ The information in this paragraph was compiled from various forum posts, there i
   - [DE102013205754A1](https://worldwide.espacenet.com/patent/search/family/050343707/publication/DE102013205754A1?q=pn%3DDE102013205754A1)
     describes how to add a cryptography layer to the D-Bus (a kind of DRM to protect e.g. cooking recipes).
 
-- [Trammell Hudson](https://github.com/osresearch) has done a in-depth research on how to
+- [Trammell Hudson](https://github.com/osresearch) has done in-depth research on how to
   [cloudlessly interface appliances](https://github.com/osresearch/hcpy) with python.
 
 - I don't own a WM14S750 washing machine, but only, let's call it, a [lab setup](bsh-wm-lab-setup.jpg).

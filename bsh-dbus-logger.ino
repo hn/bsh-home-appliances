@@ -71,7 +71,7 @@ void loop() {
       if ((framelen > 0) && (framepos == framelen)) {
         Serial.printf("(ack=none)\n");
       } else if (framepos > 0) {
-        Serial.printf("(read=timout)\n");
+        Serial.printf("(read=timeout)\n");
       }
       framepos = framelen = 0;
       crc.restart();

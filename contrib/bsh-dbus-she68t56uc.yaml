@@ -1,0 +1,773 @@
+# Bosch SHE68T56UC/02 (FD 9405) - cycle phases, normalized time/progress, raw diagnostics
+# Contributed by Dave (BluThunder2k): https://github.com/BluThunder2k
+# Model notes: https://github.com/hn/bsh-home-appliances/discussions/143
+# Adapter: Bouni BSH-Board hardware v1.1 ONLY.
+# Updated 2026-10-30 from complete Auto + Half Load capture and HA activity.
+# Phase labels are observational, not an official Bosch protocol specification.
+#
+# Sources:
+# https://github.com/jowi24/bsh-dbus-sx66t096eu/blob/main/COMMANDS.md
+# https://github.com/hn/bsh-home-appliances/issues/10
+# https://github.com/Bouni/BSH-Board/tree/1.1
+# https://github.com/hn/bsh-home-appliances/blob/master/contrib/bsh-dbus-shxm78w56n.yaml
+# https://github.com/hn/bsh-home-appliances/blob/master/contrib/bsh-dbus-sx66t096eu.yaml
+#
+# SETUP:
+# Use existing wifi_ssid / wifi_password entries in Device Builder secrets.
+# Add dishwasher_api_key (a generated 32-byte base64 API encryption key)
+# and dishwasher_ota_password (your chosen OTA password) to secrets.yaml.
+# Keep secrets local. Do not replace your existing secrets.yaml.
+#
+# USB flash and bench-test with the appliance cable DISCONNECTED.
+# NEVER connect USB and the dishwasher simultaneously.
+# Once installed, use Wi-Fi for logs and OTA.
+#
+# Read-only entities, including Cycle Ended. HA notifications are configured separately.
+# Optional web_server: use log: false to avoid browser log streaming.
+# Time synchronization is not required by this decoder.
+# Raw bus DEBUG logs require an external collector (e.g. HA Core logging).
+# This firmware does not save log files to flash.
+# UART TX is configured to idle high, as in Bouni's example. This YAML and
+# the pinned bshdbus parser do not write bus frames.
+# Connector letters are installation-specific; see the upstream safety/pinout notes.
+# SW3 pull-up OFF during successful tests.
+# Firmware cannot select the physical SW3 switch.
+#
+# Derived from examples by Hajo Noerenberg, Bouni, Keith Baker and LiamHD.
+# SPDX-License-Identifier: GPL-3.0-only
+# https://www.gnu.org/licenses/gpl-3.0.html
+
+esphome:
+  name: bosch-dishwasher
+  friendly_name: Bosch Dishwasher
+  comment: "SHE68T56UC/02 - Bouni v1.1 - local bus monitor"
+
+esp32:
+  board: esp32-c6-devkitc-1
+  variant: esp32c6
+  flash_size: 4MB
+  framework:
+    type: esp-idf
+
+external_components:
+  - source:
+      type: git
+      url: https://github.com/hn/bsh-home-appliances
+      ref: 5bab91213a9d2c8516c05fc092ba12d8893bfe4e
+    components: [bshdbus]
+    refresh: never
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  power_save_mode: none
+
+api:
+  encryption:
+    key: !secret dishwasher_api_key
+  # Do not reboot merely because HA is disconnected during bench testing.
+  reboot_timeout: 0s
+
+ota:
+  - platform: esphome
+    password: !secret dishwasher_ota_password
+
+logger:
+  level: DEBUG
+  initial_level: INFO
+  # Network logging only; no serial logging output.
+  baud_rate: 0
+  tx_buffer_size: 1024
+  logs:
+    # Firmware entity logs suppressed. The API log client may still add [S] lines.
+    # For a clean CLI capture use: esphome logs bsh-dbus-she68t56uc.yaml --no-states
+    sensor: NONE
+    binary_sensor: NONE
+    text_sensor: NONE
+    script: WARN
+    dishwasher_bus: DEBUG
+    dishwasher_state: INFO
+    bshdbus: WARN
+
+uart:
+  id: dbus_uart
+  rx_pin: GPIO4
+  tx_pin: GPIO5
+  baud_rate: 9600
+  data_bits: 8
+  parity: NONE
+  stop_bits: 1
+  rx_buffer_size: 1024
+
+status_led:
+  pin:
+    number: GPIO6
+    inverted: true
+
+output:
+  - platform: gpio
+    id: activity_led
+    pin:
+      number: GPIO7
+      inverted: true
+
+script:
+  - id: pulse_activity
+    mode: restart
+    then:
+      - output.turn_on: activity_led
+      - delay: 20ms
+      - output.turn_off: activity_led
+
+globals:
+  - id: valid_frames
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  - id: last_frame_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  - id: have_frame
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+
+  - id: cycle_code
+    type: int
+    restore_value: false
+    initial_value: '-1'
+  - id: power_code
+    type: int
+    restore_value: false
+    initial_value: '-1'
+  - id: cancel_latched
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  - id: saw_start
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  - id: delay_minutes
+    type: int
+    restore_value: false
+    initial_value: '-1'
+
+  - id: phase_code
+    type: int
+    restore_value: false
+    initial_value: '-1'
+  - id: remaining_minutes_raw
+    type: int
+    restore_value: false
+    initial_value: '-1'
+  - id: progress_raw_value
+    type: int
+    restore_value: false
+    initial_value: '-1'
+
+bshdbus:
+  uart_id: dbus_uart
+  on_frame:
+    - lambda: |-
+        id(valid_frames)++;
+        id(last_frame_ms) = millis();
+        id(have_frame) = true;
+        ESP_LOGD("dishwasher_bus",
+                 "Received frame dest 0x%02x cmd 0x%04x: 0x%s",
+                 dest, command, format_hex(message).c_str());
+
+        // No bus transmissions. Every payload access is length guarded.
+        auto publish_program = [&](uint8_t code) {
+          const char *name = "Unknown";
+          switch (code) {
+            case 0x0a: name = "Heavy"; break;
+            case 0x0d: name = "Auto"; break;
+            case 0x0f: name = "Glass"; break;
+            case 0x0e: name = "Normal"; break;
+            case 0x11: name = "Express"; break;
+            case 0x12: name = "Rinse"; break;
+          }
+          id(selected_program).publish_state(name);
+        };
+        if (dest == 0x24 && command == 0x2006 && !message.empty()) {
+          id(status_byte).publish_state(message[0]);
+          id(door_candidate).publish_state((message[0] & 0x08) == 0);
+          // Still provisional: wait for a real low-rinse-aid indication.
+          id(rinse_candidate).publish_state((message[0] & 0x02) != 0);
+        }
+        if (dest == 0x25 && command == 0x2008 && !message.empty()) {
+          // Raw display estimate: resets to selected duration after completion.
+          // Do not interpret this field as a completion trigger.
+          id(remaining_minutes_raw) = message[0];
+          id(remaining_candidate).publish_state(message[0]);
+          id(time_payload_raw).publish_state(format_hex(message));
+        }
+        if (dest == 0x17 && command == 0x1010 && !message.empty())
+          id(program_1010).publish_state(message[0]);
+        if (dest == 0x17 && command == 0x1011 && !message.empty()) {
+          id(program_1011).publish_state(message[0]);
+          publish_program(message[0]);
+        }
+        if (dest == 0x25 && command == 0x2010 && !message.empty()) {
+          // Byte 0 corroborated in Auto/Rinse status snapshots.
+          publish_program(message[0]);
+          // Do NOT decode options from byte 8 until tested on this model.
+        }
+        if (dest == 0x17 && command == 0x1000) {
+          id(options_raw).publish_state(format_hex(message));
+          if (message.size() >= 2) {
+            id(speed_perfect).publish_state((message[1] & 0x10) != 0);
+            id(half_load).publish_state((message[1] & 0x20) != 0);
+            id(delicate).publish_state((message[1] & 0x04) != 0);
+            id(sanitize).publish_state((message[1] & 0x02) != 0);
+          }
+        }
+        if ((dest == 0x17 || dest == 0x25) && command == 0x2012 &&
+            !message.empty() && message[0] <= 1) {
+          id(power_code) = message[0];
+          id(panel_power).publish_state(message[0] == 1);
+          if (message[0] == 0) {
+            // Lose operating-state confidence across power-off.
+            id(cycle_code) = -1;
+            id(saw_start) = false;
+            id(phase_code) = -1;
+            id(remaining_minutes_raw) = -1;
+            id(progress_raw_value) = -1;
+            id(delay_minutes) = -1;
+            id(delay_candidate).publish_state(NAN);
+          }
+        }
+        if (dest == 0x17 && command == 0x1013 &&
+            !message.empty() && message[0] == 1) {
+          // A new start must not reuse the previous cycle's Ended or Drying state.
+          // An ordinary resume while raw cycle=1 retains the current phase.
+          if (id(cycle_code) != 1 || id(cancel_latched)) {
+            id(cycle_code) = -1;
+            id(phase_code) = -1;
+            id(remaining_minutes_raw) = -1;
+            id(progress_raw_value) = -1;
+          }
+          id(saw_start) = true;
+          id(cancel_latched) = false;
+          // A preceding delay frame may already contain a positive countdown.
+          // Wait for 27/2007 rather than assume Start means physically running.
+          ESP_LOGI("dishwasher_state", "Start observed; cancellation latch cleared");
+        }
+        if (dest == 0x17 && command == 0x1014) {
+          id(cancel_latched) = true;
+          ESP_LOGI("dishwasher_state", "Cancel command observed");
+        }
+        if (dest == 0x27 && command == 0x2007 && !message.empty()) {
+          id(cycle_code) = message[0];
+          id(cycle_raw).publish_state(message[0]);
+          if (message[0] == 6) id(cancel_latched) = true;
+          if (message[0] == 2) {
+            id(saw_start) = false;
+            id(phase_code) = -1;
+            id(progress_raw_value) = -1;
+          }
+          if (message[0] == 2 || message[0] == 3) {
+            id(delay_minutes) = -1;
+            id(delay_candidate).publish_state(NAN);
+          }
+          // A transient 01 during cancellation must NOT clear the latch.
+        }
+        if (dest == 0x17 && command == 0x1012) {
+          id(delay_raw).publish_state(format_hex(message));
+          // Hours/minutes corroborated by the one-hour countdown through expiry.
+          // Byte 0 changes 02 -> 01 at 30 minutes; do not use as a run flag.
+          if (message.size() >= 3 && message[2] < 60) {
+            id(delay_minutes) = message[1] * 60 + message[2];
+            id(delay_candidate).publish_state(id(delay_minutes));
+          }
+        }
+        // Estimated progress can decrease when the appliance revises its time.
+        if (dest == 0x25 && command == 0x2000 && !message.empty() && message[0] <= 100) {
+          id(progress_raw_value) = message[0];
+          id(progress_candidate).publish_state(message[0]);
+        }
+        if (dest == 0x25 && command == 0x2005 && !message.empty()) {
+          id(phase_code) = message[0];
+          id(phase_raw).publish_state(message[0]);
+        }
+        // Unresolved fields: preserve bytes, never invent faults or pump states.
+        if (dest == 0x25 && command == 0x2004)
+          id(flags_raw).publish_state(format_hex(message));
+        if (dest == 0x25 && command == 0x2009)
+          id(unknown_2009).publish_state(format_hex(message));
+        if (dest == 0x25 && command == 0x2015)
+          id(program_data_raw).publish_state(format_hex(message));
+        if (dest == 0x17 && command == 0x1017)
+          id(end_data_raw).publish_state(format_hex(message));
+        if (dest == 0x26 && command == 0x2002)
+          id(diag_2002).publish_state(format_hex(message));
+        if (dest == 0x25 && command == 0x2013)
+          id(diag_2013).publish_state(format_hex(message));
+
+        // No success notification: 03 also occurs after cancellation and faults.
+        // Do not restore state across ESP reboot and invent a completed cycle.
+        std::string state = "Unknown";
+        if (id(power_code) == 0) state = "Off";
+        else if (id(cycle_code) == 3) {
+          if (id(cancel_latched)) state = "Cancelled";
+          else if (id(saw_start)) state = "Ended";
+          else state = "Ended (history unknown)";
+        } else if (id(cancel_latched) && id(cycle_code) != 2 &&
+                   id(cycle_code) != -1) state = "Cancelling";
+        else if (id(delay_minutes) > 0) state = "Delayed start";
+        else if (id(saw_start) && id(cycle_code) == -1) state = "Starting";
+        else if (id(cycle_code) == 2) state = "Ready";
+        else if (id(cycle_code) == 1) {
+          if (!id(door_candidate).has_state()) state = "Active (door unknown)";
+          else state = id(door_candidate).state ? "Paused (door open)" : "Running";
+        }
+        if (state != "Unknown") {
+          if (state == "Active (door unknown)") {
+            if (id(cycle_running).has_state()) id(cycle_running).invalidate_state();
+          } else id(cycle_running).publish_state(state == "Running");
+          id(delayed_start).publish_state(state == "Delayed start");
+          // Ended is not a verified success/fault-free indication.
+          id(cycle_ended).publish_state(state == "Ended");
+        } else {
+          if (id(cycle_running).has_state()) id(cycle_running).invalidate_state();
+          if (id(delayed_start).has_state()) id(delayed_start).invalidate_state();
+          if (id(cycle_ended).has_state()) id(cycle_ended).invalidate_state();
+        }
+        // Phase is distinct from operating state. A door pause preserves the last
+        // phase text; Drying is only ON while actually in the Running state.
+        std::string phase = state;
+        const bool active = id(power_code) != 0 && id(cycle_code) == 1 &&
+                            !id(cancel_latched) && id(delay_minutes) <= 0;
+        if (active) {
+          switch (id(phase_code)) {
+            case 0x21: phase = "Initial wash"; break;
+            case 0x22: phase = "Washing"; break;
+            case 0x24: phase = "Rinsing"; break;
+            case 0x28: phase = "Drying"; break;
+            case 0x12: phase = "Wash transition"; break;
+            case 0x14: phase = "Rinse transition"; break;
+            case 0x20: phase = "Finishing"; break;
+            default: phase = "Unknown"; break;
+          }
+        }
+        if (!id(cycle_phase).has_state() || id(cycle_phase).state != phase) {
+          id(cycle_phase).publish_state(phase);
+          ESP_LOGI("dishwasher_state", "Cycle phase: %s", phase.c_str());
+        }
+        if (state == "Unknown" || (active &&
+            (phase == "Unknown" || !id(door_candidate).has_state()))) {
+          if (id(drying).has_state()) id(drying).invalidate_state();
+        } else {
+          id(drying).publish_state(state == "Running" && id(phase_code) == 0x28);
+        }
+
+        // Dashboard values. Raw diagnostics below remain untouched.
+        // Ended means termination after an observed start, not verified success.
+        // 100% is a presentation convention for Ended, not a received bus value.
+        float remaining = NAN;
+        float progress = NAN;
+        if (state == "Ended") {
+          remaining = 0;
+          progress = 100;
+        } else if (active) {
+          if (id(remaining_minutes_raw) >= 0) remaining = id(remaining_minutes_raw);
+          if (id(progress_raw_value) >= 0) progress = id(progress_raw_value);
+        }
+        // Unknown, Ready, delayed, Off and cancelled have no active-cycle estimate.
+        id(remaining_time).publish_state(remaining);
+        id(cycle_progress).publish_state(progress);
+
+        if (!id(cycle_state).has_state() || id(cycle_state).state != state) {
+          id(cycle_state).publish_state(state);
+          ESP_LOGI("dishwasher_state", "Cycle state: %s", state.c_str());
+        }
+    - script.execute: pulse_activity
+
+binary_sensor:
+  - platform: template
+    id: drying
+    name: Drying
+    icon: mdi:weather-sunny
+
+  - platform: template
+    id: cycle_running
+    name: Cycle Running
+    icon: mdi:dishwasher
+
+  - platform: template
+    id: delayed_start
+    name: Delayed Start
+    icon: mdi:timer-sand
+
+  - platform: template
+    id: cycle_ended
+    name: Cycle Ended
+    icon: mdi:check-circle-outline
+
+  - platform: status
+    name: ESP Connected
+    entity_category: diagnostic
+
+  - platform: template
+    id: door_candidate
+    name: Door Open Candidate
+    device_class: door
+
+  - platform: template
+    id: rinse_candidate
+    name: Rinse Aid Low Candidate
+    entity_category: diagnostic
+    icon: mdi:lotion-plus-outline
+
+  - platform: template
+    id: panel_power
+    name: Panel Power
+
+  - platform: template
+    id: speed_perfect
+    name: Speed Perfect
+
+  - platform: template
+    id: half_load
+    name: Half Load
+
+  - platform: template
+    id: delicate
+    name: Delicate
+
+  - platform: template
+    id: sanitize
+    name: Sanitize
+
+sensor:
+  - platform: template
+    id: remaining_time
+    name: Remaining Time
+    unit_of_measurement: "min"
+    accuracy_decimals: 0
+    update_interval: never
+    device_class: duration
+    filters:
+      - lambda: |-
+          static float previous = NAN;
+          static bool seen = false;
+          if (seen && (x == previous || (std::isnan(x) && std::isnan(previous)))) return {};
+          seen = true;
+          previous = x;
+          return x;
+
+  - platform: template
+    id: cycle_progress
+    name: Cycle Progress
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+    update_interval: never
+    filters:
+      - lambda: |-
+          static float previous = NAN;
+          static bool seen = false;
+          if (seen && (x == previous || (std::isnan(x) && std::isnan(previous)))) return {};
+          seen = true;
+          previous = x;
+          return x;
+
+  - platform: wifi_signal
+    name: Wi-Fi Signal
+    update_interval: 60s
+    entity_category: diagnostic
+
+  - platform: uptime
+    name: ESP Uptime
+    update_interval: 60s
+    entity_category: diagnostic
+
+  - platform: template
+    name: Valid Bus Frames
+    accuracy_decimals: 0
+    entity_category: diagnostic
+    update_interval: 60s
+    lambda: return id(valid_frames);
+
+  - platform: template
+    name: Last Bus Frame Age
+    unit_of_measurement: s
+    device_class: duration
+    accuracy_decimals: 1
+    entity_category: diagnostic
+    update_interval: 60s
+    lambda: |-
+      if (!id(have_frame)) return NAN;
+      return static_cast<uint32_t>(millis() - id(last_frame_ms)) / 1000.0f;
+
+  - platform: template
+    id: remaining_candidate
+    entity_category: diagnostic
+    name: Remaining Minutes Candidate
+    unit_of_measurement: min
+    device_class: duration
+    accuracy_decimals: 0
+    update_interval: never
+    filters:
+      - lambda: |-
+          static float previous = NAN;
+          static bool seen = false;
+          if (seen && (x == previous || (std::isnan(x) && std::isnan(previous)))) return {};
+          seen = true;
+          previous = x;
+          return x;
+
+  - platform: template
+    id: status_byte
+    name: Status Byte 24-2006
+    accuracy_decimals: 0
+    entity_category: diagnostic
+    update_interval: never
+
+  - platform: template
+    id: program_1010
+    name: Program Code 17-1010
+    accuracy_decimals: 0
+    entity_category: diagnostic
+    update_interval: never
+
+  - platform: template
+    id: program_1011
+    name: Program Code 17-1011
+    accuracy_decimals: 0
+    entity_category: diagnostic
+    update_interval: never
+
+  - platform: template
+    id: cycle_raw
+    name: Cycle State Raw 27-2007
+    accuracy_decimals: 0
+    entity_category: diagnostic
+    update_interval: never
+
+  - platform: template
+    id: phase_raw
+    name: Phase Raw 25-2005
+    accuracy_decimals: 0
+    entity_category: diagnostic
+    update_interval: never
+
+  - platform: template
+    id: progress_candidate
+    entity_category: diagnostic
+    name: Progress Candidate
+    accuracy_decimals: 0
+    update_interval: never
+    filters:
+      - lambda: |-
+          static float previous = NAN;
+          static bool seen = false;
+          if (seen && (x == previous || (std::isnan(x) && std::isnan(previous)))) return {};
+          seen = true;
+          previous = x;
+          return x;
+    unit_of_measurement: "%"
+
+  - platform: template
+    id: delay_candidate
+    name: Delay Minutes Candidate
+    device_class: duration
+    accuracy_decimals: 0
+    update_interval: never
+    filters:
+      - lambda: |-
+          static float previous = NAN;
+          static bool seen = false;
+          if (seen && (x == previous || (std::isnan(x) && std::isnan(previous)))) return {};
+          seen = true;
+          previous = x;
+          return x;
+    unit_of_measurement: "min"
+
+text_sensor:
+  - platform: template
+    id: cycle_phase
+    name: Cycle Phase
+    icon: mdi:dishwasher
+    update_interval: never
+    filters:
+      - lambda: |-
+          static std::string previous;
+          static bool seen = false;
+          if (seen && x == previous) return {};
+          seen = true;
+          previous = x;
+          return x;
+
+  - platform: template
+    id: options_raw
+    name: Options Raw 17-1000
+    entity_category: diagnostic
+    update_interval: never
+    filters:
+      - lambda: |-
+          static std::string previous;
+          static bool seen = false;
+          if (seen && x == previous) return {};
+          seen = true;
+          previous = x;
+          return x;
+
+  - platform: template
+    id: selected_program
+    name: Selected Program
+    update_interval: never
+    filters:
+      - lambda: |-
+          static std::string previous;
+          static bool seen = false;
+          if (seen && x == previous) return {};
+          seen = true;
+          previous = x;
+          return x;
+
+  - platform: template
+    id: cycle_state
+    name: Cycle State
+    update_interval: never
+    filters:
+      - lambda: |-
+          static std::string previous;
+          static bool seen = false;
+          if (seen && x == previous) return {};
+          seen = true;
+          previous = x;
+          return x;
+
+  - platform: template
+    id: delay_raw
+    name: Delay Raw 17-1012
+    update_interval: never
+    filters:
+      - lambda: |-
+          static std::string previous;
+          static bool seen = false;
+          if (seen && x == previous) return {};
+          seen = true;
+          previous = x;
+          return x;
+    entity_category: diagnostic
+
+  - platform: template
+    id: diag_2002
+    name: Diagnostics Raw 26-2002
+    update_interval: never
+    filters:
+      - lambda: |-
+          static std::string previous;
+          static bool seen = false;
+          if (seen && x == previous) return {};
+          seen = true;
+          previous = x;
+          return x;
+    entity_category: diagnostic
+
+  - platform: template
+    id: diag_2013
+    name: Diagnostics Raw 25-2013
+    update_interval: never
+    filters:
+      - lambda: |-
+          static std::string previous;
+          static bool seen = false;
+          if (seen && x == previous) return {};
+          seen = true;
+          previous = x;
+          return x;
+    entity_category: diagnostic
+
+
+  - platform: template
+    id: flags_raw
+    name: Flags Raw 25-2004
+    entity_category: diagnostic
+    update_interval: never
+    filters:
+      - lambda: |-
+          static std::string previous;
+          static bool seen = false;
+          if (seen && x == previous) return {};
+          seen = true;
+          previous = x;
+          return x;
+
+  - platform: template
+    id: unknown_2009
+    name: Unknown Raw 25-2009
+    entity_category: diagnostic
+    update_interval: never
+    filters:
+      - lambda: |-
+          static std::string previous;
+          static bool seen = false;
+          if (seen && x == previous) return {};
+          seen = true;
+          previous = x;
+          return x;
+
+  - platform: template
+    id: program_data_raw
+    name: Program Data Raw 25-2015
+    entity_category: diagnostic
+    update_interval: never
+    filters:
+      - lambda: |-
+          static std::string previous;
+          static bool seen = false;
+          if (seen && x == previous) return {};
+          seen = true;
+          previous = x;
+          return x;
+
+  - platform: template
+    id: end_data_raw
+    name: End Data Raw 17-1017
+    entity_category: diagnostic
+    update_interval: never
+    filters:
+      - lambda: |-
+          static std::string previous;
+          static bool seen = false;
+          if (seen && x == previous) return {};
+          seen = true;
+          previous = x;
+          return x;
+
+  - platform: template
+    id: time_payload_raw
+    name: Time Payload Raw 25-2008
+    entity_category: diagnostic
+    update_interval: never
+    filters:
+      - lambda: |-
+          static std::string previous;
+          static bool seen = false;
+          if (seen && x == previous) return {};
+          seen = true;
+          previous = x;
+          return x;
+
+# Model-specific evidence and limits:
+# Half Load: 17/1000 byte 1 mask 0x20, physically selected; Auto code 0x0d.
+# 2026-10-29 run: 20:58:43 start, 22:27:51 phase 28, 22:42:53 raw cycle 03.
+# Phase 28 lasted 15m01s to phase 20; consistent with other BSH drying captures.
+# 21/22/24 labels describe broad stages, not individual fill/drain/heater actions.
+# 12/14 are transitions. Time and progress can move backward after these frames.
+# Phase 20 alone is NOT completion. Raw cycle 03 also occurs after cancel/fault.
+# Ended is not a fault-free/Clean assertion. No automatic fault mapping implemented.
+# 26/2002=00000002 occurred during a completed run; do not treat it as an error.
+# 25/2013 and 26/2002 change in other models' fault tests, but byte meanings unknown.
+# 25/2015 is program-dependent; its option-mask interpretation is unconfirmed.
+# 25/2009 is unknown, not a validated uptime/pump indication.
+# 17/1017 is retained as bytes, not used as a completion trigger.
+# Candidate names identify fields whose interpretation or full range needs verification.
+# On ESP reboot all inferred state is unknown until new bus evidence arrives.
+# Bus silence is normal (about 60s between many frames); no silence-based finish.
+# No five-second diagnostics. Counters publish every 60s; entities are event-driven.
+# Every parser-delivered bus frame is logged once at dishwasher_bus DEBUG.

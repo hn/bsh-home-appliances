@@ -1,0 +1,510 @@
+#
+# bsh-dbus-i79fl64n0.yaml -- Interface B/S/H/ (Neff) island cooker hood I79FL64N0/02
+#
+# This file has been contributed by
+# (C) 2026 mkloss33
+# https://github.com/mkloss33
+#
+# More info:
+# https://github.com/hn/bsh-home-appliances/discussions/144
+#
+# (C) 2024-2026 Hajo Noerenberg
+# https://www.noerenberg.de/
+# https://github.com/hn/bsh-home-appliances
+#
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 3.0 as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program. If not, see <http://www.gnu.org/licenses/gpl-3.0.txt>.
+#
+#
+# Hardware: Bouni BSH-Board (ESP32-C6, https://github.com/Bouni/BSH-Board) plugged into the
+# 3-pin RAST 2.5 D-Bus connector on the power module (BSH 00754237), next to the ribbon cable
+# to the control panel. VBUS is 5 V on this hood.
+#
+# Reads: fan stage (1, 2, 3, P1, P2), fan power, light brightness, silence ("vol") mode,
+# intensive remaining time.
+# Controls (by sending the same frames the control panel sends to node 0x30):
+#   - fan stage:   30 5120, then 30 5105 00 <stage 0..3> 00 00
+#   - P1 / P2:     30 5120, then 30 5122 06 <04|05> 03, then 30 5125  (6 min, fallback stage 3)
+#   - silence:     30 5120, then 30 5130 <01|00>   (ignored in stage 1)
+#   - light key:   30 5106 01 (key down), ~150 ms later 30 5106 00 (key up); holding = dimming
+# The hood ignores the first frame when the bus is asleep, so a harmless "key up" is sent to
+# wake it first. Frames are only sent in the gap after a received frame.
+# Entity names are German. Diagnostic entities (raw frame sender, key log, ACK monitor)
+# are kept as entity_category: diagnostic.
+#
+# Never connect the board to the appliance and a computer (USB) at the same time.
+#
+
+esphome:
+  name: bsh-dbus-i79fl64n0
+  friendly_name: Neff hood I79FL64N0
+
+external_components:
+  - source: github://hn/bsh-home-appliances@master
+    components: [bshdbus]
+
+esp32:
+  board: esp32-c6-devkitc-1
+  variant: esp32c6
+  framework:
+    type: esp-idf
+
+logger:
+  level: DEBUG   # zeigt auch Frames mit falscher CRC und verworfene Bytes
+
+api:
+
+ota:
+  - platform: esphome
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "Haube-DBus Fallback"
+
+web_server:
+  port: 80
+  version: 2
+  local: true
+
+uart:
+  id: dbus_uart
+  rx_pin: GPIO4
+  tx_pin: GPIO5
+  baud_rate: 9600
+  # Bestätigungen (ACK) mitlesen: nach jedem Frame antwortet der Empfänger mit 1 Byte (xA)
+  debug:
+    direction: RX
+    dummy_receiver: false
+    after:
+      timeout: 15ms
+    sequence:
+      - lambda: |-
+          size_t i = 0, n = bytes.size();
+          while (i < n) {
+            size_t len = (size_t) bytes[i] + 4;
+            if (len < 6 || i + len > n) break;
+            uint8_t dest = bytes[i + 1];
+            std::string st;
+            char b[24];
+            if (i + len < n && (bytes[i + len] & 0x0F) == 0x0A) {
+              snprintf(b, sizeof(b), "%02X ACK %02X", dest, bytes[i + len]);
+              i += len + 1;
+            } else {
+              snprintf(b, sizeof(b), "%02X kein ACK", dest);
+              i += len;
+            }
+            st = b;
+            static std::map<uint8_t, std::string> seen;
+            if (seen[dest] != st || dest != 0x00) {
+              seen[dest] = st;
+              id(ack_count) += 1;
+              char p[12];
+              snprintf(p, sizeof(p), "#%u ", (unsigned) id(ack_count));
+              id(last_ack).publish_state(std::string(p) + st);
+            }
+          }
+
+output:
+  - platform: gpio
+    pin:
+      number: GPIO7
+      inverted: true
+    id: activity_led
+
+status_led:
+  pin:
+    number: GPIO6
+    inverted: true
+
+# Letzter empfangener Frame, damit wir ihn auch in HA sehen
+text_sensor:
+  - platform: template
+    id: last_frame
+    name: Letzter D-Bus-Frame
+    entity_category: diagnostic   # ausgeblendet, für Fehlersuche
+    icon: mdi:swap-horizontal
+    update_interval: never
+  - platform: template
+    id: last_ack
+    name: Letzte Bestätigung
+    entity_category: diagnostic   # ausgeblendet, für Fehlersuche
+    icon: mdi:check-network-outline
+    update_interval: never
+  - platform: template
+    id: key_log
+    name: Tasten-Log
+    entity_category: diagnostic   # ausgeblendet, für Fehlersuche
+    icon: mdi:gesture-tap-button
+    update_interval: never
+  - platform: template
+    id: last_sent
+    name: Zuletzt gesendet
+    entity_category: diagnostic   # ausgeblendet, für Fehlersuche
+    icon: mdi:send-check
+    update_interval: never
+
+sensor:
+  - platform: template
+    id: frame_count
+    name: D-Bus-Frames gezählt
+    entity_category: diagnostic   # ausgeblendet, für Fehlersuche
+    icon: mdi:counter
+    accuracy_decimals: 0
+    state_class: total_increasing
+    update_interval: never
+  - platform: wifi_signal
+    name: WLAN-Signal
+    entity_category: diagnostic   # ausgeblendet, für Fehlersuche
+    update_interval: 60s
+
+  # --- Ausgewertet aus dem Tastentest vom 30.10.2026 (vorläufig) ---
+  # 00/5100 kommt jede Sekunde: [0]=Lüfterleistung, [1]=Stufe, [2]=Licht, [3]/[4]=Flags
+  - platform: bshdbus
+    dest: 0x00
+    command: 0x5100
+    sensors:
+      - id: haube_stufe
+        name: Lüfterstufe
+        icon: mdi:fan
+        accuracy_decimals: 0
+        lambda: return x[1];
+        filters:
+          - delta: 0.5
+        on_value:
+          - lambda: |-
+              int st = (int) x;
+              id(fan_sync) = true;
+              id(haube_fan).state = st > 0;
+              // aus: beim nächsten Einschalten aus HA mit Stufe 2 starten (wie die Ein-Taste)
+              id(haube_fan).speed = st > 3 ? 3 : (st > 0 ? st : 2);
+              id(haube_fan).publish_state();
+              id(fan_sync) = false;
+              const char *opt = st <= 0 ? "Aus" : st == 4 ? "P1" : st >= 5 ? "P2" : st == 1 ? "1" : st == 2 ? "2" : "3";
+              id(stufe_select).publish_state(opt);
+      - id: haube_leistung
+        name: Lüfterleistung
+        icon: mdi:fan-chevron-up
+        unit_of_measurement: "%"
+        accuracy_decimals: 0
+        lambda: return x[0];
+        filters:
+          - delta: 0.5
+      - id: haube_licht
+        name: Licht Helligkeit
+        icon: mdi:lightbulb
+        unit_of_measurement: "%"
+        accuracy_decimals: 0
+        lambda: return x[2] * 100.0 / 228.0;   # 0xE4 = volle Helligkeit
+        filters:
+          - delta: 0.5
+  # 00/512E: Restzeit Intensivstufe (6 = 6 min?), 0 = keine Intensivstufe
+  - platform: bshdbus
+    dest: 0x00
+    command: 0x512E
+    sensors:
+      - id: haube_intensiv_rest
+        name: Intensiv Restzeit
+        icon: mdi:timer-outline
+        unit_of_measurement: min
+        accuracy_decimals: 0
+        lambda: return x[0];
+
+binary_sensor:
+  - platform: bshdbus
+    dest: 0x00
+    command: 0x5100
+    binary_sensors:
+      - id: haube_luefter_an
+        name: Lüfter an
+        icon: mdi:fan
+        lambda: return x[1] > 0;
+      - id: haube_licht_an
+        name: Licht an
+        icon: mdi:lightbulb
+        lambda: return x[2] > 0;
+      - id: haube_intensiv
+        name: Intensivstufe
+        icon: mdi:fan-plus
+        lambda: return (x[4] & 0x20) != 0;
+      - id: haube_vol_flag
+        name: Silence-Modus   # Taste "vol": leiserer Betrieb, etwas weniger Leistung
+        icon: mdi:volume-low
+        lambda: return (x[3] & 0x40) != 0;
+
+globals:
+  - id: fan_sync   # true, während der Lüfterzustand vom Bus übernommen wird
+    type: bool
+    initial_value: 'false'
+  - id: frames
+    type: uint32_t
+    initial_value: '0'
+  - id: ack_count
+    type: uint32_t
+    initial_value: '0'
+  - id: last_frame_ms
+    type: uint32_t
+    initial_value: '0'
+  - id: send_at_ms      # 0 = auf Lücke nach fremdem Frame warten
+    type: uint32_t
+    initial_value: '0'
+  - id: echo_until_ms   # eigenes Echo nicht als Busverkehr werten
+    type: uint32_t
+    initial_value: '0'
+  - id: wake_ms         # Zeitpunkt des Weck-Frames, 0 = nicht geweckt
+    type: uint32_t
+    initial_value: '0'
+  # Warteschlange: jeder Eintrag = DS CC CC Daten... (ohne Länge und CRC)
+  - id: tx_queue
+    type: std::vector<std::vector<uint8_t>>
+  # Abstand in ms zum vorherigen Frame (gilt nur, wenn direkt davor gesendet wurde)
+  - id: tx_gap
+    type: std::vector<uint32_t>
+
+# --- Senden ---
+# Erkenntnis 30.10.: Die Lichttaste ist "Taste runter" (30/5106 01) und "Taste hoch"
+# (30/5106 00). Kurz drücken (~150 ms) schaltet an/aus, lang halten dimmt.
+# Schläft die Haube (Bus still), wird der erste Frame ignoriert. Deshalb zuerst
+# ein harmloses "Taste hoch" zum Wecken, dann warten, bis der Bus aktiv ist.
+# Bei aktivem Bus: erster Frame 40 ms nach einem fremden Frame, die folgenden mit
+# dem eingestellten Abstand.
+interval:
+  - interval: 5ms
+    then:
+      - lambda: |-
+          if (id(tx_queue).empty()) { id(wake_ms) = 0; return; }
+          uint32_t now = millis();
+          bool bus_idle = (now - id(last_frame_ms)) > 1500;
+          std::vector<uint8_t> body;
+          if (bus_idle && id(send_at_ms) == 0) {
+            if (id(wake_ms) == 0) {
+              body = {0x30, 0x51, 0x06, 0x00};   // Weck-Frame: "Lichttaste hoch"
+              id(wake_ms) = now;
+            } else if (now - id(wake_ms) < 2500) {
+              return;                           // warten, bis die Haube sendet
+            } else {
+              id(send_at_ms) = now;             // wacht nicht auf: trotzdem senden
+              return;
+            }
+          } else {
+            if (id(send_at_ms) == 0 || (int32_t)(now - id(send_at_ms)) < 0) return;
+            body = id(tx_queue).front();
+            id(tx_queue).erase(id(tx_queue).begin());
+            id(tx_gap).erase(id(tx_gap).begin());
+            id(send_at_ms) = id(tx_queue).empty() ? 0 : now + id(tx_gap).front();
+          }
+          std::vector<uint8_t> f;
+          f.push_back((uint8_t)(body.size() - 1));   // Länge = Kommando + Daten
+          f.insert(f.end(), body.begin(), body.end());
+          uint16_t crc = crc16be(f.data(), f.size(), 0x0, 0x1021, false, false);
+          f.push_back(crc >> 8);
+          f.push_back(crc & 0xFF);
+          id(echo_until_ms) = now + 60;
+          id(dbus_uart).write_array(f.data(), f.size());
+          ESP_LOGI("haube", "GESENDET: %s", format_hex_pretty(f).c_str());
+          id(last_sent).publish_state(format_hex_pretty(f));
+
+script:
+  - id: queue_frame
+    mode: queued
+    parameters:
+      hex: string
+      gap_ms: int
+    then:
+      - lambda: |-
+          std::vector<uint8_t> body;
+          std::string h;
+          for (char c : hex) if (isxdigit((unsigned char) c)) h += c;
+          if (h.size() < 6 || h.size() % 2) {
+            ESP_LOGW("haube", "Ungueltiger Rohframe: '%s' (Format: DS CCCC Daten, z.B. 30 5106 01)", hex.c_str());
+            return;
+          }
+          for (size_t i = 0; i < h.size(); i += 2)
+            body.push_back((uint8_t) strtoul(h.substr(i, 2).c_str(), nullptr, 16));
+          id(tx_queue).push_back(body);
+          id(tx_gap).push_back((uint32_t) gap_ms);
+
+  - id: press_light
+    then:
+      # kurzer Tastendruck: runter, 150 ms später hoch
+      - script.execute: { id: queue_frame, hex: "30 5106 01", gap_ms: 0 }
+      - script.execute: { id: queue_frame, hex: "30 5106 00", gap_ms: 150 }
+
+  # Lüfterbefehle wie vom Bedienteil (Test 30.10. 17:40): erst 30/5120, dann der Befehl
+  - id: send_fan_cmd
+    mode: queued
+    parameters:
+      hex: string
+    then:
+      - script.execute: { id: queue_frame, hex: "30 5120", gap_ms: 0 }
+      - script.execute:
+          id: queue_frame
+          hex: !lambda return hex;
+          gap_ms: 100
+
+fan:
+  - platform: template
+    id: haube_fan
+    name: Lüfter
+    icon: mdi:fan
+    # Stufen 1–3; 4/5 gibt es per Intensiv-Schalter (mit 6-min-Timer der Haube)
+    speed_count: 3
+    restore_mode: ALWAYS_OFF
+    on_state:
+      - lambda: |-
+          if (id(fan_sync)) return;
+          if (millis() < 15000) return;   // beim Start nichts senden
+          int st = id(haube_fan).state ? id(haube_fan).speed : 0;
+          if (id(haube_fan).state && (st < 1 || st > 3)) st = 2;
+          char h[24];
+          snprintf(h, sizeof(h), "30 5105 00%02X0000", st);
+          id(send_fan_cmd).execute(std::string(h));
+
+switch:
+  - platform: template
+    name: Intensivstufe
+    icon: mdi:fan-plus
+    restore_mode: DISABLED   # beim Start nichts an die Haube senden
+    # an, solange die Haube eine Intensiv-Restzeit meldet (00/512E)
+    lambda: return id(haube_intensiv_rest).has_state() && id(haube_intensiv_rest).state > 0;
+    turn_on_action:
+      # exakte Kopie der P-Taste: 30/5122 06 05 03 (6 min, Stufe 5), danach 30/5125
+      - script.execute: { id: send_fan_cmd, hex: "30 5122 060503" }
+      - script.execute: { id: queue_frame, hex: "30 5125", gap_ms: 100 }
+    turn_off_action:
+      # vermutet: normale Stufe setzen beendet Intensiv (03 = Rückfallstufe aus 5122)
+      - script.execute: { id: send_fan_cmd, hex: "30 5105 00030000" }
+  - platform: template
+    name: Silence-Modus
+    icon: mdi:volume-low
+    restore_mode: DISABLED
+    lambda: return id(haube_vol_flag).state;
+    turn_on_action:
+      - script.execute: { id: send_fan_cmd, hex: "30 5130 01" }
+    turn_off_action:
+      - script.execute: { id: send_fan_cmd, hex: "30 5130 00" }
+  - platform: template
+    name: Licht
+    icon: mdi:ceiling-light
+    restore_mode: DISABLED
+    lambda: return id(haube_licht_an).state;
+    turn_on_action:
+      - if:
+          condition:
+            lambda: return !id(haube_licht_an).state;
+          then:
+            - script.execute: press_light
+    turn_off_action:
+      - if:
+          condition:
+            lambda: return id(haube_licht_an).state;
+          then:
+            - script.execute: press_light
+
+button:
+  - platform: template
+    name: Licht an/aus
+    entity_category: diagnostic   # ausgeblendet, für Fehlersuche
+    icon: mdi:lightbulb
+    on_press:
+      - script.execute: press_light
+  - platform: template
+    name: Rohframe senden
+    entity_category: diagnostic   # ausgeblendet, für Fehlersuche
+    icon: mdi:send
+    on_press:
+      - script.execute:
+          id: queue_frame
+          hex: !lambda return id(raw_frame).state;
+          gap_ms: 150
+
+select:
+  - platform: template
+    id: stufe_select
+    name: Lüfterstufe wählen
+    icon: mdi:fan-speed-2
+    # wie in der Anzeige der Haube: 1, 2, 3, P1, P2 (P = Intensiv mit 6-min-Timer)
+    # Anzeige wird nur bei Änderung aus "Lüfterstufe" (00/5100) nachgeführt
+    options: ["Aus", "1", "2", "3", "P1", "P2"]
+    initial_option: "Aus"
+    optimistic: false
+    set_action:
+      - if:
+          condition:
+            lambda: return x == "P1" || x == "P2";
+          then:
+            # wie die Haube selbst: 30/5122 06 0X 03 (6 min, Stufe 4/5, danach 3), dann 30/5125
+            - script.execute:
+                id: send_fan_cmd
+                hex: !lambda 'return x == "P1" ? std::string("30 5122 060403") : std::string("30 5122 060503");'
+            - script.execute: { id: queue_frame, hex: "30 5125", gap_ms: 100 }
+          else:
+            - script.execute:
+                id: send_fan_cmd
+                hex: !lambda |-
+                  int st = (x == "Aus") ? 0 : (x[0] - '0');
+                  char h[24];
+                  snprintf(h, sizeof(h), "30 5105 00%02X0000", st);
+                  return std::string(h);
+
+text:
+  - platform: template
+    id: raw_frame
+    name: Rohframe
+    entity_category: diagnostic   # ausgeblendet, für Fehlersuche
+    icon: mdi:code-brackets
+    mode: text
+    optimistic: true
+    initial_value: "30 5106 01"
+
+bshdbus:
+  uart_id: dbus_uart
+  on_frame:
+    - logger.log:
+        level: INFO
+        format: "FRAME dest 0x%02x cmd 0x%04x: 0x%s"
+        args: [dest, command, format_hex(message).c_str()]
+    - lambda: |-
+        if ((int32_t)(millis() - id(echo_until_ms)) >= 0) {
+          id(last_frame_ms) = millis();
+          // erster Frame der Warteschlange 40 ms nach einem fremden Frame
+          if (!id(tx_queue).empty() && id(send_at_ms) == 0) id(send_at_ms) = millis() + 40;
+        }
+        id(frames) += 1;
+        id(frame_count).publish_state(id(frames));
+        // Tasten-Log: alle Frames, die nicht an 00 gehen, ungefiltert anhängen
+        // (Tastendrücke kommen schneller, als HA einzelne Zustände speichert)
+        if (dest != 0x00) {
+          static std::string klog;
+          char kb[40];
+          snprintf(kb, sizeof(kb), "%u.%01u:%02X %04X %s | ", (unsigned) (millis() / 1000) % 1000,
+                   (unsigned) (millis() / 100) % 10, dest, command, format_hex(message).c_str());
+          klog += kb;
+          if (klog.size() > 220) klog.erase(0, klog.size() - 220);
+          id(key_log).publish_state(klog);
+        }
+        // Nur senden, wenn sich der Inhalt fuer dieses Ziel/Kommando aendert.
+        // Laufende Nummer vorne, damit HA jede Aenderung einzeln speichert.
+        static std::map<uint32_t, std::string> seen;
+        uint32_t key = ((uint32_t) dest << 16) | command;
+        std::string payload = format_hex(message);
+        auto it = seen.find(key);
+        if (it != seen.end() && it->second == payload) return;
+        seen[key] = payload;
+        char buf[32];
+        snprintf(buf, sizeof(buf), "#%u %02X %04X ", (unsigned) id(frames), dest, command);
+        id(last_frame).publish_state(std::string(buf) + payload);
+    - output.turn_on: activity_led
+    - delay: 20ms
+    - output.turn_off: activity_led

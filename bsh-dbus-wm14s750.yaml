@@ -42,7 +42,8 @@ api:
     key: !secret api_encryption_key
 
 ota:
-  password: !secret ota_password
+  - platform: esphome
+    encryption:
 
 wifi:
   ssid: !secret wifi_ssid
@@ -122,7 +123,7 @@ binary_sensor:
     command: 0x1701
     binary_sensors:
       - id: bsh_wm_program_started
-        name: Waschprogramm gestarted
+        name: Waschprogramm gestartet
         entity_category: diagnostic
         icon: mdi:ray-start-arrow
         lambda: return 1;

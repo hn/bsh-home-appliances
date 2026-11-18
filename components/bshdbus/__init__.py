@@ -1,14 +1,17 @@
 from esphome import automation
 import esphome.codegen as cg
-import esphome.config_validation as cv
 from esphome.components import uart
+import esphome.config_validation as cv
 from esphome.const import CONF_ID, CONF_TRIGGER_ID
+from esphome.types import ConfigType
 
 # ESPHome component based on VBus component by @ssieb - thanks!
 
 CODEOWNERS = ["@hn"]
 
 DEPENDENCIES = ["uart"]
+
+DOMAIN = "bshdbus"
 
 MULTI_CONF = True
 
@@ -34,7 +37,10 @@ CONFIG_SCHEMA = uart.UART_DEVICE_SCHEMA.extend(
     }
 )
 
-async def to_code(config):
+FINAL_VALIDATE_SCHEMA = uart.final_validate_device_schema("bshdbus", require_rx=True)
+
+
+async def to_code(config: ConfigType) -> None:
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
     await uart.register_uart_device(var, config)
@@ -43,10 +49,16 @@ async def to_code(config):
         await automation.build_automation(
             trigger,
             [
-                (cg.std_vector.template(cg.uint8).operator("ref").operator("const"), "x"),
+                (
+                    cg.std_vector.template(cg.uint8).operator("ref").operator("const"),
+                    "x",
+                ),
                 (cg.uint8, "dest"),
                 (cg.uint16, "command"),
-                (cg.std_vector.template(cg.uint8).operator("ref").operator("const"), "message"),
+                (
+                    cg.std_vector.template(cg.uint8).operator("ref").operator("const"),
+                    "message",
+                ),
             ],
             conf,
         )

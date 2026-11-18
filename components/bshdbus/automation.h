@@ -5,10 +5,10 @@
 
 #include <vector>
 
-namespace esphome {
-namespace bshdbus {
+namespace esphome::bshdbus {
 
-class FrameTrigger : public Trigger<const std::vector<uint8_t> &, uint8_t, uint16_t, const std::vector<uint8_t> &> {
+class FrameTrigger final
+    : public Trigger<const std::vector<uint8_t> &, uint8_t, uint16_t, const std::vector<uint8_t> &> {
  public:
   explicit FrameTrigger(BSHDBus *bshdbus) {
     bshdbus->add_on_frame_callback(
@@ -18,5 +18,4 @@ class FrameTrigger : public Trigger<const std::vector<uint8_t> &, uint8_t, uint1
   }
 };
 
-}  // namespace bshdbus
-}  // namespace esphome
+}  // namespace esphome::bshdbus

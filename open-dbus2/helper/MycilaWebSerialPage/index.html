@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>Web Console</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type="text/css">
+        div {
+            display: block;
+        }
+
+        a {
+            margin: 0.4rem;
+            text-decoration: none;
+        }
+
+        *,
+        ::after,
+        ::before {
+            -webkit-box-sizing: inherit;
+            box-sizing: inherit;
+        }
+
+        p {
+            margin: 0 0 1rem;
+        }
+
+        body {
+            overscroll-behavior: none;
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI",
+                Roboto, "Helvetica Neue", sans-serif;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .gray {
+            color: #667189;
+        }
+
+        .shadow {
+            filter: drop-shadow(0 4px 3px rgb(0 0 0 / 0.07)) drop-shadow(0 2px 2px rgb(0 0 0 / 0.06));
+        }
+
+        .w-full {
+            width: 100%;
+        }
+
+        .grid {
+            display: grid;
+        }
+
+        .gap-2 {
+            gap: 0.5rem;
+        }
+
+        .flex {
+            display: flex;
+        }
+
+        .grow {
+            flex-grow: 1;
+        }
+
+        .justify-items-end {
+            justify-items: end;
+        }
+
+        .rounded {
+            border-radius: 0.5rem;
+        }
+
+        .section {
+            box-sizing: border-box;
+            background-color: #f8f9fa;
+        }
+
+        .main {
+            /* padding-top: 3rem; */
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            height: 100dvh;
+        }
+
+        .main .pannel {
+            position: relative;
+            border: #fff;
+            border-style: solid;
+            border-width: 0.5rem;
+            border-radius: 1rem;
+            background-color: #fff;
+            width: calc(100% - 1rem);
+            font-size: medium;
+            margin-top: 2.5rem;
+        }
+
+        .pannel button {
+            cursor: pointer;
+            padding: 8px 10px 8px;
+            font-size: medium;
+            outline-style: none;
+            border: 0px;
+            color: #fff;
+            background-color: #0067f4;
+        }
+
+        .pannel button:disabled {
+            background-color: #5a6169;
+        }
+
+        .pannel #record {
+            min-height: 3.25rem;
+            padding: 0.5rem;
+            resize: vertical;
+            overscroll-behavior: none;
+        }
+
+        #control-button {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+        }
+
+        #control-button button {
+            background-color: #5a6169;
+        }
+
+        #flow-lock-btn .lock-open { display: none; }
+        #flow-lock-btn.unlocked .lock-open { display: inline; }
+        #flow-lock-btn.unlocked .lock-closed { display: none; }
+
+        .alert span {
+            user-select: none;
+            background: #ffe14d;
+            padding: 2px 10px;
+            display: block;
+            color: black;
+        }
+
+        .footer {
+            padding: 1rem 0.5rem;
+            background-color: white;
+        }
+
+        .copyright {
+            padding-bottom: 1rem;
+        }
+
+        .float-left {
+            float: left;
+        }
+
+        .float-right {
+            float: right;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="section main text-center">
+        <h1 id="title" style="display: none;">Web Console</h1>
+        <a href="/">
+            <img id="logo" src="/logo" onerror="removeLogo();" />
+        </a>
+
+        <div class="pannel shadow grid gap-2">
+            <div id="control-button">
+                <button class="rounded shadow" onclick="terminalClean()">&#x1F5D1;&#xFE0E;</button>
+                <button id="flow-lock-btn" class="rounded shadow unlocked" onclick="enableFlowLock=!enableFlowLock;this.classList.toggle('unlocked')"><span class="lock-closed">&#x1F512;&#xFE0E;</span><span class="lock-open">&#x1F513;&#xFE0E;</span></button>
+                <button class="rounded shadow" onclick="enableTimestamp=!enableTimestamp">&#x1F550;&#xFE0E;</button>
+                <button class="rounded shadow" onclick="enableStripAnsiEscapeCodes=!enableStripAnsiEscapeCodes">&#x1F9F9;&#xFE0E;</button>
+            </div>
+            <textarea class="w-full rounded" title="record" id="record" cols="30" rows="40" disabled></textarea>
+            <div class="flex w-full grid gap-2" id="terminal">
+                <input type="text" name="cmd" id="command-text" class="grow rounded" /><button
+                    class="grid justify-items-end rounded shadow" id="command-button">
+                    SEND
+                </button>
+            </div>
+        </div>
+        <h1 />
+    </div>
+</body>
+<script>
+    let gateway = ((window.location.protocol === "https:") ? "wss://" : "ws://") + window.location.host + (window.location.pathname.endsWith("/") ? window.location.pathname.slice(0, -1) : window.location.pathname) + 'ws';
+    let websocket;
+    let textArea = document.getElementById("record");
+    let enableFlowLock = false;
+    let enableTimestamp = false;
+    let enableStripAnsiEscapeCodes = true;
+    let pingTimeout;
+    let connectTimeout;
+    let commandHistory = [];
+    let commandHistoryIdx = 0;
+
+    function removeLogo() {
+        document.getElementById("logo").remove();
+        document.getElementById("title").style.display = "block";
+    }
+
+    // https://raw.githubusercontent.com/chalk/ansi-regex/refs/heads/main/index.js
+    function ansiRegex({onlyFirst = false} = {}) {
+        // Valid string terminator sequences are BEL, ESC\, and 0x9c
+        const ST = '(?:\\u0007|\\u001B\\u005C|\\u009C)';
+
+        // OSC sequences only: ESC ] ... ST (non-greedy until the first ST)
+        const osc = `(?:\\u001B\\][\\s\\S]*?${ST})`;
+
+        // CSI and related: ESC/C1, optional intermediates, optional params (supports ; and :) then final byte
+        const csi = '[\\u001B\\u009B][[\\]()#;?]*(?:\\d{1,4}(?:[;:]\\d{0,4})*)?[\\dA-PR-TZcf-nq-uy=><~]';
+
+        const pattern = `${osc}|${csi}`;
+
+        return new RegExp(pattern, onlyFirst ? undefined : 'g');
+    }
+
+    function initWebPage() {
+        document.getElementById("command-button").disabled = true;
+        document.getElementById("command-text").disabled = true;
+        initCommandHistory();
+        initWebSocket();
+        initButton();
+        trapKeyPress();
+    }
+
+    function initCommandHistory() {
+        const json = localStorage.history;
+        commandHistory = json ? JSON.parse(json) : [];
+        commandHistoryIdx = commandHistory.length;
+    }
+
+    function initWebSocket() {
+        clearTimeout(connectTimeout);
+        clearTimeout(pingTimeout);
+        pingTimeout = false;
+        connectTimeout = setTimeout(() => {
+            terminalWrite("[WebSerial] Connect timeout.");
+            websocket.close();
+            initWebSocket();
+        }, 3000);
+        terminalWrite("[WebSerial] Connecting ...");
+        websocket = new WebSocket(gateway);
+        websocket.onopen = onOpen;
+        websocket.onclose = onClose;
+        websocket.onmessage = onMessage;
+        websocket.onerror = onError;
+    }
+
+    function initButton() {
+        document.getElementById("command-button").addEventListener("click", sendCommand);
+    }
+
+    function trapKeyPress() {
+        document.getElementById("command-text").addEventListener("keypress", (event) => {
+            if (event.code === "Enter") {
+                event.preventDefault();
+                document.getElementById("command-button").click();
+            }
+        });
+        document.addEventListener("keydown", (event) => {
+            if (document.activeElement && document.activeElement.id === 'command-text') {
+                if (event.code === "ArrowUp") {
+                    commandHistoryIdx--;
+                    if (commandHistoryIdx < 0)
+                        commandHistoryIdx = commandHistory.length > 0 ? commandHistory.length - 1 : 0;
+                    if (commandHistoryIdx >= 0 && commandHistoryIdx < commandHistory.length)
+                        document.getElementById("command-text").value = commandHistory[commandHistoryIdx];
+
+                } else if (event.code === "ArrowDown") {
+                    commandHistoryIdx++;
+                    if (commandHistoryIdx >= commandHistory.length)
+                        commandHistoryIdx = 0;
+                    if (commandHistoryIdx >= 0 && commandHistoryIdx < commandHistory.length)
+                        document.getElementById("command-text").value = commandHistory[commandHistoryIdx];
+                }
+            }
+        });
+    }
+
+    function onOpen(event) {
+        clearTimeout(connectTimeout);
+        terminalWrite("[WebSerial] Connected successfully.");
+        document.getElementById("command-button").disabled = false;
+        document.getElementById("command-text").disabled = false;
+    }
+
+    function onError(e) {
+        console.log("[WebSerial] Error!", e);
+        websocket.close();
+    }
+
+    function onClose(e) {
+        console.log("[WebSerial] Connection closed.", e);
+    }
+
+    function onMessage(event) {
+        if (event.data == 'pong') {
+            clearTimeout(pingTimeout);
+            pingTimeout = false;
+        } else {
+            terminalWrite(event.data);
+        }
+    }
+
+    function terminalWrite(raw) {
+        if (enableTimestamp) {
+            let now = new Date();
+            raw = "[" + now.toLocaleTimeString() + "] " + raw;
+        }
+        if (enableStripAnsiEscapeCodes && typeof raw == 'string') {
+            raw = raw.replace(ansiRegex(), '');
+        }
+        textArea.value += raw + "\n";
+
+        // When the terminal exceeds ~300,000 characters (approx. 5,000 lines of 60 chars),
+        // it is pruned to ~250,000 characters (approx. 4,000 lines) to prevent UI lag.
+        const maxChars = 300000;
+        const keepChars = 250000;
+
+        if (textArea.value.length > maxChars) {
+            const val = textArea.value;
+            const cutIndex = val.length - keepChars;
+
+            const nextLinePtr = val.indexOf('\n', cutIndex);
+            if (nextLinePtr !== -1) {
+                textArea.value = val.substring(nextLinePtr + 1);
+            } else {
+                textArea.value = val.substring(cutIndex);
+            }
+
+            console.debug("Terminal cleaned: Buffer size was: ", val.length);
+        }
+
+        if (!enableFlowLock) {
+            textArea.scrollTop = textArea.scrollHeight;
+        }
+    }
+
+    function terminalClean() {
+        textArea.value = "";
+        textArea.scrollTop = textArea.scrollHeight;
+    }
+
+    function sendCommand() {
+        let cmd = document.getElementById("command-text").value;
+        console.log('send command: ', cmd);
+        websocket.send(cmd);
+        commandHistory.push(cmd);
+        console.log('history size: ', commandHistory.length);
+        if (commandHistory.length > 20) {
+            console.log('history cleanup');
+            commandHistory.splice(0, commandHistory.length - 20);
+            console.log('history size: ', commandHistory.length);
+        }
+        commandHistoryIdx = commandHistory.length;
+        document.getElementById("command-text").value = "";
+        localStorage.history = JSON.stringify(commandHistory);
+    }
+
+    setInterval(() => {
+        if (!pingTimeout && websocket.readyState == WebSocket.OPEN) {
+            pingTimeout = setTimeout(() => {
+                terminalWrite("[WebSerial] Ping timeout.");
+                websocket.close();
+                initWebSocket();
+            }, 3000);
+            websocket.send("ping");
+        }
+    }, 2000);
+
+    window.addEventListener("DOMContentLoaded", function () {
+        initWebPage();
+    }, false);
+</script>
+
+<script>
+(function() {
+    // 1. Clean up UI (remove header and logo if they exist)
+    const t = document.getElementById('title'); if(t) t.remove();
+    const l = document.querySelector('.main > a'); if(l) l.remove();
+
+    // 2. Create dashboard container
+    const dash = document.createElement('div');
+    dash.style = "display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin:10px auto 20px;max-width:98%;font-family:sans-serif;";
+
+    const logo = document.createElement('div');
+    logo.style = "background:#0067f4;border-radius:8px;padding:12px;color:#fff;text-align:center;align-self:center;";
+    logo.innerHTML = "Open-DBus2<br>HUDA";
+    dash.appendChild(logo);
+
+    document.querySelector('.main').prepend(dash);
+
+    const origMessage = onMessage;
+    const origOpen = onOpen;
+
+    onOpen = function(event) {
+        origOpen(event);
+        sendCommand(':?');
+        // : is sent once :? output has been idle for 200ms
+    };
+
+    // schema["SECTION_name"] = { section, type, name, cmd, format, desc, valEl }
+    const schema = {};
+    // grps["SECTION"] = grid-div element; grps["_acts_SECTION"] = acts-div element
+    const grps = {};
+
+    // State for deferred : after :? completes
+    let helpIdleTimer = null;
+
+    // State for binary dump
+    let dumpBuffer = [], dumpTimer = null;
+
+    // State for memdump filename
+    let nodeNum = '', memBegin = '', memEnd = '';
+
+    // Triggers the browser download as a binary octet-stream
+    function triggerDownload() {
+        if (dumpBuffer.length === 0) return;
+
+        let filename = 'memdump';
+        if (nodeNum)  filename += '-' + nodeNum;
+        if (memBegin) filename += '-' + memBegin;
+        if (memEnd)   filename += '-' + memEnd;
+        filename += '.bin';
+
+        const blob = new Blob(dumpBuffer, { type: 'application/octet-stream' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        console.log("Download triggered: " + filename + " (" + dumpBuffer.reduce((s, c) => s + c.length, 0) + " bytes)");
+        dumpBuffer = [];
+    }
+
+    // Send a command via the existing WebSerial input
+    function sendCommand(cmd) {
+        const input = document.getElementById("command-text");
+        const btn   = document.getElementById("command-button");
+        if (input && btn) {
+            const old = input.value;
+            input.value = cmd;
+            btn.click();
+            input.value = old;
+        } else {
+            console.error("HUDA: command-text or command-button not found");
+        }
+    }
+
+    // Ensure a section box exists and return its grid div
+    function ensureGroup(section) {
+        if (grps[section]) return grps[section];
+        const box = document.createElement('div');
+        box.style = "background:#fff;border:1px solid #ddd;border-radius:8px;padding:10px;min-width:200px;flex:1;max-width:300px;display:flex;flex-direction:column;";
+        box.innerHTML = `<div style="border-bottom:2px solid #0067f4;margin-bottom:6px;font-weight:bold;font-size:0.8rem;">${section}</div>`
+                      + `<div id="grid-${section}" style="display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center;align-content:start;flex:1;"></div>`
+                      + `<div id="acts-${section}" style="display:none;flex-direction:column;gap:4px;margin-top:8px;padding-top:6px;border-top:1px solid #eee;"></div>`;
+        dash.appendChild(box);
+        grps[section]          = document.getElementById('grid-' + section);
+        grps['_acts_' + section] = document.getElementById('acts-' + section);
+        return grps[section];
+    }
+
+    // Make a value span interactively editable
+    function makeEditable(valEl, cmd, format) {
+            valEl.style.cursor = "pointer";
+            valEl.style.borderBottom = "1px dashed #0067f4";
+            valEl.style.display = "inline-block";
+            valEl.title = "Click to edit";
+        valEl.dataset.cmd = cmd;
+        valEl.dataset.format = format;
+
+        valEl.onclick = function() {
+            if (this.querySelector('input')) return;
+            const c = this.dataset.cmd, fmt = this.dataset.format;
+            const currentVal = this.innerText;
+
+            // bool: toggle 0/1 immediately
+            if (fmt === 'bool') {
+                const newVal = (currentVal === '1') ? '0' : '1';
+                sendCommand(':' + c + newVal);
+                this.innerText = newVal;
+                this.style.color = "#ff9800";
+                return;
+            }
+
+            // hex / dec / memaddr: inline text input
+            const input = document.createElement('input');
+            input.type = "text";
+            input.value = currentVal;
+            const inputWidth = fmt === 'memaddr' ? '110px' : fmt === 'hex' ? '80px' : '60px';
+            input.style = `width:${inputWidth};font-size:0.85rem;font-family:monospace;border:1px solid #ff9800;border-radius:3px;padding:1px 4px;outline:none;background:#fff;color:#000;text-align:right;`;
+            this.innerHTML = '';
+            this.appendChild(input);
+            input.focus(); input.select();
+
+            const finish = (save) => {
+                const newVal = input.value.trim();
+                this.innerHTML = '';
+                this.innerText = currentVal;
+                if (save && newVal !== '' && newVal !== currentVal) {
+                    sendCommand(':' + c + newVal);
+                    this.innerText = newVal;
+                    this.style.color = "#ff9800";
+                }
+            };
+            input.onblur = () => finish(false);
+            input.onkeydown = (ev) => {
+                if (ev.key === 'Enter')  finish(true);
+                if (ev.key === 'Escape') finish(false);
+            };
+        };
+    }
+
+    // Process a HELP line: build schema entry and DOM element
+    function processHelp(d) {
+        // Format: "C [HUDA] HELP <SECTION>  <TYPE>  <NAME>  <CMD>  <FORMAT>  <DESCRIPTION...>"
+        // Use a single regex to extract fixed columns; description may contain spaces
+        const m = d.match(/^C \[HUDA\] HELP (\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(.+?)\s*$/);
+        if (!m) return;
+        const [, section, type, name, cmd, format, desc] = m;
+
+        // Skip the header row itself
+        if (type === 'TYPE') return;
+
+        const key = section + '_' + name;
+
+        // Already built on a previous :? call — do not recreate
+        if (schema[key]) return;
+        const grid = ensureGroup(section);
+
+        if (type === 'VAR') {
+            const lbl = document.createElement('div');
+            lbl.innerText = name;
+            lbl.title = desc.trim();
+            lbl.style = "color:#667189;font-size:0.8rem;text-align:left;cursor:default;";
+
+            const valEl = document.createElement('span');
+            valEl.innerText = '-';
+            valEl.style = "font-weight:bold;color:#0067f4;font-size:0.85rem;font-family:monospace;justify-self:end;";
+
+            if (cmd !== '-') makeEditable(valEl, cmd, format);
+
+            grid.appendChild(lbl);
+            grid.appendChild(valEl);
+            schema[key] = { section, type, name, cmd, format, desc: desc.trim(), valEl };
+
+        } else if (type === 'ACT') {
+            const actsDiv = grps['_acts_' + section];
+            if (actsDiv.style.display === 'none') actsDiv.style.display = 'flex';
+
+            const btn = document.createElement('button');
+            btn.innerText = name;
+            btn.title = desc.trim();
+            btn.style = "width:100%;box-sizing:border-box;font-size:0.75rem;padding:4px 8px;border:1px solid #0067f4;border-radius:4px;background:#fff;color:#0067f4;cursor:pointer;";
+            btn.onmouseenter = () => { btn.style.background = "#0067f4"; btn.style.color = "#fff"; };
+            btn.onmouseleave = () => { btn.style.background = "#fff"; btn.style.color = "#0067f4"; };
+            btn.onclick = () => sendCommand(':' + cmd);
+
+            actsDiv.appendChild(btn);
+            schema[key] = { section, type, name, cmd, format, desc: desc.trim(), valEl: null };
+        }
+
+        // After 200ms of no new HELP lines, the schema is complete — fetch current values
+        clearTimeout(helpIdleTimer);
+        helpIdleTimer = setTimeout(() => { sendCommand(':'); }, 200);
+    }
+
+    // Process a banner line: update values in existing schema entries
+    function processBanner(section, kvStr) {
+        const kvRe = /([a-zA-Z0-9_]+)=(\S+)/g;
+        let m;
+        while ((m = kvRe.exec(kvStr)) !== null) {
+            const name = m[1], val = m[2];
+            const entry = schema[section + '_' + name];
+
+            // Track values needed for memdump filename
+            if (section === 'NODE'   && name === 'number') nodeNum  = val;
+            if (section === 'MEMORY' && name === 'begin')  memBegin = val;
+            if (section === 'MEMORY' && name === 'end')    memEnd   = val;
+
+            if (!entry || !entry.valEl) continue;
+            if (entry.valEl.querySelector('input')) continue; // do not clobber active edit
+
+            entry.valEl.innerText = val;
+            entry.valEl.style.color = "#ff9800";
+            setTimeout(() => { entry.valEl.style.color = "#0067f4"; }, 200);
+        }
+    }
+
+    // Override original WebSocket message handlers
+    onMessage = function(e) {
+        const d = e.data;
+        if (typeof d === 'string') {
+
+            // --- MEMDUMP: raw hex lines starting with an 8-digit offset ---
+            if (/^[0-9a-f]{8}: /.test(d.trimStart())) {
+                const colonIdx = d.indexOf(':');
+                const offset = parseInt(d.substring(0, colonIdx), 16);
+
+                // Hex pairs are between the colon and the double-space separator
+                const sep = d.indexOf('  ', colonIdx + 2);
+                const rawHex = d.substring(colonIdx + 2, sep !== -1 ? sep : undefined).replace(/\s/g, '');
+                const byteCount = rawHex.length / 2;
+
+                // Always keep MEMORY_pos in sync with dump progress
+                const posEntry = schema['MEMORY_pos'];
+                if (posEntry?.valEl) {
+                    posEntry.valEl.innerText = '0x' + (offset + byteCount).toString(16).padStart(8, '0');
+                }
+
+                if (schema['MEMORY_savefile']?.valEl?.innerText === '1') {
+                    if (dumpTimer) clearTimeout(dumpTimer);
+
+                    const bufSize = dumpBuffer.reduce((s, c) => s + c.length, 0);
+                    if (offset !== bufSize) {
+                        console.error("Dump error: expected offset " + bufSize + ", got " + offset);
+                        alert("Memory dump failed: offset mismatch. Data incomplete.");
+                        dumpBuffer = [];
+                        origMessage(e);
+                        return;
+                    }
+
+                    const bytes = new Uint8Array(byteCount);
+                    for (let i = 0; i < rawHex.length; i += 2)
+                        bytes[i / 2] = parseInt(rawHex.substring(i, i + 2), 16);
+
+                    dumpBuffer.push(bytes);
+
+                    dumpTimer = setTimeout(() => {
+                        console.log("3s timeout — finalizing dump");
+                        triggerDownload();
+                    }, 3000);
+                }
+
+                origMessage(e);
+                return;
+            }
+
+            // --- HELP lines: build schema and DOM ---
+            if (d.startsWith("C [HUDA] HELP ")) {
+                processHelp(d);
+                origMessage(e);
+                return;
+            }
+
+            // --- BANNER lines: value updates only ---
+            const bm = d.match(/^C \[HUDA\] ([A-Z]+) (.+?)\s*$/);
+            if (bm) {
+                processBanner(bm[1], bm[2]);
+            }
+        }
+        origMessage(e);
+    };
+})();
+</script>
+
+</html>
