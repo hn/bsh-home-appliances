@@ -479,7 +479,7 @@ text_sensor:
             case 0x12: return std::string("Vorspülen");
             case 0x14: return std::string("Leise 50°");
             case 0x15: return std::string("1h 65°");
-            case 0x21: return std::string("Maschinenreiniging");
+            case 0x21: return std::string("Maschinenreinigung");
             default: return std::string("Unbekannt");
           }
         on_value:
@@ -507,7 +507,7 @@ text_sensor:
             case 0x12: return std::string("Vorspülen");
             case 0x14: return std::string("Leise 50°");
             case 0x15: return std::string("1h 65°");
-            case 0x21: return std::string("Maschinenreiniging");
+            case 0x21: return std::string("Maschinenreinigung");
             default: return std::string("Bereit");
           }
         on_value:
