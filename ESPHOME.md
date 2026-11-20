@@ -94,6 +94,12 @@ The component checks every frame and passes only valid ones on, so a sensor neve
 from a damaged frame. Frames with the same `dest` and `command` always have the same length and
 format. The project documentation writes the example above as `14.10-05 00 ff 01`.
 
+> [!NOTE]
+> The D-Bus only works with exact timing information about the received bytes, which ESPHome does
+> not provide. This component makes the best of what it gets. In rare cases, after invalid bytes
+> on the bus, a frame is processed with a delay of up to 255 byte times (about 270 ms at
+> 9600 baud).
+
 ## Deciphering the frames of your appliance
 
 Most of the work is finding out which frame carries which value. These steps have proven useful:
@@ -578,7 +584,7 @@ and stay with the appliance, so you can switch it off if something goes wrong.
 | `SEND_RESULT_QUEUE_FULL` | Too many frames are waiting to be sent, see `max_queue_length`. |
 | `SEND_RESULT_BUS_BUSY` | The bus was not quiet long enough to send within 500 ms after the frame's turn came. |
 | `SEND_RESULT_COLLISION` | The frame could not be sent without disturbance, also after the retries. If the log says `no echo, check TX wiring`, the TX line is not connected. |
-| `SEND_RESULT_NO_ACK` | The receiver did not confirm the frame, also after `max_retries` retries. |
+| `SEND_RESULT_NO_ACK` | The receiver did not confirm the frame or rejected it, also after `max_retries` retries. |
 | `SEND_RESULT_REJECTED` | The frame is invalid: more than 249 data bytes, or a broadcast without `node_id`. |
 | `SEND_RESULT_NOT_ENABLED` | Sending is not possible: no `tx_pin`, or ESP32 without `rx_full_threshold: 1`. |
 
@@ -857,10 +863,10 @@ logger:
 | Level | Messages |
 |---|---|
 | `VERBOSE` | every valid frame, details of sending |
-| `DEBUG` | discarded data from damaged or incomplete frames, missing confirmations (ACKs), single collisions and retries |
+| `DEBUG` | skipped data from damaged or incomplete frames, missing confirmations (ACKs), negative replies, single collisions and retries |
 | `WARN` | a frame that finally failed to send (once per frame); `send()` calls that are rejected or not possible, with the reason |
 
-Some `DEBUG` messages about discarded data and missing ACKs are normal. Many of them
+Some `DEBUG` messages about skipped data and missing ACKs are normal. Many of them
 in a row point to a wiring or timing problem.
 
 ## Troubleshooting and FAQ
@@ -869,8 +875,8 @@ in a row point to a wiring or timing problem.
 Check the wiring and the level shifter, `rx_pin` and `baud_rate: 9600`. Set `bshdbus: VERBOSE` in
 the logger to see whether valid frames arrive. Many appliances only talk while they are switched on.
 
-**Many "Invalid CRC" or "Discarding" messages.**
-Some are normal, e.g. while the ESP is busy with Wi-Fi. If most frames are discarded, check the
+**Many "Skipped ... bytes of invalid data" messages.**
+Some are normal, e.g. when two nodes send at the same time. If most frames are skipped, check the
 adapter and the ground connection. A different `baud_rate` than 9600 shows up the same way.
 
 **A sensor never gets a value.**
@@ -898,8 +904,9 @@ especially while the appliance is busy. On ESP32, check `rx_full_threshold: 1`.
 
 **Sending fails with `SEND_RESULT_NO_ACK`.**
 No node with that address exists or is awake (some nodes only run while a program is active), or
-the `dest` is wrong. The ACK may also have been lost although the command was executed; do not
-blindly retry toggles.
+the `dest` is wrong. A node may also reject a frame, e.g. while it is busy; the log then shows
+"Received negative reply", and `max_retries` helps. The ACK may also have been lost although the
+command was executed; do not blindly retry toggles.
 
 **Sending fails with `SEND_RESULT_BUS_BUSY`.**
 The bus was never quiet for long enough. This happens during phases with heavy traffic; try again
