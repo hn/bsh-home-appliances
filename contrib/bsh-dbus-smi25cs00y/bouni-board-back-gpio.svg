@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="454" height="804" font-family="Arial" font-size="13">
+<rect width="100%" height="100%" fill="white"/>
+<text x="20" y="25" font-size="17" font-weight="bold">BSH-Board – צד אחורי (הפוך את הבורד)</text>
+<rect x="20" y="40" width="414" height="684" fill="#2e7d32" stroke="#000" rx="8"/>
+<rect x="110" y="58" width="252" height="324" fill="none" stroke="#ffeb3b" stroke-dasharray="6,4"/>
+<text x="164" y="94" fill="#ffeb3b">מאחורי מודול ה-ESP32</text>
+<rect x="164" y="598" width="144" height="72" fill="#eee" stroke="#000"/>
+<text x="182" y="644.8">J1 – מחבר למדיח</text>
+<circle cx="322.4" cy="353.2000000000001" r="9" fill="#c0a060" stroke="#cfd8dc" stroke-width="2"/>
+<text x="322.4" y="397.2000000000001" text-anchor="middle" fill="white" font-weight="normal">IO0</text>
+<circle cx="297.2000000000001" cy="353.2000000000001" r="9" fill="#c0a060" stroke="#cfd8dc" stroke-width="2"/>
+<text x="297.2000000000001" y="381.2000000000001" text-anchor="middle" fill="white" font-weight="normal">IO1</text>
+<circle cx="272.0" cy="353.2000000000001" r="9" fill="#c0a060" stroke="#cfd8dc" stroke-width="2"/>
+<text x="272.0" y="397.2000000000001" text-anchor="middle" fill="white" font-weight="normal">IO14</text>
+<circle cx="246.7999999999999" cy="353.2000000000001" r="9" fill="#c0a060" stroke="#ff5252" stroke-width="5"/>
+<text x="246.7999999999999" y="381.2000000000001" text-anchor="middle" fill="white" font-weight="normal">IO15 ✗</text>
+<circle cx="214.39999999999995" cy="353.2000000000001" r="9" fill="#c0a060" stroke="#ff5252" stroke-width="5"/>
+<text x="214.39999999999995" y="397.2000000000001" text-anchor="middle" fill="white" font-weight="normal">IO8 ✗</text>
+<circle cx="189.2000000000001" cy="353.2000000000001" r="9" fill="#c0a060" stroke="#00e676" stroke-width="5"/>
+<text x="189.2000000000001" y="381.2000000000001" text-anchor="middle" fill="white" font-weight="bold">IO18 ✓</text>
+<circle cx="151.39999999999995" cy="268.6" r="9" fill="#c0a060" stroke="#cfd8dc" stroke-width="2"/>
+<text x="165.39999999999995" y="273.6" text-anchor="start" fill="white" font-weight="normal">TXD0</text>
+<circle cx="151.39999999999995" cy="293.7999999999999" r="9" fill="#c0a060" stroke="#cfd8dc" stroke-width="2"/>
+<text x="165.39999999999995" y="298.7999999999999" text-anchor="start" fill="white" font-weight="normal">IO23</text>
+<circle cx="151.39999999999995" cy="319.0" r="9" fill="#c0a060" stroke="#cfd8dc" stroke-width="2"/>
+<text x="165.39999999999995" y="324.0" text-anchor="start" fill="white" font-weight="normal">IO21</text>
+<circle cx="151.39999999999995" cy="344.2000000000001" r="9" fill="#c0a060" stroke="#cfd8dc" stroke-width="2"/>
+<text x="165.39999999999995" y="349.2000000000001" text-anchor="start" fill="white" font-weight="normal">IO19</text>
+<circle cx="173.0" cy="283.0" r="9" fill="#c0a060" stroke="#cfd8dc" stroke-width="2"/>
+<text x="187.0" y="288.0" text-anchor="start" fill="white" font-weight="normal">RXD0</text>
+<circle cx="173.0" cy="308.2000000000001" r="9" fill="#c0a060" stroke="#cfd8dc" stroke-width="2"/>
+<text x="187.0" y="313.2000000000001" text-anchor="start" fill="white" font-weight="normal">IO22</text>
+<circle cx="173.0" cy="333.4" r="9" fill="#c0a060" stroke="#cfd8dc" stroke-width="2"/>
+<text x="187.0" y="338.4" text-anchor="start" fill="white" font-weight="normal">IO20</text>
+<circle cx="318.7999999999999" cy="263.2000000000001" r="9" fill="#c0a060" stroke="#00e676" stroke-width="5"/>
+<text x="304.7999999999999" y="268.2000000000001" text-anchor="end" fill="white" font-weight="bold">IO2 ✓</text>
+<circle cx="318.7999999999999" cy="288.4" r="9" fill="#c0a060" stroke="#cfd8dc" stroke-width="2"/>
+<text x="304.7999999999999" y="293.4" text-anchor="end" fill="white" font-weight="normal">IO3</text>
+<text x="20" y="754" font-size="14">✓ ירוק = מומלץ (IO18 או IO2). ✗ אדום = לא להשתמש (IO8, IO15). GND: החוט השחור של J1, או TP1 בצד הקדמי.</text>
+<text x="20" y="776" font-size="12" fill="#555">מיקום לפי BSH-Board.kicad_pcb של Bouni. לוודא בעין ובמולטימטר לפני הלחמה.</text></svg>
