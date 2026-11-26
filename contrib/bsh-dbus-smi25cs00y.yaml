@@ -1,0 +1,137 @@
+#
+# bsh-dbus-smi25cs00y.yaml -- Interface B/S/H/ dishwasher SMI25CS00Y/F1 (Serie 2)
+#
+# This file has been contributed by
+# (C) 2026 Nati Zekri
+# https://github.com/NatiZekri
+#
+# Hardware: Bouni BSH-Board v1.1 (ESP32-C6), https://github.com/Bouni/BSH-Board
+#           + external Panasonic AQY212EH PhotoMOS opto-relay across the panel Start button
+#
+# More info (findings, wiring, photos):
+# bsh-dbus-smi25cs00y.md (next to this file)
+#
+# (C) 2025 Hajo Noerenberg
+# https://www.noerenberg.de/
+# https://github.com/hn/bsh-home-appliances
+#
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 3.0 as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program. If not, see <http://www.gnu.org/licenses/gpl-3.0.txt>.
+#
+
+esphome:
+  name: bsh-dbus-smi25cs00y
+  friendly_name: BSH dishwasher SMI25CS00Y
+
+external_components:
+  - source: github://hn/bsh-home-appliances@esphome-dev
+    components: [bshdbus]
+
+esp32:
+  board: esp32-c6-devkitc-1
+  variant: esp32c6
+  framework:
+    type: esp-idf
+
+logger:
+
+api:
+  encryption:
+    key: !secret api_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+# Bouni BSH-Board: D-Bus transceiver on GPIO4 (RX) / GPIO5 (TX)
+uart:
+  id: dbus_uart
+  rx_pin: GPIO4
+  tx_pin: GPIO5
+  baud_rate: 9600
+
+bshdbus:
+  id: dbus
+  uart_id: dbus_uart
+  on_frame:
+    - lambda: |-
+        if (dest == 0x27 && command == 0x2007 && message.size() >= 1) {
+          const char *s = "unknown";
+          switch (message[0]) {
+            case 0x01: s = "running"; break;
+            case 0x02: s = "ready"; break;
+            case 0x03: s = "finished"; break;
+            case 0x06: s = "stopping"; break;
+          }
+          id(state_text).publish_state(s);
+        } else if (dest == 0x25 && command == 0x2008 && message.size() >= 5) {
+          int m = message[3] * 60 + message[4];
+          char buf[8];
+          snprintf(buf, sizeof(buf), "%d:%02d", m / 60, m % 60);
+          id(remaining_text).publish_state(buf);
+        }
+
+text_sensor:
+  - platform: template
+    name: "State"
+    id: state_text
+  - platform: template
+    name: "Remaining time"
+    id: remaining_text
+
+# ---- Remote Start ----
+# This model does not accept a start command over the D-Bus (the panel MCU reads Start
+# from its own key matrix). An AQY212EH opto-relay is soldered across the Start button:
+#   GPIO1 -> 470R -> AQY pin 1 (anode) ; AQY pin 2 (cathode) -> GND ; AQY pins 3/4 -> Start button pads
+# One press = 500 ms. A long hold (~6 s) would reset the program, so a hard 8 s failsafe releases it.
+output:
+  - platform: gpio
+    pin: GPIO1
+    id: start_opto_out
+
+switch:
+  - platform: output
+    name: "Start opto (raw)"
+    id: start_opto_hold
+    output: start_opto_out
+    restore_mode: ALWAYS_OFF
+    internal: true
+    on_turn_on:
+      - script.execute: opto_failsafe
+    on_turn_off:
+      - script.stop: opto_failsafe
+
+script:
+  - id: start_press
+    mode: single
+    then:
+      - switch.turn_on: start_opto_hold
+      - delay: 500ms
+      - switch.turn_off: start_opto_hold
+      - delay: 1s
+  - id: opto_failsafe
+    mode: restart
+    then:
+      - delay: 8s
+      - switch.turn_off: start_opto_hold
+
+button:
+  - platform: template
+    name: "Start dishwasher"
+    icon: mdi:play
+    on_press:
+      - script.execute: start_press
